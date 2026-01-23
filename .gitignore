@@ -1,0 +1,7 @@
+/.github
+/commands.bat
+/improvePInvoke.md
+/sources
+src/.vs
+**/bin
+**/obj

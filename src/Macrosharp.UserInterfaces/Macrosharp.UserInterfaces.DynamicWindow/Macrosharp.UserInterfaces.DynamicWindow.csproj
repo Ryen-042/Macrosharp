@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'"></PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'"></PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Abstractions\Macrosharp.Win32.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.Devices\Macrosharp.Devices.Keyboard\Macrosharp.Devices.Keyboard.csproj" />
+  </ItemGroup>
+</Project>
