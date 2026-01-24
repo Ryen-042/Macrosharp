@@ -2,10 +2,12 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <NoWarn>CA1416;</NoWarn>
-  </PropertyGroup>
+    <PlatformTarget>x64</PlatformTarget>
+</PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="ErrorOr" Version="2.1.0" />
     <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.183" />
+    <PackageVersion Include="System.Drawing.Common" Version="10.0.0-preview.5.25277.114" />
     <PackageVersion Include="System.Windows.Extensions" Version="10.0.0-preview.5.25277.114" />
   </ItemGroup>
 </Project>

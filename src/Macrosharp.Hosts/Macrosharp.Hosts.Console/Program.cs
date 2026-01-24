@@ -3,8 +3,12 @@
 // using Macrosharp.Win32.Abstractions.WindowTools;
 // using System.Runtime.InteropServices;
 // using Macrosharp.UserInterfaces.DynamicWindow;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.UserInterfaces.DynamicWindow;
+using Macrosharp.UserInterfaces.TrayIcon;
 using Windows.Win32; // For PInvoke access to generated constants and methods
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
@@ -152,9 +156,9 @@ public class Program
         #region WindowSample
         // WindowSample.Main();
 
-        var window = new SimpleWindow("Dynamic Input Window", 150, 250, 50, 20, 10, 50, 50);
-        window.CreateDynamicInputWindow(["Character", "Delay", "Another Input"], ["A", "0", "Another Placeholder"], true);
-        Console.WriteLine($"Pressed Keys: {(window.userInputs.Count > 0 ? window.userInputs[0] : "0")}\nCaptured VK: {window.capturedKeyVK}\nCaptured ScanCode: {window.capturedKeyScanCode}\nCaptured Key Name: {window.capturedKeyName}");
+        // var window = new SimpleWindow("Dynamic Input Window", 150, 250, 50, 20, 10, 50, 50);
+        // window.CreateDynamicInputWindow(["Character", "Delay", "Another Input"], ["A", "0", "Another Placeholder"], true);
+        // Console.WriteLine($"Pressed Keys: {(window.userInputs.Count > 0 ? window.userInputs[0] : "0")}\nCaptured VK: {window.capturedKeyVK}\nCaptured ScanCode: {window.capturedKeyScanCode}\nCaptured Key Name: {window.capturedKeyName}");
         #endregion
 
         #region KeyMapper
@@ -189,6 +193,23 @@ public class Program
         #region Mouse & Keyboard Simulators
         // StartMouseSimulator();
         // StartKeyboardSimulator();
+        #endregion
+
+        #region ImageEditorWindow
+        // Launch the lightweight image editor window
+        // Usage: press W/L/C/Space to switch tools, Ctrl+Z/Y to undo/redo, F1 to toggle status bar.
+        // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.Run("Macrosharp Image Editor");
+
+        // Example: open an image file via Ctrl+O dialog, or paste from clipboard via Ctrl+V.
+        // If you want to load a known file path programmatically, call the editor API directly:
+        // var window = new UserInterfaces.ImageEditorWindow.ImageEditorWindow("Macrosharp Image Editor");
+        // window.Run(); // inside the editor: Ctrl+O / Ctrl+V
+
+        // Direct launch with a file
+        // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithFile("C:\\Images\\sample.png");
+
+        // Direct launch from clipboard
+        Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard();
         #endregion
     }
 
@@ -488,11 +509,66 @@ public class Program
     private static void StartKeyboardSimulator()
     {
         Console.WriteLine("Starting Keyboard Hook and Hotkey Manager for Keyboard Simulator examples...");
-        Console.WriteLine("Press F1 to simulate a single 'A' key press.");
-        Console.WriteLine("Press F2 to simulate 'Hello World!' sequence with delays.");
-        Console.WriteLine("Press F3 to find 'Notepad' and send 'Hello Notepad!' (using default PostMessage).");
-        Console.WriteLine("Press F4 to start the interactive Burst Click Simulator.");
+        Console.WriteLine("Press '1' to simulate a single 'A' key press.");
+        Console.WriteLine("Press '2' to simulate 'Hello World!' sequence with delays.");
+        Console.WriteLine("Press '3' to find 'Notepad' and send 'Hello Notepad!' (using default PostMessage).");
+        Console.WriteLine("Press '4' to start the interactive Burst Click Simulator.");
         Console.WriteLine("Press Escape to exit.");
+
+        var iconPaths = GetTrayIconPaths();
+        var iconEnumerator = iconPaths.Count > 0 ? GetIconEnumerator(iconPaths) : null;
+        string? GetNextIcon() => iconEnumerator is null ? null : MoveNext(iconEnumerator);
+
+        bool isSilentMode = false;
+        TrayIconHost? trayHost = null;
+
+        void OpenScriptFolder()
+        {
+            string folder = AppContext.BaseDirectory;
+            Process.Start(new ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
+        }
+
+        void ShowNotification()
+        {
+            Console.WriteLine("Tray action: show notification requested (placeholder).");
+        }
+
+        void SwitchIcon()
+        {
+            string? nextIcon = GetNextIcon();
+            if (!string.IsNullOrWhiteSpace(nextIcon))
+            {
+                trayHost?.UpdateIcon(nextIcon);
+            }
+        }
+
+        void ReloadHotkeys() => Console.WriteLine("Tray action: reload hotkeys.");
+        void ReloadConfigs() => Console.WriteLine("Tray action: reload configs.");
+
+        void ClearConsoleLogs()
+        {
+            Console.Clear();
+            Console.WriteLine("Console cleared by tray action.");
+        }
+
+        void ToggleSilentMode()
+        {
+            isSilentMode = !isSilentMode;
+            Console.WriteLine($"Silent mode toggled: {(isSilentMode ? "On" : "Off")}");
+        }
+
+        var trayMenu = new List<TrayMenuItem>
+        {
+            TrayMenuItem.ActionItem("Open Script Folder", OpenScriptFolder, iconPath: GetNextIcon()),
+            TrayMenuItem.ActionItem("Show Notification", ShowNotification, iconPath: GetNextIcon()),
+            TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: GetNextIcon()),
+            TrayMenuItem.Submenu("Reload", new List<TrayMenuItem> { TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: GetNextIcon()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: GetNextIcon()) }, iconPath: GetNextIcon()),
+            TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: GetNextIcon()),
+            TrayMenuItem.ActionItem("Toggle Silent Mode", ToggleSilentMode, iconPath: GetNextIcon()),
+        };
+
+        trayHost = new TrayIconHost("Macropy", GetNextIcon(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0);
+        trayHost.Start();
 
         // Use 'using' statements to ensure proper disposal of hook managers.
         using (var keyboardHookManager = new KeyboardHookManager())
@@ -594,6 +670,11 @@ public class Program
                 () =>
                 {
                     Console.WriteLine("\nEscape pressed. Exiting application.");
+
+                    // Ensure tray icon is disposed
+                    trayHost?.Dispose();
+
+                    // This will post a WM_QUIT message to the current thread's message queue,
                     PInvoke.PostQuitMessage(0);
                 }
             );
@@ -606,6 +687,40 @@ public class Program
                 PInvoke.DispatchMessage(msg);
             }
         }
+    }
+
+    private static List<string> GetTrayIconPaths()
+    {
+        string baseDir = AppContext.BaseDirectory;
+        string iconsPath = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "assets", "Icons"));
+
+        if (!Directory.Exists(iconsPath))
+        {
+            return new List<string>();
+        }
+
+        return Directory.GetFiles(iconsPath, "*.ico", SearchOption.AllDirectories).ToList();
+    }
+
+    private static IEnumerator<string> GetIconEnumerator(IReadOnlyList<string> icons)
+    {
+        int index = 0;
+        while (true)
+        {
+            yield return icons[index];
+            index = (index + 1) % icons.Count;
+        }
+    }
+
+    private static string MoveNext(IEnumerator<string> enumerator)
+    {
+        if (!enumerator.MoveNext())
+        {
+            enumerator.Reset();
+            enumerator.MoveNext();
+        }
+
+        return enumerator.Current;
     }
 }
 
