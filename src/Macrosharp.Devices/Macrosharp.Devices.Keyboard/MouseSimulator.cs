@@ -9,20 +9,23 @@ using Windows.Win32.UI.WindowsAndMessaging; // For WM_* constants (PostMessage)
 
 namespace Macrosharp.Devices.Keyboard; // Assuming the same namespace for easy integration
 
-
 /// <summary>Defines the various mouse buttons that can be simulated.</summary>
 public enum MouseButton
 {
     /// <summary>Represents the left mouse button.</summary>
     LeftButton = 1,
+
     /// <summary>Represents the right mouse button.</summary>
     RightButton = 2,
+
     /// <summary>Represents the middle mouse button (wheel click).</summary>
     MiddleButton = 3,
+
     /// <summary>Represents the first X button (XBUTTON1).</summary>
     XButton1 = 4,
+
     /// <summary>Represents the second X button (XBUTTON2).</summary>
-    XButton2 = 5
+    XButton2 = 5,
 }
 
 /// <summary>Defines the types of mouse click operations.</summary>
@@ -30,10 +33,12 @@ public enum MouseEventOperation
 {
     /// <summary>Sends both mouse button down and up events (a complete click).</summary>
     Click = 1,
+
     /// <summary>Sends only a mouse button down event.</summary>
     MouseDown = 2,
+
     /// <summary>Sends only a mouse button up event.</summary>
-    MouseUp = 3
+    MouseUp = 3,
 }
 
 /// <summary>Defines constants for mouse button states, indicating which buttons are pressed.</summary>
@@ -41,20 +46,25 @@ enum MK
 {
     /// <summary>The left mouse button is down.</summary>
     LBUTTON = 0x1,
+
     /// <summary>The right mouse button is down.</summary>
     RBUTTON = 0x2,
+
     /// <summary>The shift key is down.</summary>
     SHIFT = 0x4,
+
     /// <summary>The control key is down.</summary>
     CONTROL = 0x8,
+
     /// <summary>The middle mouse button is down.</summary>
     MBUTTON = 0x10,
+
     /// <summary>The XBUTTON1 is down.</summary>
     XBUTTON1 = 0x20,
-    /// <summary>The XBUTTON2 is down.</summary>
-    XBUTTON2 = 0x40
-}
 
+    /// <summary>The XBUTTON2 is down.</summary>
+    XBUTTON2 = 0x40,
+}
 
 /// <summary>Provides methods for simulating mouse input, including clicks, movement, and scrolling.</summary>
 public static class MouseSimulator
@@ -191,10 +201,7 @@ public static class MouseSimulator
             throw new ArgumentOutOfRangeException(nameof(direction), "Invalid scroll direction. Use 0 for horizontal or 1 for vertical.");
         }
 
-        var inputs = new List<INPUT>
-        {
-            CreateMouseInput(dwFlags, 0, 0, unchecked((uint)dwData))
-        };
+        var inputs = new List<INPUT> { CreateMouseInput(dwFlags, 0, 0, unchecked((uint)dwData)) };
 
         SendInput(inputs);
     }
@@ -207,11 +214,7 @@ public static class MouseSimulator
         int normalizedX = NormalizeAbsoluteCoordinate(x, screenWidth);
         int normalizedY = NormalizeAbsoluteCoordinate(y, screenHeight);
 
-        inputs.Add(CreateMouseInput(
-            MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE,
-            normalizedX,
-            normalizedY,
-            0));
+        inputs.Add(CreateMouseInput(MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE, normalizedX, normalizedY, 0));
     }
 
     private static int NormalizeAbsoluteCoordinate(int coordinate, int max)
@@ -236,9 +239,9 @@ public static class MouseSimulator
                     mouseData = mouseData,
                     dwFlags = flags,
                     time = 0,
-                    dwExtraInfo = 0
-                }
-            }
+                    dwExtraInfo = 0,
+                },
+            },
         };
     }
 

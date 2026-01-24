@@ -3,12 +3,11 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using Macrosharp.Devices.Keyboard;
 
-
 namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 
 public class HotkeyDefinition
 {
-     // The main key, e.g., "Z", "F1", "Escape".
+    // The main key, e.g., "Z", "F1", "Escape".
     public string Key { get; set; } = string.Empty;
 
     // List of modifier keys, e.g., ["Ctrl", "Alt"].

@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.DynamicWindow\Macrosharp.UserInterfaces.DynamicWindow.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.ImageEditorWindow\Macrosharp.UserInterfaces.ImageEditorWindow.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.TrayIcon\Macrosharp.UserInterfaces.TrayIcon.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Abstractions\Macrosharp.Win32.Abstractions.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Devices\Macrosharp.Devices.Keyboard\Macrosharp.Devices.Keyboard.csproj" />
