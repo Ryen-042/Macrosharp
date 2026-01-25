@@ -6,17 +6,40 @@ using Windows.Win32.UI.Input.KeyboardAndMouse;
 
 namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 
+/// <summary>
+/// The core image editor component that manages image rendering, view transformations, zooming, panning, and tool coordination.
+/// This class is responsible for:
+/// - Managing the viewport and view transformations (zoom and pan)
+/// - Coordinating tool interactions (Draw, Pan, Crop, ColorPicker)
+/// - Rendering the image with proper scaling and positioning
+/// - Handling user input (mouse, keyboard, mouse wheel)
+/// - Managing image state with undo/redo support
+/// - Controlling the active tool and switching between tools
+/// </summary>
 public sealed class ImageEditor
 {
+    private const double ZoomMin = 0.1;
+    private const double ZoomMax = 32.0;
+    private const double ZoomEpsilon = 0.001;
+    private const double ZoomStepIn = 1.1;
+    private const double ZoomStepOut = 0.9;
+
+    // State management
     private readonly ImageEditorState _state;
     private readonly Dictionary<ToolKind, IEditorTool> _tools;
     private IEditorTool _activeTool;
     private ToolKind _activeToolKind;
+
+    // Viewport dimensions
     private int _viewportWidth;
     private int _viewportHeight;
+
+    // View transformation (zoom and pan)
     private double _zoom = 1.0;
     private int _panX;
     private int _panY;
+
+    // UI state
     private bool _showStatusBar;
     private IntPoint _lastImagePoint;
     private IntPoint _lastScreenPoint;
@@ -25,11 +48,17 @@ public sealed class ImageEditor
 
     public event Action<int, int>? WindowResizeRequested;
 
+    /// <summary>
+    /// Sets the owner window handle for file dialog operations.
+    /// </summary>
     public void SetOwner(HWND hwnd)
     {
         _ownerHwnd = hwnd;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the ImageEditor with default tools and blank canvas.
+    /// </summary>
     public ImageEditor()
     {
         _state = new ImageEditorState(640, 480);
@@ -48,26 +77,40 @@ public sealed class ImageEditor
     {
         _viewportWidth = Math.Max(1, width);
         _viewportHeight = Math.Max(1, height);
+        if (!_state.HasLoadedImage)
+        {
+            _state.ResizeBlankToViewport(_viewportWidth, _viewportHeight);
+            ResetPanZoom(autoFit: false, zoom: 1.0);
+        }
         if (_autoFit)
         {
             UpdateFitZoom();
         }
     }
 
+    /// <summary>
+    /// Handles mouse down events. Delegates to the active tool.
+    /// </summary>
     public void HandleMouseDown(IntPoint point, MouseButton button, ModifierState modifiers)
     {
         var input = BuildInput(point, modifiers, button);
         _activeTool.OnMouseDown(this, input);
     }
 
+    /// <summary>
+    /// Handles mouse move events. Tracks cursor position and delegates to the active tool.
+    /// </summary>
     public void HandleMouseMove(IntPoint point, ModifierState modifiers)
     {
-        _lastScreenPoint = point;
-        _lastImagePoint = Transform.ScreenToImage(point);
         var input = BuildInput(point, modifiers, MouseButton.None);
+        _lastScreenPoint = input.ScreenPoint;
+        _lastImagePoint = input.ImagePoint;
         _activeTool.OnMouseMove(this, input);
     }
 
+    /// <summary>
+    /// Handles mouse up events. Delegates to the active tool and commits drawing operations.
+    /// </summary>
     public void HandleMouseUp(IntPoint point, MouseButton button, ModifierState modifiers)
     {
         var input = BuildInput(point, modifiers, button);
@@ -78,12 +121,37 @@ public sealed class ImageEditor
         }
     }
 
+    /// <summary>
+    /// Handles mouse wheel events for zooming.
+    /// </summary>
     public void HandleMouseWheel(IntPoint point, int delta, ModifierState modifiers)
     {
         var input = BuildInput(point, modifiers, MouseButton.None, delta);
         _activeTool.OnMouseWheel(this, input);
     }
 
+    /// <summary>
+    /// Handles keyboard input for tool switching, image operations, and view manipulation.
+    /// Keyboard shortcuts:
+    /// - F1: Toggle status bar visibility
+    /// - Ctrl+O: Open image from file
+    /// - Ctrl+V: Open image from clipboard
+    /// - V: Flip image vertically
+    /// - W: Switch to Draw tool
+    /// - L: Switch to Crop tool
+    /// - C: Switch to ColorPicker tool
+    /// - Space: Switch to Pan tool
+    /// - Escape: Cancel current tool operation
+    /// - Ctrl+Z: Undo
+    /// - Ctrl+Y: Redo
+    /// - Ctrl+R: Reset to original image
+    /// - R: Rotate 90° clockwise
+    /// - T: Apply grayscale filter
+    /// - I: Apply invert filter
+    /// - H: Flip horizontally
+    /// - Ctrl+0: Reset view
+    /// - +/-: Adjust brush size (in DrawTool)
+    /// </summary>
     public void HandleKeyDown(VIRTUAL_KEY key, ModifierState modifiers)
     {
         switch (key)
@@ -163,6 +231,9 @@ public sealed class ImageEditor
         _activeTool.OnKeyDown(this, key, modifiers);
     }
 
+    /// <summary>
+    /// Renders the complete editor including background, image, overlay, and status bar.
+    /// </summary>
     public void Render(HDC hdc, int width, int height)
     {
         SetViewport(width, height);
@@ -176,6 +247,10 @@ public sealed class ImageEditor
 
     public ImageEditorState State => _state;
 
+    /// <summary>
+    /// Gets the current view transform which combines zoom, pan, and viewport origin.
+    /// Used to convert between screen and image coordinates.
+    /// </summary>
     public ViewTransform Transform
     {
         get
@@ -184,11 +259,17 @@ public sealed class ImageEditor
             int destWidth = (int)Math.Round(image.Width * _zoom);
             int destHeight = (int)Math.Round(image.Height * _zoom);
             int originX = (_viewportWidth - destWidth) / 2;
-            int originY = (_viewportHeight - destHeight) / 2;
+            int originY = _state.HasLoadedImage ? 0 : (_viewportHeight - destHeight) / 2;
             return new ViewTransform(_zoom, _panX, _panY, originX, originY, _viewportWidth, _viewportHeight);
         }
     }
 
+    /// <summary>
+    /// Zooms at a specific screen point (anchor), keeping that point fixed on the image.
+    /// This ensures zoom centers around the mouse cursor position.
+    /// </summary>
+    /// <param name="anchor">The screen point to zoom around</param>
+    /// <param name="factor">The zoom factor (e.g., 1.1 to zoom in, 0.9 to zoom out)</param>
     public void ZoomAt(IntPoint anchor, double factor)
     {
         if (_viewportWidth <= 0 || _viewportHeight <= 0)
@@ -196,37 +277,90 @@ public sealed class ImageEditor
             return;
         }
 
-        double newZoom = Math.Clamp(_zoom * factor, 0.1, 32.0);
-        if (Math.Abs(newZoom - _zoom) < 0.001)
+        double newZoom = Math.Clamp(_zoom * factor, ZoomMin, ZoomMax);
+        if (Math.Abs(newZoom - _zoom) < ZoomEpsilon)
         {
             return;
         }
 
         _autoFit = false;
 
-        double scale = newZoom / _zoom;
-        _panX = (int)(anchor.X - scale * (anchor.X - _panX));
-        _panY = (int)(anchor.Y - scale * (anchor.Y - _panY));
+        // Get current transform to find anchor in image space
+        var currentTransform = Transform;
+        var imagePoint = currentTransform.ScreenToImage(anchor);
+
+        // Apply the new zoom
+        double oldZoom = _zoom;
         _zoom = newZoom;
 
+        // Calculate new origin (which changes with zoom)
         var image = _state.GetMatrix();
-        WindowResizeRequested?.Invoke((int)Math.Round(image.Width * _zoom), (int)Math.Round(image.Height * _zoom));
+        int newDestWidth = (int)Math.Round(image.Width * _zoom);
+        int newDestHeight = (int)Math.Round(image.Height * _zoom);
+        int newOriginX = (_viewportWidth - newDestWidth) / 2;
+        int newOriginY = _state.HasLoadedImage ? 0 : (_viewportHeight - newDestHeight) / 2;
+
+        // Adjust pan so anchor screen point maps to same image point after zoom
+        // anchor.X = newOriginX + newPanX + imagePoint.X * newZoom
+        // newPanX = anchor.X - newOriginX - imagePoint.X * newZoom
+        _panX = (int)Math.Round(anchor.X - newOriginX - imagePoint.X * _zoom);
+        _panY = (int)Math.Round(anchor.Y - newOriginY - imagePoint.Y * _zoom);
     }
 
+    /// <summary>
+    /// Zooms at the cursor position based on mouse wheel delta.
+    /// Positive delta zooms in, negative zooms out.
+    /// </summary>
+    public void ZoomAtWheel(IntPoint anchor, int wheelDelta)
+    {
+        if (wheelDelta == 0)
+        {
+            return;
+        }
+
+        ZoomAt(anchor, GetWheelZoomFactor(wheelDelta));
+    }
+
+    /// <summary>
+    /// Zooms at the viewport center point. Used for Ctrl+wheel operations.
+    /// </summary>
+    /// <param name="wheelDelta">The mouse wheel delta value</param>
+    public void ZoomAtViewportCenter(int wheelDelta)
+    {
+        if (wheelDelta == 0)
+        {
+            return;
+        }
+
+        var center = new IntPoint(_viewportWidth / 2, _viewportHeight / 2);
+        ZoomAt(center, GetWheelZoomFactor(wheelDelta));
+    }
+
+    public double GetWheelZoomFactor(int wheelDelta)
+    {
+        return wheelDelta > 0 ? ZoomStepIn : ZoomStepOut;
+    }
+
+    /// <summary>
+    /// Pans the view by the specified delta in screen coordinates.
+    /// </summary>
     public void PanBy(int dx, int dy)
     {
         _panX += dx;
         _panY += dy;
     }
 
+    /// <summary>
+    /// Resets the view to either fit the image in viewport or return to normal state.
+    /// </summary>
     public void ResetView()
     {
-        _autoFit = true;
-        _panX = 0;
-        _panY = 0;
-        UpdateFitZoom();
+        ResetPanZoom(autoFit: true, zoom: _zoom);
     }
 
+    /// <summary>
+    /// Switches to a different tool. Cancels the current tool's operation.
+    /// </summary>
     public void SetTool(ToolKind tool)
     {
         if (_activeToolKind == tool)
@@ -239,12 +373,31 @@ public sealed class ImageEditor
         _activeTool = _tools[tool];
     }
 
+    /// <summary>
+    /// Gets the DrawTool instance for setting brush properties.
+    /// </summary>
+    public DrawTool GetDrawTool() => (DrawTool)_tools[ToolKind.Draw];
+
+    /// <summary>
+    /// Sets the brush color for the draw tool.
+    /// </summary>
+    public void SetBrushColor(int argb)
+    {
+        GetDrawTool().SetBrushColor(argb);
+    }
+
+    /// <summary>
+    /// Applies a crop to the image and resets the view.
+    /// </summary>
     public void ApplyCrop(IntRect rect)
     {
         _state.ApplyCrop(rect);
         ResetView();
     }
 
+    /// <summary>
+    /// Attempts to load an image from the clipboard.
+    /// </summary>
     public bool TryOpenFromClipboard()
     {
         if (ImageEditorIO.TryLoadFromClipboard(out var buffer) && buffer != null)
@@ -256,6 +409,9 @@ public sealed class ImageEditor
         return false;
     }
 
+    /// <summary>
+    /// Opens a file dialog and attempts to load the selected image.
+    /// </summary>
     public bool TryOpenFromFileDialog()
     {
         if (_ownerHwnd == HWND.Null)
@@ -271,6 +427,9 @@ public sealed class ImageEditor
         return false;
     }
 
+    /// <summary>
+    /// Attempts to load an image from the specified file path.
+    /// </summary>
     public bool TryOpenFromFile(string path)
     {
         if (ImageEditorIO.TryLoadFromFile(path, out var buffer) && buffer != null)
@@ -285,10 +444,7 @@ public sealed class ImageEditor
     private void ApplyLoadedImage(ImageBuffer buffer)
     {
         _state.ReplaceRaster(buffer);
-        _autoFit = false;
-        _zoom = 1.0;
-        _panX = 0;
-        _panY = 0;
+        ResetPanZoom(autoFit: false, zoom: 1.0);
 
         if (buffer.Width > _viewportWidth || buffer.Height > _viewportHeight)
         {
@@ -296,6 +452,9 @@ public sealed class ImageEditor
         }
     }
 
+    /// <summary>
+    /// Applies a grayscale filter using standard luminosity weights.
+    /// </summary>
     private void ApplyGrayscale()
     {
         _state.ApplyRasterEdit(buffer =>
@@ -307,12 +466,16 @@ public sealed class ImageEditor
                 int r = (argb >> 16) & 0xFF;
                 int g = (argb >> 8) & 0xFF;
                 int b = argb & 0xFF;
+                // Calculate gray value using luminosity formula (HDTV standard)
                 int gray = (r * 77 + g * 150 + b * 29) >> 8;
                 buffer.Pixels[i] = (a << 24) | (gray << 16) | (gray << 8) | gray;
             }
         });
     }
 
+    /// <summary>
+    /// Inverts the RGB values of all pixels while preserving alpha.
+    /// </summary>
     private void ApplyInvert()
     {
         _state.ApplyRasterEdit(buffer =>
@@ -329,6 +492,9 @@ public sealed class ImageEditor
         });
     }
 
+    /// <summary>
+    /// Flips the image horizontally (mirror effect).
+    /// </summary>
     private void ApplyFlipHorizontal()
     {
         _state.ApplyRasterEdit(buffer =>
@@ -352,6 +518,9 @@ public sealed class ImageEditor
         });
     }
 
+    /// <summary>
+    /// Flips the image vertically (upside down).
+    /// </summary>
     private void ApplyFlipVertical()
     {
         _state.ApplyRasterEdit(buffer =>
@@ -393,6 +562,10 @@ public sealed class ImageEditor
         ResetView();
     }
 
+    /// <summary>
+    /// Builds an EditorInput object from raw input parameters and current state.
+    /// Converts screen coordinates to image coordinates.
+    /// </summary>
     private EditorInput BuildInput(IntPoint point, ModifierState modifiers, MouseButton button, int wheelDelta = 0)
     {
         var transform = Transform;
@@ -400,6 +573,12 @@ public sealed class ImageEditor
         return new EditorInput(point, imagePoint, modifiers, button, wheelDelta);
     }
 
+    /// <summary>
+    /// Renders the complete editor including background, image, overlay, and status bar.
+    /// </summary>
+    /// <summary>
+    /// Draws the dark background fill color.
+    /// </summary>
     private void DrawBackground(HDC hdc, int width, int height)
     {
         var rect = new RECT
@@ -414,6 +593,9 @@ public sealed class ImageEditor
         PInvoke.FillRect(hdc, rect, safeBrush);
     }
 
+    /// <summary>
+    /// Draws the image with current zoom and pan transformations using StretchDIBits.
+    /// </summary>
     private unsafe void DrawImage(HDC hdc)
     {
         var image = _state.GetMatrix();
@@ -428,20 +610,49 @@ public sealed class ImageEditor
         int destX = transform.OriginX + transform.PanX;
         int destY = transform.OriginY + transform.PanY;
 
+        // Create DIB header for pixel data
         BITMAPINFO bmi = new();
         bmi.bmiHeader.biSize = (uint)sizeof(BITMAPINFOHEADER);
         bmi.bmiHeader.biWidth = image.Width;
-        bmi.bmiHeader.biHeight = -image.Height;
+        bmi.bmiHeader.biHeight = -image.Height; // Negative for top-down orientation
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = (uint)BI_COMPRESSION.BI_RGB;
 
+        // Stretch the image buffer to the destination size with scaling
         fixed (int* pixels = image.Pixels)
         {
             PInvoke.StretchDIBits(hdc, destX, destY, destWidth, destHeight, 0, 0, image.Width, image.Height, pixels, &bmi, DIB_USAGE.DIB_RGB_COLORS, ROP_CODE.SRCCOPY);
         }
+
+        DrawCanvasBorder(hdc, destX, destY, destWidth, destHeight);
     }
 
+    /// <summary>
+    /// Draws a border around the canvas to show its boundaries.
+    /// </summary>
+    private void DrawCanvasBorder(HDC hdc, int x, int y, int width, int height)
+    {
+        if (width <= 1 || height <= 1)
+        {
+            return;
+        }
+
+        var rect = new RECT
+        {
+            left = x,
+            top = y,
+            right = x + width,
+            bottom = y + height,
+        };
+        HBRUSH brush = PInvoke.CreateSolidBrush(new COLORREF(0x00555555));
+        using var safeBrush = new SafeBrushHandle(brush);
+        PInvoke.FrameRect(hdc, rect, safeBrush);
+    }
+
+    /// <summary>
+    /// Updates the zoom level to fit the entire image within the viewport.
+    /// </summary>
     private void UpdateFitZoom()
     {
         var image = _state.GetMatrix();
@@ -453,9 +664,28 @@ public sealed class ImageEditor
 
         double fitX = _viewportWidth / (double)image.Width;
         double fitY = _viewportHeight / (double)image.Height;
-        _zoom = Math.Clamp(Math.Min(fitX, fitY), 0.1, 32.0);
+        _zoom = Math.Clamp(Math.Min(fitX, fitY), ZoomMin, ZoomMax);
     }
 
+    /// <summary>
+    /// Resets pan and zoom state to initial values or fit-to-viewport.
+    /// </summary>
+    private void ResetPanZoom(bool autoFit, double zoom)
+    {
+        _autoFit = autoFit;
+        _panX = 0;
+        _panY = 0;
+        _zoom = zoom;
+
+        if (_autoFit)
+        {
+            UpdateFitZoom();
+        }
+    }
+
+    /// <summary>
+    /// Draws the overlay text showing the current active tool.
+    /// </summary>
     private void DrawOverlay(HDC hdc)
     {
         string text = $"{_activeToolKind.ToString().ToUpperInvariant()}";
@@ -471,6 +701,9 @@ public sealed class ImageEditor
         GdiText.DrawText(hdc, text, ref rect, DRAW_TEXT_FORMAT.DT_LEFT | DRAW_TEXT_FORMAT.DT_SINGLELINE | DRAW_TEXT_FORMAT.DT_VCENTER);
     }
 
+    /// <summary>
+    /// Draws the optional status bar showing image dimensions, cursor position, zoom level, and active tool.
+    /// </summary>
     private void DrawStatusBar(HDC hdc)
     {
         if (!_showStatusBar)

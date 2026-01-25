@@ -5,17 +5,31 @@ using Windows.Win32.UI.Input.KeyboardAndMouse;
 
 namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 
+/// <summary>
+/// The pan/scroll tool allowing users to move the view around a zoomed image.
+///
+/// Features:
+/// - Left mouse drag: Pan the view
+/// - Plain wheel: Zoom at cursor position
+/// - Ctrl+wheel: Zoom at viewport center
+/// </summary>
 public sealed class PanTool : IEditorTool
 {
     private bool _isPanning;
     private IntPoint _lastPoint;
 
+    /// <summary>
+    /// Starts a pan operation at the current position.
+    /// </summary>
     public void OnMouseDown(ImageEditor editor, EditorInput input)
     {
         _isPanning = true;
         _lastPoint = input.ScreenPoint;
     }
 
+    /// <summary>
+    /// Continues panning by calculating the delta from the last position.
+    /// </summary>
     public void OnMouseMove(ImageEditor editor, EditorInput input)
     {
         if (!_isPanning)
@@ -34,10 +48,21 @@ public sealed class PanTool : IEditorTool
         _isPanning = false;
     }
 
+    /// <summary>
+    /// Handles mouse wheel zoom with modifier support:
+    /// - Ctrl+wheel: Zoom at viewport center
+    /// - Plain wheel: Zoom at cursor position
+    /// </summary>
     public void OnMouseWheel(ImageEditor editor, EditorInput input)
     {
-        double factor = input.WheelDelta > 0 ? 1.1 : 0.9;
-        editor.ZoomAt(input.ScreenPoint, factor);
+        if (input.Modifiers.HasFlag(ModifierState.Control))
+        {
+            editor.ZoomAtViewportCenter(input.WheelDelta);
+        }
+        else
+        {
+            editor.ZoomAtWheel(input.ScreenPoint, input.WheelDelta);
+        }
     }
 
     public void OnKeyDown(ImageEditor editor, VIRTUAL_KEY key, ModifierState modifiers) { }

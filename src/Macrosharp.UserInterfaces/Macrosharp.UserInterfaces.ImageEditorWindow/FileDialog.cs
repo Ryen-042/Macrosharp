@@ -3,13 +3,24 @@ using Windows.Win32.Foundation;
 
 namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 
+/// <summary>
+/// Wrapper around the Windows GetOpenFileName dialog for selecting image files.
+/// Uses P/Invoke to call the Windows file dialog native functions.
+/// </summary>
 internal static class FileDialog
 {
-    private const int OFN_FILEMUSTEXIST = 0x00001000;
-    private const int OFN_PATHMUSTEXIST = 0x00000800;
-    private const int OFN_EXPLORER = 0x00080000;
-    private const int OFN_NOCHANGEDIR = 0x00000008;
+    // File dialog flags
+    private const int OFN_FILEMUSTEXIST = 0x00001000; // Selected file must exist
+    private const int OFN_PATHMUSTEXIST = 0x00000800; // Selected path must exist
+    private const int OFN_EXPLORER = 0x00080000; // Use new explorer style
+    private const int OFN_NOCHANGEDIR = 0x00000008; // Don't change working directory
 
+    /// <summary>
+    /// Shows the file open dialog filtered to image formats.
+    /// </summary>
+    /// <param name="owner">Parent window handle</param>
+    /// <param name="path">Output path if user selects a file</param>
+    /// <returns>True if user selected a file, false if cancelled</returns>
     public static unsafe bool TryOpenImageFile(HWND owner, out string? path)
     {
         path = null;
