@@ -240,7 +240,7 @@ public sealed class ImageEditorState
     /// Records a snapshot of the current raster for undo history.
     /// Limits history to _maxUndo entries.
     /// </summary>
-    private void PushUndoSnapshot()
+    public void PushUndoSnapshot()
     {
         _undoStack.Add(ImageSnapshot.From(_raster));
         if (_undoStack.Count > _maxUndo)

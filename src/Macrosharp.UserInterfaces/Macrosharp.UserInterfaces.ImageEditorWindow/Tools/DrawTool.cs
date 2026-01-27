@@ -28,6 +28,7 @@ public sealed class DrawTool : IEditorTool
     // Preset colors for number key shortcuts (1-9)
     private static readonly int[] PresetColors = new int[]
     {
+        unchecked((int)0xFF000000), // 0: Black
         unchecked((int)0xFFFF0000), // 1: Red
         unchecked((int)0xFFFF8000), // 2: Orange
         unchecked((int)0xFFFFFF00), // 3: Yellow
@@ -55,6 +56,7 @@ public sealed class DrawTool : IEditorTool
     /// <summary>
     /// Starts a drawing operation or erases (if right button).
     /// Sets anchor point for potential straight line drawing.
+    /// Pushes undo snapshot before starting to allow undo of brush strokes.
     /// </summary>
     public void OnMouseDown(ImageEditor editor, EditorInput input)
     {
@@ -63,6 +65,8 @@ public sealed class DrawTool : IEditorTool
             _eraseMode = true;
         }
 
+        // Push undo snapshot before drawing starts (makes brush strokes undoable)
+        editor.State.PushUndoSnapshot();
         editor.State.MarkUserHasImage();
         _isDrawing = true;
         _lastPoint = input.ImagePoint;
@@ -137,6 +141,7 @@ public sealed class DrawTool : IEditorTool
     /// <summary>
     /// Handles keyboard input for brush size adjustment and color preset selection.
     /// - +/-: Adjust brush size
+    /// - 0: Select black color
     /// - 1-9: Select preset color
     /// </summary>
     public void OnKeyDown(ImageEditor editor, VIRTUAL_KEY key, ModifierState modifiers)
@@ -149,9 +154,9 @@ public sealed class DrawTool : IEditorTool
         {
             _brushRadius = Math.Clamp(_brushRadius - 1, 1, 50);
         }
-        else if (key >= VIRTUAL_KEY.VK_1 && key <= VIRTUAL_KEY.VK_9)
+        else if (key >= VIRTUAL_KEY.VK_0 && key <= VIRTUAL_KEY.VK_9)
         {
-            int index = (int)key - (int)VIRTUAL_KEY.VK_1;
+            int index = (int)key - (int)VIRTUAL_KEY.VK_0;
             _color = PresetColors[index];
         }
     }
@@ -171,7 +176,7 @@ public sealed class DrawTool : IEditorTool
     public void OnRender(ImageEditor editor, HDC hdc, int width, int height)
     {
         // Display brush info text
-        string info = $"Brush: {_brushRadius}px | Color: #{_color & 0xFFFFFF:X6} | Keys: 1-9 for presets";
+        string info = $"Brush: {_brushRadius}px | Color: #{_color & 0xFFFFFF:X6} | Keys: 0-9 for presets";
         var rect = new RECT
         {
             left = 8,

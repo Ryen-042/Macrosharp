@@ -41,10 +41,21 @@ public sealed class ImageEditor
 
     // UI state
     private bool _showStatusBar;
+    private bool _showHelp;
     private IntPoint _lastImagePoint;
     private IntPoint _lastScreenPoint;
     private bool _autoFit = true;
     private HWND _ownerHwnd = HWND.Null;
+
+    // Ctrl+click panning state
+    private bool _isPanningWithCtrl;
+    private IntPoint _ctrlPanStart;
+
+    // Toggle zoom state (for Space key)
+    private double _savedZoom = 1.0;
+    private int _savedPanX;
+    private int _savedPanY;
+    private double _fitZoomValue; // The zoom level when fit was applied
 
     public event Action<int, int>? WindowResizeRequested;
 
@@ -90,18 +101,38 @@ public sealed class ImageEditor
 
     /// <summary>
     /// Handles mouse down events. Delegates to the active tool.
+    /// Ctrl+left-click starts panning regardless of active tool.
     /// </summary>
     public void HandleMouseDown(IntPoint point, MouseButton button, ModifierState modifiers)
     {
+        // Ctrl+left-click initiates panning
+        if (button == MouseButton.Left && modifiers.HasFlag(ModifierState.Control))
+        {
+            _isPanningWithCtrl = true;
+            _ctrlPanStart = point;
+            return;
+        }
+
         var input = BuildInput(point, modifiers, button);
         _activeTool.OnMouseDown(this, input);
     }
 
     /// <summary>
     /// Handles mouse move events. Tracks cursor position and delegates to the active tool.
+    /// If Ctrl+click panning is active, pans the view instead.
     /// </summary>
     public void HandleMouseMove(IntPoint point, ModifierState modifiers)
     {
+        // Handle Ctrl+click panning
+        if (_isPanningWithCtrl)
+        {
+            int dx = point.X - _ctrlPanStart.X;
+            int dy = point.Y - _ctrlPanStart.Y;
+            PanBy(dx, dy);
+            _ctrlPanStart = point;
+            return;
+        }
+
         var input = BuildInput(point, modifiers, MouseButton.None);
         _lastScreenPoint = input.ScreenPoint;
         _lastImagePoint = input.ImagePoint;
@@ -110,9 +141,17 @@ public sealed class ImageEditor
 
     /// <summary>
     /// Handles mouse up events. Delegates to the active tool and commits drawing operations.
+    /// Ends Ctrl+click panning if active.
     /// </summary>
     public void HandleMouseUp(IntPoint point, MouseButton button, ModifierState modifiers)
     {
+        // End Ctrl+click panning
+        if (_isPanningWithCtrl && button == MouseButton.Left)
+        {
+            _isPanningWithCtrl = false;
+            return;
+        }
+
         var input = BuildInput(point, modifiers, button);
         _activeTool.OnMouseUp(this, input);
         if (_activeTool is DrawTool)
@@ -134,13 +173,16 @@ public sealed class ImageEditor
     /// Handles keyboard input for tool switching, image operations, and view manipulation.
     /// Keyboard shortcuts:
     /// - F1: Toggle status bar visibility
+    /// - Shift+/: Toggle help overlay
     /// - Ctrl+O: Open image from file
     /// - Ctrl+V: Open image from clipboard
     /// - V: Flip image vertically
     /// - W: Switch to Draw tool
     /// - L: Switch to Crop tool
     /// - C: Switch to ColorPicker tool
-    /// - Space: Switch to Pan tool
+    /// - P: Switch to Pan tool
+    /// - Space: Toggle fit-to-screen zoom (press again to restore previous zoom)
+    /// - Ctrl+Click: Pan view
     /// - Escape: Cancel current tool operation
     /// - Ctrl+Z: Undo
     /// - Ctrl+Y: Redo
@@ -150,28 +192,60 @@ public sealed class ImageEditor
     /// - I: Apply invert filter
     /// - H: Flip horizontally
     /// - Ctrl+0: Reset view
+    /// - 0: Black brush color (in DrawTool)
+    /// - 1-9: Preset brush colors (in DrawTool)
     /// - +/-: Adjust brush size (in DrawTool)
     /// </summary>
     public void HandleKeyDown(VIRTUAL_KEY key, ModifierState modifiers)
     {
+        if (key == VIRTUAL_KEY.VK_OEM_2 && modifiers.HasFlag(ModifierState.Shift))
+        {
+            _showHelp = !_showHelp;
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_O && modifiers.HasFlag(ModifierState.Control))
+        {
+            TryOpenFromFileDialog();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_V && modifiers.HasFlag(ModifierState.Control))
+        {
+            TryOpenFromClipboard();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_Z && modifiers.HasFlag(ModifierState.Control))
+        {
+            _state.TryUndo();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_Y && modifiers.HasFlag(ModifierState.Control))
+        {
+            _state.TryRedo();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_R && modifiers.HasFlag(ModifierState.Control))
+        {
+            _state.ResetToOriginal();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_0 && modifiers.HasFlag(ModifierState.Control))
+        {
+            ResetView();
+            return;
+        }
+
         switch (key)
         {
             case VIRTUAL_KEY.VK_F1:
                 _showStatusBar = !_showStatusBar;
                 return;
-            case VIRTUAL_KEY.VK_O:
-                if (modifiers.HasFlag(ModifierState.Control))
-                {
-                    TryOpenFromFileDialog();
-                }
-                return;
             case VIRTUAL_KEY.VK_V:
-                if (modifiers.HasFlag(ModifierState.Control))
-                {
-                    TryOpenFromClipboard();
-                    return;
-                }
-
                 ApplyFlipVertical();
                 return;
             case VIRTUAL_KEY.VK_W:
@@ -183,33 +257,17 @@ public sealed class ImageEditor
             case VIRTUAL_KEY.VK_C:
                 SetTool(ToolKind.ColorPicker);
                 return;
-            case VIRTUAL_KEY.VK_SPACE:
+            case VIRTUAL_KEY.VK_P:
                 SetTool(ToolKind.Pan);
+                return;
+            case VIRTUAL_KEY.VK_SPACE:
+                ToggleFitZoom();
                 return;
             case VIRTUAL_KEY.VK_ESCAPE:
                 _activeTool.OnCancel(this);
                 return;
-            case VIRTUAL_KEY.VK_Z:
-                if (modifiers.HasFlag(ModifierState.Control))
-                {
-                    _state.TryUndo();
-                }
-                return;
-            case VIRTUAL_KEY.VK_Y:
-                if (modifiers.HasFlag(ModifierState.Control))
-                {
-                    _state.TryRedo();
-                }
-                return;
             case VIRTUAL_KEY.VK_R:
-                if (modifiers.HasFlag(ModifierState.Control))
-                {
-                    _state.ResetToOriginal();
-                }
-                else
-                {
-                    Rotate90Clockwise();
-                }
+                Rotate90Clockwise();
                 return;
             case VIRTUAL_KEY.VK_T:
                 ApplyGrayscale();
@@ -219,12 +277,6 @@ public sealed class ImageEditor
                 return;
             case VIRTUAL_KEY.VK_H:
                 ApplyFlipHorizontal();
-                return;
-            case VIRTUAL_KEY.VK_0:
-                if (modifiers.HasFlag(ModifierState.Control))
-                {
-                    ResetView();
-                }
                 return;
         }
 
@@ -242,6 +294,7 @@ public sealed class ImageEditor
         DrawImage(hdc);
         DrawOverlay(hdc);
         DrawStatusBar(hdc);
+        DrawHelpOverlay(hdc);
         _activeTool.OnRender(this, hdc, width, height);
     }
 
@@ -356,6 +409,39 @@ public sealed class ImageEditor
     public void ResetView()
     {
         ResetPanZoom(autoFit: true, zoom: _zoom);
+    }
+
+    /// <summary>
+    /// Toggles between fit-to-screen zoom and the previously saved zoom/pan state.
+    /// If currently at fit zoom (unchanged), restores saved state.
+    /// Otherwise, saves current state and fits to screen.
+    /// </summary>
+    private void ToggleFitZoom()
+    {
+        // Check if we're still at the fit zoom level (user hasn't zoomed since fitting)
+        bool stillAtFitZoom = Math.Abs(_zoom - _fitZoomValue) < ZoomEpsilon && _panX == 0 && _panY == 0;
+        
+        if (stillAtFitZoom && _fitZoomValue > 0)
+        {
+            // Restore saved zoom/pan state
+            _zoom = _savedZoom;
+            _panX = _savedPanX;
+            _panY = _savedPanY;
+            _autoFit = false;
+            _fitZoomValue = 0; // Clear fit state
+        }
+        else
+        {
+            // Save current state and fit to screen
+            _savedZoom = _zoom;
+            _savedPanX = _panX;
+            _savedPanY = _panY;
+            _panX = 0;
+            _panY = 0;
+            _autoFit = true;
+            UpdateFitZoom();
+            _fitZoomValue = _zoom; // Remember the fit zoom level
+        }
     }
 
     /// <summary>
@@ -722,5 +808,85 @@ public sealed class ImageEditor
         PInvoke.SetBkMode(hdc, BACKGROUND_MODE.TRANSPARENT);
         PInvoke.SetTextColor(hdc, new COLORREF(0x00FFFFFF));
         GdiText.DrawText(hdc, text, ref rect, DRAW_TEXT_FORMAT.DT_LEFT | DRAW_TEXT_FORMAT.DT_SINGLELINE | DRAW_TEXT_FORMAT.DT_VCENTER);
+    }
+
+    /// <summary>
+    /// Draws the help overlay showing keyboard shortcuts.
+    /// </summary>
+    private void DrawHelpOverlay(HDC hdc)
+    {
+        if (!_showHelp)
+        {
+            return;
+        }
+
+        // Semi-transparent dark background
+        int padding = 20;
+        int boxWidth = 320;
+        int boxHeight = 380;
+        int boxX = (_viewportWidth - boxWidth) / 2;
+        int boxY = (_viewportHeight - boxHeight) / 2;
+
+        var bgRect = new RECT
+        {
+            left = boxX,
+            top = boxY,
+            right = boxX + boxWidth,
+            bottom = boxY + boxHeight,
+        };
+        HBRUSH bgBrush = PInvoke.CreateSolidBrush(new COLORREF(0x00303030));
+        using var safeBgBrush = new SafeBrushHandle(bgBrush);
+        PInvoke.FillRect(hdc, bgRect, safeBgBrush);
+
+        // Border
+        HBRUSH borderBrush = PInvoke.CreateSolidBrush(new COLORREF(0x00888888));
+        using var safeBorderBrush = new SafeBrushHandle(borderBrush);
+        PInvoke.FrameRect(hdc, bgRect, safeBorderBrush);
+
+        // Help text content
+        string[] lines = new[]
+        {
+            "KEYBOARD SHORTCUTS",
+            "",
+            "Tools:",
+            "  W - Draw tool",
+            "  L - Crop tool",
+            "  C - Color picker",
+            "  P - Pan tool",
+            "",
+            "View:",
+            "  Space - Toggle fit zoom",
+            "  Ctrl+Click - Pan",
+            "  Ctrl+0 - Reset view",
+            "  F1 - Toggle status bar",
+            "",
+            "Image:",
+            "  Ctrl+O - Open file",
+            "  Ctrl+V - Paste from clipboard",
+            "  Ctrl+Z/Y - Undo/Redo",
+            "  R - Rotate 90 degrees",
+            "  H/V - Flip horizontal/vertical",
+            "  T - Grayscale  |  I - Invert",
+            "",
+            "Brush: 0-9 colors, +/- size",
+        };
+
+        PInvoke.SetBkMode(hdc, BACKGROUND_MODE.TRANSPARENT);
+        PInvoke.SetTextColor(hdc, new COLORREF(0x00FFFFFF));
+
+        int lineHeight = 14;
+        int textY = boxY + padding;
+        foreach (var line in lines)
+        {
+            var lineRect = new RECT
+            {
+                left = boxX + padding,
+                top = textY,
+                right = boxX + boxWidth - padding,
+                bottom = textY + lineHeight,
+            };
+            GdiText.DrawText(hdc, line, ref lineRect, DRAW_TEXT_FORMAT.DT_LEFT | DRAW_TEXT_FORMAT.DT_SINGLELINE);
+            textY += lineHeight;
+        }
     }
 }
