@@ -9,7 +9,7 @@ namespace Macrosharp.UserInterfaces.DynamicWindow
 {
     public class WindowSample
     {
-        private static WNDPROC _wndProcDelegate;
+        private static WNDPROC _wndProcDelegate = null!;
 
         private static unsafe LRESULT WndProc(HWND hWnd, uint msg, WPARAM wParam, LPARAM lParam)
         {
@@ -44,7 +44,7 @@ namespace Macrosharp.UserInterfaces.DynamicWindow
             }
 
             // Create the Window
-            var hWnd = PInvoke.CreateWindowEx(0, "MyWindowClass", "CsWin32 Window", WINDOW_STYLE.WS_OVERLAPPEDWINDOW, PInvoke.CW_USEDEFAULT, PInvoke.CW_USEDEFAULT, 800, 600, default, default, PInvoke.GetModuleHandle((string)null), null);
+            var hWnd = PInvoke.CreateWindowEx(0, "MyWindowClass", "CsWin32 Window", WINDOW_STYLE.WS_OVERLAPPEDWINDOW, PInvoke.CW_USEDEFAULT, PInvoke.CW_USEDEFAULT, 800, 600, default, default, PInvoke.GetModuleHandle((string?)null), null);
 
             // Show and Update the Window
             PInvoke.ShowWindow(hWnd, SHOW_WINDOW_CMD.SW_SHOW);

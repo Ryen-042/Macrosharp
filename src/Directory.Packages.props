@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <NoWarn>CA1416;</NoWarn>
     <PlatformTarget>x64</PlatformTarget>
-</PropertyGroup>
+  </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="ErrorOr" Version="2.1.0" />
     <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.183" />
