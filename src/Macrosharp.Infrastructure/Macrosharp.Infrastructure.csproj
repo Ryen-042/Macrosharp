@@ -1,12 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ErrorOr" />
+    <PackageReference Include="PdfSharpCore" />
+    <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="System.Windows.Extensions" />
   </ItemGroup>
 </Project>
