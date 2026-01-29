@@ -16,5 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.Infrastructure\Macrosharp.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
