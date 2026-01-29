@@ -9,6 +9,7 @@ using System.Linq;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.UserInterfaces.DynamicWindow;
 using Macrosharp.UserInterfaces.TrayIcon;
+using Macrosharp.Win32.Abstractions.Explorer;
 using Windows.Win32; // For PInvoke access to generated constants and methods
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
@@ -209,8 +210,108 @@ public class Program
         // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithFile("C:\\Images\\sample.png");
 
         // Direct launch from clipboard
-        Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard();
+        // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard();
         #endregion
+
+        #region ExplorerController
+        // HWND activeHwnd = PInvoke.GetForegroundWindow();
+        // HWND activeHwnd = default;
+        // Console.WriteLine($"Active HWND: {activeHwnd}");
+
+        // string? currentFolder = ExplorerController.GetCurrentFolderPath(activeHwnd);
+        // Console.WriteLine($"Current folder: {currentFolder ?? "<unknown>"}");
+
+        // var selectedItems = ExplorerController.GetSelectedItems(activeHwnd);
+        // Console.WriteLine("Selected items:");
+        // foreach (var item in selectedItems)
+        //     Console.WriteLine($" - {item}");
+
+        // ExplorerController.Refresh(activeHwnd);
+
+        // string demoFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        // ExplorerController.OpenFolder(demoFolder);
+        // string? currentFolder = ExplorerController.GetCurrentFolderPath();
+
+        // // Select items in the current folder
+        // if (!string.IsNullOrWhiteSpace(currentFolder) && Directory.Exists(currentFolder))
+        // {
+        //     var candidates = Directory.EnumerateFileSystemEntries(currentFolder).ToList();
+        //     if (candidates.Count > 0)
+        //     {
+        //         ExplorerController.SelectItems(currentFolder, candidates, activeHwnd);
+        //         Console.WriteLine($"Selected {candidates.Count} items in folder: {currentFolder}");
+        //     }
+        // }
+
+        // if (Directory.Exists(demoFolder))
+        // {
+        // var demoCandidates = Directory.EnumerateFileSystemEntries(demoFolder).ToList();
+        // if (demoCandidates.Count > 0)
+        // {
+        // ExplorerShellManager.OpenAndSelectItems(demoFolder, demoCandidates);
+
+        // Example: invoke a context menu verb on the selected items.
+        // Common verbs include: "open", "properties", "delete".
+        // Multi-select uses the active Explorer window, so ensure the folder is open and focused.
+        // bool invoked = ExplorerShellManager.ExecuteContextMenuAction(demoFolder, demoCandidates, "properties", mode: ExplorerShellManager.ContextMenuInvokeMode.MultiSelect);
+
+        // Per-item invocation (explicit):
+        // bool invoked = ExplorerController.ExecuteContextMenuAction(demoFolder, demoCandidates, "properties", mode: ExplorerController.ContextMenuInvokeMode.PerItem);
+
+        // Console.WriteLine($"Context menu action invoked: {invoked}");
+        // }
+        // }
+        #endregion
+
+        #region ExplorerFileAutomation
+        // Ensure an Explorer window is focused for these tests.
+        // HWND targetHwnd = PInvoke.GetForegroundWindow();
+
+        // 1) Create a new incremental text file in the active Explorer/desktop and enter edit mode.
+        // int created = ExplorerFileAutomation.CreateNewFile(targetHwnd);
+        // Console.WriteLine($"CreateNewFile result: {created}");
+
+        // 2) Convert selected Office files to PDF (PowerPoint/Word/Excel supported).
+        // ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint");
+        // ExplorerFileAutomation.OfficeFilesToPdf("Word");
+        // ExplorerFileAutomation.OfficeFilesToPdf("Excel");
+
+        // 3) Convert selected files with a custom converter.
+        // Example: convert .txt files to .bak copies in the same folder.
+        // ExplorerFileAutomation.GenericFileConverter(new[] { ".txt" }, (input, output) => File.Copy(input, output), newExtension: ".bak");
+
+        // Example: convert .mp3 files to .wav using ffmpeg.
+        // ExplorerFileAutomation.GenericFileConverter(
+        //     new[] { ".mp3" },
+        //     (input, output) =>
+        //     {
+        //         var ffmpeg = new ProcessStartInfo("ffmpeg") { UseShellExecute = false, CreateNoWindow = true };
+        //         ffmpeg.ArgumentList.Add("-loglevel");
+        //         ffmpeg.ArgumentList.Add("error");
+        //         ffmpeg.ArgumentList.Add("-hide_banner");
+        //         ffmpeg.ArgumentList.Add("-nostats");
+        //         ffmpeg.ArgumentList.Add("-i");
+        //         ffmpeg.ArgumentList.Add(input);
+        //         ffmpeg.ArgumentList.Add(output);
+
+        //         using var process = Process.Start(ffmpeg);
+        //         process?.WaitForExit();
+        //     },
+        //     newExtension: ".wav",
+        //     hwnd: targetHwnd
+        // );
+
+        // 4) Flatten selected folders into a new "Flattened" directory.
+        // ExplorerFileAutomation.FlattenDirectories();
+
+        // 5) Combine selected images into a PDF (Normal = no resize, Resize = resize mode).
+        // ExplorerFileAutomation.ImagesToPdf();
+        ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: 690, widthThreshold: 1200, minWidth: 100, minHeight: 100, hwnd: default);
+
+        #endregion
+
+        Console.WriteLine("Press any key to continue...");
+        Console.ReadKey();
     }
 
     private static void HookManager_KeyPressed(object? sender, KeyboardEvent e)
