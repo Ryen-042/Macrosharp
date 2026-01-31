@@ -1,0 +1,88 @@
+{
+  "Rules": [
+    {
+      "Trigger": ":sig",
+      "Expansion": "Best regards,\nJohn Doe",
+      "Mode": "onDelimiter",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":date",
+      "Expansion": "$DATE$",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":time",
+      "Expansion": "$TIME$",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":now",
+      "Expansion": "$DATETIME$",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":email",
+      "Expansion": "Hello $CLIPBOARD$,\n\n$CURSOR$\n\nBest regards,\n$USER$",
+      "Mode": "onDelimiter",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":shrug",
+      "Expansion": "¯\\_(ツ)_/¯",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":lod",
+      "Expansion": "( ͡° ͜ʖ ͡°)",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":tableflip",
+      "Expansion": "(╯°□°)╯︵ ┻━┻",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": ":unflip",
+      "Expansion": "┬─┬ノ( º _ ºノ)",
+      "Mode": "immediate",
+      "CaseSensitive": false,
+      "Enabled": true
+    },
+    {
+      "Trigger": "btw",
+      "Expansion": "by the way",
+      "Mode": "onDelimiter",
+      "CaseSensitive": false,
+      "Enabled": false
+    },
+    {
+      "Trigger": ":addr",
+      "Expansion": "123 Main Street\nAnytown, ST 12345\nUnited States",
+      "Mode": "onDelimiter",
+      "CaseSensitive": false,
+      "Enabled": false
+    }
+  ],
+  "Settings": {
+    "Delimiters": [" ", "\t", "\n", ".", ",", ";", ":", "!", "?"],
+    "BufferSize": 64,
+    "BackspaceDelayMs": 2,
+    "PasteDelayMs": 30,
+    "Enabled": true
+  }
+}
