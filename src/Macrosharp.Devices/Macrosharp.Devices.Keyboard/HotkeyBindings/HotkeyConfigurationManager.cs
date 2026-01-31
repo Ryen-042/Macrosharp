@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
-using Macrosharp.Devices.Keyboard;
 using Windows.Win32; // For PInvoke.MessageBox
 using Windows.Win32.Foundation; // For HWND
 using Windows.Win32.UI.WindowsAndMessaging; // For MESSAGEBOX_STYLE

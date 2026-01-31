@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Macrosharp.Devices.Keyboard;
-
 namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 
 // Manages the mapping and execution of hotkey actions.

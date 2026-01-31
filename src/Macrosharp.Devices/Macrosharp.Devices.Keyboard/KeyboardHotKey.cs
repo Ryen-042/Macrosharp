@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Macrosharp.Devices.Core;
 
 namespace Macrosharp.Devices.Keyboard;
 
@@ -81,6 +82,96 @@ public class HotkeyManager : IDisposable
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
     public bool RegisterHotkey(VirtualKey key, int modifiers, Action action)
     {
+        return RegisterInternal(key, modifiers, action);
+    }
+
+    /// <summary>Registers a new hotkey with an associated action and one bound argument.</summary>
+    /// <typeparam name="T1">The type of the argument.</typeparam>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
+    /// <param name="action">The action to execute when the hotkey is pressed.</param>
+    /// <param name="arg1">The argument bound at registration time.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterHotkey<T1>(VirtualKey key, int modifiers, Action<T1> action, T1 arg1)
+    {
+        return RegisterInternal(key, modifiers, () => action(arg1));
+    }
+
+    /// <summary>Registers a new hotkey with an associated action and two bound arguments.</summary>
+    /// <typeparam name="T1">The type of the first argument.</typeparam>
+    /// <typeparam name="T2">The type of the second argument.</typeparam>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
+    /// <param name="action">The action to execute when the hotkey is pressed.</param>
+    /// <param name="arg1">The first argument bound at registration time.</param>
+    /// <param name="arg2">The second argument bound at registration time.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterHotkey<T1, T2>(VirtualKey key, int modifiers, Action<T1, T2> action, T1 arg1, T2 arg2)
+    {
+        return RegisterInternal(key, modifiers, () => action(arg1, arg2));
+    }
+
+    /// <summary>Registers a new hotkey with an associated action and three bound arguments.</summary>
+    /// <typeparam name="T1">The type of the first argument.</typeparam>
+    /// <typeparam name="T2">The type of the second argument.</typeparam>
+    /// <typeparam name="T3">The type of the third argument.</typeparam>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
+    /// <param name="action">The action to execute when the hotkey is pressed.</param>
+    /// <param name="arg1">The first argument bound at registration time.</param>
+    /// <param name="arg2">The second argument bound at registration time.</param>
+    /// <param name="arg3">The third argument bound at registration time.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterHotkey<T1, T2, T3>(VirtualKey key, int modifiers, Action<T1, T2, T3> action, T1 arg1, T2 arg2, T3 arg3)
+    {
+        return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3));
+    }
+
+    /// <summary>Registers a new hotkey with an associated action and four bound arguments.</summary>
+    /// <typeparam name="T1">The type of the first argument.</typeparam>
+    /// <typeparam name="T2">The type of the second argument.</typeparam>
+    /// <typeparam name="T3">The type of the third argument.</typeparam>
+    /// <typeparam name="T4">The type of the fourth argument.</typeparam>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
+    /// <param name="action">The action to execute when the hotkey is pressed.</param>
+    /// <param name="arg1">The first argument bound at registration time.</param>
+    /// <param name="arg2">The second argument bound at registration time.</param>
+    /// <param name="arg3">The third argument bound at registration time.</param>
+    /// <param name="arg4">The fourth argument bound at registration time.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterHotkey<T1, T2, T3, T4>(VirtualKey key, int modifiers, Action<T1, T2, T3, T4> action, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+    {
+        return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3, arg4));
+    }
+
+    /// <summary>Registers a new hotkey with an associated action and five bound arguments.</summary>
+    /// <typeparam name="T1">The type of the first argument.</typeparam>
+    /// <typeparam name="T2">The type of the second argument.</typeparam>
+    /// <typeparam name="T3">The type of the third argument.</typeparam>
+    /// <typeparam name="T4">The type of the fourth argument.</typeparam>
+    /// <typeparam name="T5">The type of the fifth argument.</typeparam>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
+    /// <param name="action">The action to execute when the hotkey is pressed.</param>
+    /// <param name="arg1">The first argument bound at registration time.</param>
+    /// <param name="arg2">The second argument bound at registration time.</param>
+    /// <param name="arg3">The third argument bound at registration time.</param>
+    /// <param name="arg4">The fourth argument bound at registration time.</param>
+    /// <param name="arg5">The fifth argument bound at registration time.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterHotkey<T1, T2, T3, T4, T5>(VirtualKey key, int modifiers, Action<T1, T2, T3, T4, T5> action, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
+    {
+        return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3, arg4, arg5));
+    }
+
+    /// <summary>Registers a new hotkey with a parameterless action.</summary>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
+    /// <param name="boundAction">The parameterless action bound at registration time.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    private bool RegisterInternal(VirtualKey key, int modifiers, Action boundAction)
+    {
         Hotkey hotkey = new Hotkey(key, modifiers);
         if (_registeredHotkeys.ContainsKey(hotkey))
         {
@@ -88,7 +179,7 @@ public class HotkeyManager : IDisposable
             return false;
         }
 
-        _registeredHotkeys.Add(hotkey, action);
+        _registeredHotkeys.Add(hotkey, boundAction);
         return true;
     }
 
