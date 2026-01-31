@@ -1,5 +1,5 @@
 ﻿using System.Buffers;
-using Macrosharp.Devices.Keyboard;
+using Macrosharp.Devices.Core;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
 using Windows.Win32.Foundation;

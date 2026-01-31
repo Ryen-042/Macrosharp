@@ -7,7 +7,7 @@ using Windows.Win32.Foundation; // For HWND, LPARAM, WPARAM, POINT
 using Windows.Win32.UI.Input.KeyboardAndMouse; // For MOUSEEVENTF_* constants
 using Windows.Win32.UI.WindowsAndMessaging; // For WM_* constants (PostMessage)
 
-namespace Macrosharp.Devices.Keyboard; // Assuming the same namespace for easy integration
+namespace Macrosharp.Devices.Core;
 
 /// <summary>Defines the various mouse buttons that can be simulated.</summary>
 public enum MouseButton
@@ -42,7 +42,7 @@ public enum MouseEventOperation
 }
 
 /// <summary>Defines constants for mouse button states, indicating which buttons are pressed.</summary>
-enum MK
+enum MouseInputFlags
 {
     /// <summary>The left mouse button is down.</summary>
     LBUTTON = 0x1,
@@ -146,8 +146,8 @@ public static class MouseSimulator
         switch (button)
         {
             case MouseButton.LeftButton:
-                EnsurePostMessage(new HWND(hwnd), PInvoke.WM_LBUTTONDOWN, new WPARAM((nuint)MK.LBUTTON), l_param);
-                EnsurePostMessage(new HWND(hwnd), PInvoke.WM_LBUTTONUP, new WPARAM((nuint)MK.LBUTTON), l_param);
+                EnsurePostMessage(new HWND(hwnd), PInvoke.WM_LBUTTONDOWN, new WPARAM((nuint)MouseInputFlags.LBUTTON), l_param);
+                EnsurePostMessage(new HWND(hwnd), PInvoke.WM_LBUTTONUP, new WPARAM((nuint)MouseInputFlags.LBUTTON), l_param);
                 break;
             case MouseButton.RightButton:
                 EnsurePostMessage(new HWND(hwnd), PInvoke.WM_RBUTTONDOWN, new WPARAM(0), l_param);

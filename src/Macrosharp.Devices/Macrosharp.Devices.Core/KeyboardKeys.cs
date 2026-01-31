@@ -1,7 +1,7 @@
 using Windows.Win32;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 
-namespace Macrosharp.Devices.Keyboard;
+namespace Macrosharp.Devices.Core;
 
 /// <summary>Represents the virtual key codes used in the Windows API. These key codes are used to identify keyboard keys and other input events</summary>
 /// <remarks>

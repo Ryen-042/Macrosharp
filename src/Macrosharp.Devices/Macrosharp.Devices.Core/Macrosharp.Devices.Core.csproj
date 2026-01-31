@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
-    <ProjectReference Include="..\Macrosharp.Devices.Core\Macrosharp.Devices.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -10,8 +9,4 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'"></PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'"></PropertyGroup>
 </Project>
