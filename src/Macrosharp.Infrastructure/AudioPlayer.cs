@@ -6,7 +6,7 @@ public static class AudioPlayer
 {
     public static void PlayAudio(string fileName, bool async = false)
     {
-        using var player = new SoundPlayer(Path.Combine(PathLocator.RootPath, "Assets", "SFX", fileName));
+        using var player = new SoundPlayer(fileName);
 
         if (async)
             player.Play();
@@ -14,30 +14,32 @@ public static class AudioPlayer
             player.PlaySync();
     }
 
-    public static void PlayStartAsync()
+    public static void PlayStartAsync(bool shouldPlayAsync = true)
     {
         try
         {
-            PlayAudio(Path.Combine(PathLocator.RootPath, "assets", "SFX", "connection-sound.wav"), async: true);
+            PlayAudio(PathLocator.GetSfxPath("connection-sound.wav"), async: shouldPlayAsync);
         }
         catch { }
     }
 
-    public static void PlaySuccessAsync()
+    public static void PlaySuccessAsync(bool shouldPlayAsync = true)
     {
         try
         {
-            PlayAudio(Path.Combine(PathLocator.RootPath, "Assets", "SFX", "coins-497.wav"), async: true);
+            PlayAudio(PathLocator.GetSfxPath("coins-497.wav"), async: shouldPlayAsync);
         }
         catch { }
     }
 
-    public static void PlayFailure()
+    public static void PlayFailure(bool shouldPlayAsync = true)
     {
         try
         {
-            PlayAudio(Path.Combine(PathLocator.RootPath, "Assets", "SFX", "wrong.swf.wav"), async: false);
+            PlayAudio(PathLocator.GetSfxPath("wrong.swf.wav"), async: shouldPlayAsync);
         }
         catch { }
     }
 }
+
+// TODO: add error handling/logging for audio playback failures.

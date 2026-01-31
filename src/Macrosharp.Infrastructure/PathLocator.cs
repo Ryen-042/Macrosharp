@@ -21,4 +21,26 @@ public static class PathLocator
 
         return directory?.FullName ?? "";
     }
+
+    public static string GetSfxPath(string fileName)
+    {
+        return Path.Combine(RootPath, "Assets", "SFX", fileName);
+    }
+
+    public static List<string> GetIconFilesFromAssets()
+    {
+        string iconsPath = Path.GetFullPath(Path.Combine(RootPath, "assets", "Icons"));
+
+        if (!Directory.Exists(iconsPath))
+        {
+            return new List<string>();
+        }
+
+        return Directory.GetFiles(iconsPath, "*.ico", SearchOption.AllDirectories).ToList();
+    }
+
+    public static string GetConfigPath(string fileName)
+    {
+        return Path.Combine(RootPath, fileName);
+    }
 }
