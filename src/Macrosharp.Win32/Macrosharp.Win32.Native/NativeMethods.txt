@@ -98,6 +98,10 @@ WINDOWS_HOOK_ID
 HOOKPROC
 HHOOK
 HC_ACTION
+
+// Mouse Hook
+MSLLHOOKSTRUCT
+WM_MOUSEHWHEEL
 GetKeyState
 keybd_event
 KEYBD_EVENT_FLAGS
@@ -371,6 +375,8 @@ SYSTEM_METRICS_INDEX
 SetLastError
 
 SetForegroundWindow
+GetAncestor
+GET_ANCESTOR_FLAGS
 
 LoadImageW
 DestroyIcon
@@ -391,10 +397,15 @@ OpenClipboard
 CloseClipboard
 IsClipboardFormatAvailable
 GetClipboardData
+EmptyClipboard
+SetClipboardData
 CLIPBOARD_FORMAT
 GlobalLock
 GlobalUnlock
 GlobalSize
+GlobalAlloc
+GlobalFree
+GLOBAL_ALLOC_FLAGS
 
 GetOpenFileNameW
 OPENFILENAMEW

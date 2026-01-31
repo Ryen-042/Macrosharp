@@ -6,7 +6,11 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
+using Macrosharp.Devices.Keyboard.TextExpansion;
+using Macrosharp.Devices.Mouse;
+using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.DynamicWindow;
 using Macrosharp.UserInterfaces.TrayIcon;
 using Macrosharp.Win32.Abstractions.Explorer;
@@ -193,7 +197,15 @@ public class Program
 
         #region Mouse & Keyboard Simulators
         // StartMouseSimulator();
-        // StartKeyboardSimulator();
+        StartKeyboardSimulator(); // Now includes text expansion support
+        #endregion
+
+        #region TextExpansion (Standalone)
+        // StartTextExpansion(); // Use this for text expansion only (without hotkey simulator)
+        #endregion
+
+        #region MouseHook
+        StartMouseHook(); // Use this to demo the global mouse hook manager
         #endregion
 
         #region ImageEditorWindow
@@ -306,7 +318,7 @@ public class Program
 
         // 5) Combine selected images into a PDF (Normal = no resize, Resize = resize mode).
         // ExplorerFileAutomation.ImagesToPdf();
-        ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: 690, widthThreshold: 1200, minWidth: 100, minHeight: 100, hwnd: default);
+        // ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: 690, widthThreshold: 1200, minWidth: 100, minHeight: 100, hwnd: default);
 
         #endregion
 
@@ -331,6 +343,18 @@ public class Program
             PInvoke.PostQuitMessage(0);
             e.Handled = true; // Optionally suppress 'Q' from reaching other apps if you quit cleanly.
         }
+    }
+
+    private static void ShowMessage(string message, string moreInfo)
+    {
+        Console.WriteLine(message);
+        Console.WriteLine(moreInfo);
+    }
+
+    private static void MoveCursor(int dx, int dy)
+    {
+        Console.WriteLine($"Moving cursor by ({dx}, {dy}).");
+        MouseSimulator.MoveCursor(dx, dy);
     }
 
     private static void SuppressKEY_A(object? sender, KeyboardEvent e)
@@ -614,11 +638,13 @@ public class Program
         Console.WriteLine("Press '2' to simulate 'Hello World!' sequence with delays.");
         Console.WriteLine("Press '3' to find 'Notepad' and send 'Hello Notepad!' (using default PostMessage).");
         Console.WriteLine("Press '4' to start the interactive Burst Click Simulator.");
+        Console.WriteLine("Typed HotKeys: 'Z', 'X', and 'C' to demonstrate different behaviors.");
+        Console.WriteLine("Text Expansion: Type abbreviations like ':date', ':shrug', ':sig ' to expand.");
+        Console.WriteLine("Press Ctrl+Alt+T to toggle text expansion on/off.");
         Console.WriteLine("Press Escape to exit.");
 
-        var iconPaths = GetTrayIconPaths();
-        var iconEnumerator = iconPaths.Count > 0 ? GetIconEnumerator(iconPaths) : null;
-        string? GetNextIcon() => iconEnumerator is null ? null : MoveNext(iconEnumerator);
+        var iconPaths = PathLocator.GetIconFilesFromAssets();
+        var iconCycler = IconCycler.Create(iconPaths);
 
         bool isSilentMode = false;
         TrayIconHost? trayHost = null;
@@ -636,7 +662,7 @@ public class Program
 
         void SwitchIcon()
         {
-            string? nextIcon = GetNextIcon();
+            string? nextIcon = iconCycler.GetNext();
             if (!string.IsNullOrWhiteSpace(nextIcon))
             {
                 trayHost?.UpdateIcon(nextIcon);
@@ -660,168 +686,430 @@ public class Program
 
         var trayMenu = new List<TrayMenuItem>
         {
-            TrayMenuItem.ActionItem("Open Script Folder", OpenScriptFolder, iconPath: GetNextIcon()),
-            TrayMenuItem.ActionItem("Show Notification", ShowNotification, iconPath: GetNextIcon()),
-            TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: GetNextIcon()),
-            TrayMenuItem.Submenu("Reload", new List<TrayMenuItem> { TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: GetNextIcon()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: GetNextIcon()) }, iconPath: GetNextIcon()),
-            TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: GetNextIcon()),
-            TrayMenuItem.ActionItem("Toggle Silent Mode", ToggleSilentMode, iconPath: GetNextIcon()),
+            TrayMenuItem.ActionItem("Open Script Folder", OpenScriptFolder, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.ActionItem("Show Notification", ShowNotification, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.Submenu(
+                "Reload",
+                new List<TrayMenuItem> { TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: iconCycler.GetNext()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: iconCycler.GetNext()) },
+                iconPath: iconCycler.GetNext()
+            ),
+            TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.ActionItem("Toggle Silent Mode", ToggleSilentMode, iconPath: iconCycler.GetNext()),
         };
 
-        trayHost = new TrayIconHost("Macropy", GetNextIcon(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0);
+        trayHost = new TrayIconHost("Macropy", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0);
         trayHost.Start();
 
+        // Locate the text expansion configuration file
+        string configPath = PathLocator.GetConfigPath("text-expansions.json");
+        Console.WriteLine($"Text expansion config: {configPath}");
+
         // Use 'using' statements to ensure proper disposal of hook managers.
-        using (var keyboardHookManager = new KeyboardHookManager())
-        using (var hotkeyManager = new HotkeyManager(keyboardHookManager))
+        using var keyboardHookManager = new KeyboardHookManager();
+        using var hotkeyManager = new HotkeyManager(keyboardHookManager);
+        using var textExpansionConfigManager = new TextExpansionConfigurationManager(configPath);
+        using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
+
+        // Load text expansion configuration
+        var config = textExpansionConfigManager.LoadConfiguration();
+        textExpansionManager.LoadConfiguration(config);
+
+        // Subscribe to text expansion configuration changes for live reload
+        textExpansionConfigManager.ConfigurationChanged += (sender, newConfig) =>
         {
-            // Start the keyboard hook to listen for hotkeys.
-            keyboardHookManager.Start();
+            textExpansionManager.LoadConfiguration(newConfig);
+            Console.WriteLine("Text expansion configuration reloaded.");
+        };
 
-            // --- Register Hotkeys for KeyboardSimulator Actions ---
+        // Subscribe to expansion events for logging
+        textExpansionManager.ExpansionOccurred += (sender, e) =>
+        {
+            Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
+        };
 
-            // F1: Simulate a single 'A' key press
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.KEY_1,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF1 pressed: Simulating a single 'A' key press.");
-                    KeyboardSimulator.SimulateKeyPress(VirtualKey.KEY_A);
-                }
-            );
+        textExpansionManager.ExpansionError += (sender, e) =>
+        {
+            Console.WriteLine($"Expansion error for '{e.Rule.Trigger}': {e.Exception.Message}");
+        };
 
-            // F2: Simulate a sequence of key presses ("Hello World!")
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.KEY_2,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF2 pressed: Simulating 'Hello World!' sequence.");
-                    var keysSequence = new List<object>
-                    {
-                        VirtualKey.KEY_H,
-                        VirtualKey.KEY_E,
-                        VirtualKey.KEY_L,
-                        VirtualKey.KEY_L,
-                        VirtualKey.KEY_O,
-                        VirtualKey.SPACE,
-                        VirtualKey.KEY_W,
-                        VirtualKey.KEY_O,
-                        VirtualKey.KEY_R,
-                        VirtualKey.KEY_L,
-                        VirtualKey.KEY_D,
-                        // Simulate Shift+1 for '!' using a List<VirtualKey> to represent the hotkey
-                        new List<VirtualKey> { VirtualKey.SHIFT, VirtualKey.KEY_1 },
-                    };
-                    KeyboardSimulator.SimulateKeyPressSequence(keysSequence, 0);
-                }
-            );
+        // Print loaded text expansion rules
+        Console.WriteLine("\nLoaded expansion rules:");
+        foreach (var rule in config.Rules.Where(r => r.Enabled))
+        {
+            Console.WriteLine($"  {rule}");
+        }
+        Console.WriteLine();
 
-            // F3: Find Notepad and send "Hello Notepad!"
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.KEY_3,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF3 pressed: Finding 'Notepad' and sending 'Hello Notepad!'.");
-                    // You might need to adjust "Notepad" to your system's actual Notepad window class name
-                    // (e.g., "Notepad" or "Edit"). You can use tools like Spy++ to find it.
-                    // For a simpler test, ensure Notepad is open before pressing F3.
+        // Start the keyboard hook to listen for hotkeys.
+        keyboardHookManager.Start();
 
-                    // Example of sending 'H' to Notepad
-                    int result1 = KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_H);
-                    if (result1 == 1)
-                    {
-                        Console.WriteLine("Sent 'H' to Notepad successfully.");
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_E);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_L);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_L);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_O);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.SPACE);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_N);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_O);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_T);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_E);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_P);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_A);
-                        KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_D);
+        // --- Register Hotkeys for KeyboardSimulator Actions ---
 
-                        // Sending '!' directly with SimulateHotKeyPress. You could also do this with the modified SimulateKeyPressSequence
-                        KeyboardSimulator.SimulateHotKeyPress(new Dictionary<VirtualKey, int> { { VirtualKey.SHIFT, 0 }, { VirtualKey.KEY_1, 0 } });
-                    }
-                }
-            );
-
-            // F4: Start interactive Burst Click Simulator
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.KEY_4,
-                0,
-                () =>
-                {
-                    // This call will block and prompt the user for input in the console.
-                    KeyboardSimulator.SimulateBurstClicks();
-                }
-            );
-
-            // Escape: Exit the application
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.ESCAPE,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nEscape pressed. Exiting application.");
-
-                    // Ensure tray icon is disposed
-                    trayHost?.Dispose();
-
-                    // This will post a WM_QUIT message to the current thread's message queue,
-                    PInvoke.PostQuitMessage(0);
-                }
-            );
-
-            // Message loop to keep the application running and process Windows messages.
-            MSG msg;
-            while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
+        // F1: Simulate a single 'A' key press
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_1,
+            0,
+            () =>
             {
-                PInvoke.TranslateMessage(msg);
-                PInvoke.DispatchMessage(msg);
+                Console.WriteLine("\nF1 pressed: Simulating a single 'A' key press.");
+                KeyboardSimulator.SimulateKeyPress(VirtualKey.KEY_A);
             }
+        );
+
+        // F2: Simulate a sequence of key presses ("Hello World!")
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_2,
+            0,
+            () =>
+            {
+                Console.WriteLine("\nF2 pressed: Simulating 'Hello World!' sequence.");
+                var keysSequence = new List<object>
+                {
+                    VirtualKey.KEY_H,
+                    VirtualKey.KEY_E,
+                    VirtualKey.KEY_L,
+                    VirtualKey.KEY_L,
+                    VirtualKey.KEY_O,
+                    VirtualKey.SPACE,
+                    VirtualKey.KEY_W,
+                    VirtualKey.KEY_O,
+                    VirtualKey.KEY_R,
+                    VirtualKey.KEY_L,
+                    VirtualKey.KEY_D,
+                    // Simulate Shift+1 for '!' using a List<VirtualKey> to represent the hotkey
+                    new List<VirtualKey> { VirtualKey.SHIFT, VirtualKey.KEY_1 },
+                };
+                KeyboardSimulator.SimulateKeyPressSequence(keysSequence, 0);
+            }
+        );
+
+        // F3: Find Notepad and send "Hello Notepad!"
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_3,
+            0,
+            () =>
+            {
+                Console.WriteLine("\nF3 pressed: Finding 'Notepad' and sending 'Hello Notepad!'.");
+                // You might need to adjust "Notepad" to your system's actual Notepad window class name
+                // (e.g., "Notepad" or "Edit"). You can use tools like Spy++ to find it.
+                // For a simpler test, ensure Notepad is open before pressing F3.
+
+                // Example of sending 'H' to Notepad
+                int result1 = KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_H);
+                if (result1 == 1)
+                {
+                    Console.WriteLine("Sent 'H' to Notepad successfully.");
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_E);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_L);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_L);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_O);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.SPACE);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_N);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_O);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_T);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_E);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_P);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_A);
+                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_D);
+
+                    // Sending '!' directly with SimulateHotKeyPress. You could also do this with the modified SimulateKeyPressSequence
+                    KeyboardSimulator.SimulateHotKeyPress(new Dictionary<VirtualKey, int> { { VirtualKey.SHIFT, 0 }, { VirtualKey.KEY_1, 0 } });
+                }
+            }
+        );
+
+        // F4: Start interactive Burst Click Simulator
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_4,
+            0,
+            () =>
+            {
+                // This call will block and prompt the user for input in the console.
+                KeyboardSimulator.SimulateBurstClicks();
+            }
+        );
+
+        // Toggle text expansion (Ctrl+Alt+T)
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_T,
+            Modifiers.CTRL | Modifiers.ALT,
+            () =>
+            {
+                textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
+                Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
+            }
+        );
+
+        // Escape: Exit the application
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.ESCAPE,
+            0,
+            () =>
+            {
+                Console.WriteLine("\nEscape pressed. Exiting application.");
+
+                // Ensure tray icon is disposed
+                trayHost?.Dispose();
+
+                // This will post a WM_QUIT message to the current thread's message queue,
+                PInvoke.PostQuitMessage(0);
+            }
+        );
+
+        // -- Typed Hotkey Registrations --
+        // Parameterless example (existing behavior):
+        hotkeyManager.RegisterHotkey(VirtualKey.KEY_Z, 0, () => Console.WriteLine("!!! Ctrl+Alt+Z Hotkey Activated !!!"));
+
+        // Typed example: bind parameters at registration time (no call-site lambda required)
+        hotkeyManager.RegisterHotkey(VirtualKey.KEY_X, 0, ShowMessage, "Hey, Tarek!", "Enjoy your day!");
+
+        // Typed example: bind numeric parameters
+        hotkeyManager.RegisterHotkey(VirtualKey.KEY_C, 0, MoveCursor, 0, -100);
+
+        // Message loop to keep the application running and process Windows messages.
+        MSG msg;
+        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
+        {
+            PInvoke.TranslateMessage(msg);
+            PInvoke.DispatchMessage(msg);
         }
     }
 
-    private static List<string> GetTrayIconPaths()
+    private static void StartTextExpansion()
     {
-        string baseDir = AppContext.BaseDirectory;
-        string iconsPath = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "assets", "Icons"));
+        Console.WriteLine("Starting Text Expansion System...");
+        Console.WriteLine("Type abbreviations to expand them automatically.");
+        Console.WriteLine("Configuration file: text-expansions.json (in workspace root)");
+        Console.WriteLine("Press Ctrl+Alt+T to toggle text expansion on/off.");
+        Console.WriteLine("Press Escape to exit.");
+        Console.WriteLine();
 
-        if (!Directory.Exists(iconsPath))
+        // Locate the configuration file in the workspace root
+        string configPath = PathLocator.GetConfigPath("text-expansions.json");
+        Console.WriteLine($"Using configuration: {configPath}");
+
+        using var keyboardHookManager = new KeyboardHookManager();
+        using var hotkeyManager = new HotkeyManager(keyboardHookManager);
+        using var textExpansionConfigManager = new TextExpansionConfigurationManager(configPath);
+        using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
+
+        // Load initial configuration
+        var config = textExpansionConfigManager.LoadConfiguration();
+        textExpansionManager.LoadConfiguration(config);
+
+        // Subscribe to configuration changes for live reload
+        textExpansionConfigManager.ConfigurationChanged += (sender, newConfig) =>
         {
-            return new List<string>();
-        }
+            textExpansionManager.LoadConfiguration(newConfig);
+            Console.WriteLine("Text expansion configuration reloaded.");
+        };
 
-        return Directory.GetFiles(iconsPath, "*.ico", SearchOption.AllDirectories).ToList();
+        // Subscribe to expansion events for logging
+        textExpansionManager.ExpansionOccurred += (sender, e) =>
+        {
+            Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
+        };
+
+        textExpansionManager.ExpansionError += (sender, e) =>
+        {
+            Console.WriteLine($"Expansion error for '{e.Rule.Trigger}': {e.Exception.Message}");
+        };
+
+        // Start the keyboard hook
+        keyboardHookManager.Start();
+
+        // Register toggle hotkey (Ctrl+Alt+T)
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_T,
+            Modifiers.CTRL | Modifiers.ALT,
+            () =>
+            {
+                textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
+                Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
+            }
+        );
+
+        // Register exit hotkey
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.ESCAPE,
+            0,
+            () =>
+            {
+                Console.WriteLine("Escape pressed. Exiting...");
+                PInvoke.PostQuitMessage(0);
+            }
+        );
+
+        // Print loaded rules
+        Console.WriteLine("\nLoaded expansion rules:");
+        foreach (var rule in config.Rules.Where(r => r.Enabled))
+        {
+            Console.WriteLine($"  {rule}");
+        }
+        Console.WriteLine();
+
+        // Message loop
+        MSG msg;
+        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
+        {
+            PInvoke.TranslateMessage(msg);
+            PInvoke.DispatchMessage(msg);
+        }
     }
 
-    private static IEnumerator<string> GetIconEnumerator(IReadOnlyList<string> icons)
+    /// <summary>
+    /// Demonstrates the global mouse hook manager with various binding examples.
+    /// Includes: single-button actions, multi-button combinations, scroll bindings,
+    /// double-click detection (user-handled), and scroll-while-holding-keyboard-modifier.
+    /// </summary>
+    private static void StartMouseHook()
     {
-        int index = 0;
-        while (true)
-        {
-            yield return icons[index];
-            index = (index + 1) % icons.Count;
-        }
-    }
+        Console.WriteLine("=== Global Mouse Hook Manager Demo ===");
+        Console.WriteLine();
+        Console.WriteLine("Registered Mouse Bindings:");
+        Console.WriteLine("  - Middle Click: Print message");
+        Console.WriteLine("  - Left+Right together: Print 'Chord click detected'");
+        Console.WriteLine("  - XButton1: Print 'Back button'");
+        Console.WriteLine("  - XButton2: Print 'Forward button'");
+        Console.WriteLine("  - Scroll while holding Right button: Zoom simulation");
+        Console.WriteLine("  - Scroll while holding Ctrl key: Volume control simulation");
+        Console.WriteLine("  - Left Double-Click: Print 'Double-click!' (user-handled timing)");
+        Console.WriteLine();
+        Console.WriteLine("Press Escape to exit.");
+        Console.WriteLine();
 
-    private static string MoveNext(IEnumerator<string> enumerator)
-    {
-        if (!enumerator.MoveNext())
+        // Create the mouse hook manager
+        using var mouseHookManager = new MouseHookManager();
+
+        // Create the binding manager for high-level bindings
+        using var mouseBindingManager = new MouseBindingManager(mouseHookManager);
+
+        // Also need keyboard hook to detect Ctrl key for scroll+Ctrl
+        using var keyboardHookManager = new KeyboardHookManager();
+        using var hotkeyManager = new HotkeyManager(keyboardHookManager);
+
+        // ========================================
+        // Example 1: Single Button Action
+        // ========================================
+        mouseBindingManager.RegisterBinding(MouseButtons.Middle, () => Console.WriteLine("[Mouse] Middle button clicked!"));
+
+        // ========================================
+        // Example 2: Multi-Button Combination
+        // ========================================
+        // Trigger: Left button pressed while Right button is already held
+        mouseBindingManager.RegisterBinding(triggerButton: MouseButtons.Left, heldButtons: MouseButtons.Right, action: () => Console.WriteLine("[Mouse] Chord detected: Left+Right pressed together!"));
+
+        // Also register the reverse: Right while Left is held
+        mouseBindingManager.RegisterBinding(triggerButton: MouseButtons.Right, heldButtons: MouseButtons.Left, action: () => Console.WriteLine("[Mouse] Chord detected: Right+Left pressed together!"));
+
+        // ========================================
+        // Example 3: XButton (Side Buttons)
+        // ========================================
+        mouseBindingManager.RegisterBinding(MouseButtons.XButton1, () => Console.WriteLine("[Mouse] XButton1 (Back) pressed!"));
+
+        mouseBindingManager.RegisterBinding(MouseButtons.XButton2, () => Console.WriteLine("[Mouse] XButton2 (Forward) pressed!"));
+
+        // ========================================
+        // Example 4: Scroll While Holding Mouse Button
+        // ========================================
+        // Scroll while holding Right button → Zoom simulation
+        mouseBindingManager.RegisterScrollBinding(
+            direction: ScrollDirection.Vertical,
+            heldButtons: MouseButtons.Right,
+            action: delta =>
+            {
+                string direction = delta > 0 ? "In" : "Out";
+                Console.WriteLine($"[Mouse] Zoom {direction} (scroll delta: {delta})");
+            }
+        );
+
+        // ========================================
+        // Example 5: Scroll While Holding Keyboard Modifier (Ctrl)
+        // ========================================
+        // For this, we use the raw scroll handler and check keyboard Modifiers
+        mouseHookManager.MouseScrollHandler += (sender, e) =>
         {
-            enumerator.Reset();
-            enumerator.MoveNext();
+            // Check if Ctrl is held using the keyboard Modifiers class
+            if (Modifiers.HasModifier(Modifiers.CTRL))
+            {
+                // Only handle vertical scroll for this example
+                if (e.ScrollDirection == ScrollDirection.Vertical)
+                {
+                    string action = e.WheelDelta > 0 ? "Volume Up" : "Volume Down";
+                    Console.WriteLine($"[Mouse+Keyboard] Ctrl+Scroll: {action} (delta: {e.WheelDelta})");
+
+                    // Optionally suppress the scroll event
+                    // e.Handled = true;
+                }
+            }
+        };
+
+        // ========================================
+        // Example 6: Double-Click Detection (User-Handled)
+        // ========================================
+        // Since double-click detection is user-handled, we track timestamps ourselves.
+        uint lastLeftClickTime = 0;
+        const uint DoubleClickThresholdMs = 500; // Typical double-click threshold
+
+        mouseHookManager.MouseButtonDownHandler += (sender, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                uint currentTime = e.Timestamp;
+                uint elapsed = currentTime - lastLeftClickTime;
+
+                if (elapsed > 0 && elapsed < DoubleClickThresholdMs)
+                {
+                    Console.WriteLine($"[Mouse] Double-click detected! (interval: {elapsed}ms)");
+                    // Reset to prevent triple-click counting as another double-click
+                    lastLeftClickTime = 0;
+                }
+                else
+                {
+                    lastLeftClickTime = currentTime;
+                }
+            }
+        };
+
+        // ========================================
+        // Example 7: Raw Event Logging (Optional)
+        // ========================================
+        // Uncomment to see all mouse events:
+        // mouseHookManager.MouseButtonDownHandler += (s, e) =>
+        //     Console.WriteLine($"[RAW] ButtonDown: {e.Button} at ({e.X}, {e.Y})");
+        // mouseHookManager.MouseButtonUpHandler += (s, e) =>
+        //     Console.WriteLine($"[RAW] ButtonUp: {e.Button} at ({e.X}, {e.Y})");
+
+        // ========================================
+        // Start the hooks
+        // ========================================
+        keyboardHookManager.Start();
+        mouseHookManager.Start();
+
+        Console.WriteLine("Mouse and keyboard hooks installed. Perform mouse actions to test.");
+        Console.WriteLine();
+
+        // Register Escape to exit
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.ESCAPE,
+            0,
+            () =>
+            {
+                Console.WriteLine("\nEscape pressed. Exiting...");
+                PInvoke.PostQuitMessage(0);
+            }
+        );
+
+        // Message loop
+        MSG msg;
+        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
+        {
+            PInvoke.TranslateMessage(msg);
+            PInvoke.DispatchMessage(msg);
         }
 
-        return enumerator.Current;
+        Console.WriteLine("Mouse hook demo finished.");
     }
 }
 
