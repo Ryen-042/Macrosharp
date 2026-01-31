@@ -11,16 +11,16 @@ namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 /// </summary>
 public sealed class ImageEditorState
 {
-    private ImageBuffer _raster;           // Committed pixel buffer (for saves)
-    private ImageBuffer _matrix;           // Working buffer for drawing
+    private ImageBuffer _raster; // Committed pixel buffer (for saves)
+    private ImageBuffer _matrix; // Working buffer for drawing
     private readonly ImageBuffer _original; // Original state for reset operation
-    private SyncFlag _syncFlag;            // Tracks which buffer is newer
-    
+    private SyncFlag _syncFlag; // Tracks which buffer is newer
+
     // Undo/Redo stacks storing snapshots of the raster buffer
     private readonly List<ImageSnapshot> _undoStack = new();
     private readonly List<ImageSnapshot> _redoStack = new();
     private int _maxUndo = 20;
-    
+
     private bool _hasLoadedImage;
 
     /// <summary>

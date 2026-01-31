@@ -25,14 +25,14 @@ public sealed class ImageEditorWindow : IDisposable
     private readonly string _title;
     private readonly ImageEditor _editor;
     private readonly WNDPROC _wndProc;
-    
+
     // Window handle and state
     private HWND _hwnd;
     private GCHandle _selfHandle;
     private int _clientWidth;
     private int _clientHeight;
     private bool _isMouseCaptured;
-    
+
     // Pending operations (for images to load on startup)
     private string? _pendingFilePath;
     private bool _pendingClipboard;
@@ -312,7 +312,7 @@ public sealed class ImageEditorWindow : IDisposable
 
         // Render to memory buffer
         _editor.Render(memoryDc, width, height);
-        
+
         // Copy from memory buffer to screen
         PInvoke.BitBlt(hdc, 0, 0, width, height, memoryDc, 0, 0, ROP_CODE.SRCCOPY);
 

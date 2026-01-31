@@ -420,7 +420,7 @@ public sealed class ImageEditor
     {
         // Check if we're still at the fit zoom level (user hasn't zoomed since fitting)
         bool stillAtFitZoom = Math.Abs(_zoom - _fitZoomValue) < ZoomEpsilon && _panX == 0 && _panY == 0;
-        
+
         if (stillAtFitZoom && _fitZoomValue > 0)
         {
             // Restore saved zoom/pan state
