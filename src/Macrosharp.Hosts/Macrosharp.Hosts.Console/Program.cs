@@ -12,6 +12,7 @@ using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Devices.Mouse;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.DynamicWindow;
+using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.UserInterfaces.TrayIcon;
 using Macrosharp.Win32.Abstractions.Explorer;
 using Windows.Win32; // For PInvoke access to generated constants and methods
@@ -26,6 +27,9 @@ public class Program
 {
     static void Main()
     {
+        // Register AUMID before any Shell / notification / tray icon work
+        ToastNotificationHost.RegisterAppUserModelId();
+
         #region AcquireMutex
         // var mutex = MutexGuardLock.AcquireMutex("Macrosharp");
         // var mutex2 = MutexGuardLock.AcquireMutex("Macrosharp");
@@ -649,15 +653,34 @@ public class Program
         bool isSilentMode = false;
         TrayIconHost? trayHost = null;
 
+        // Create and start toast notification host
+        using var toastHost = new ToastNotificationHost("Macrosharp", iconCycler.GetNext());
+        toastHost.Start();
+
+        // Handle toast action button activations (fires on a background COM thread)
+        toastHost.Activated += (_, e) =>
+        {
+            switch (e.Argument)
+            {
+                case "action=quit":
+                    Console.WriteLine("Toast action: Close App.");
+                    trayHost?.Dispose();
+                    Environment.Exit(0);
+                    break;
+                case "action=open-folder":
+                    Console.WriteLine("Toast action: Open Folder.");
+                    Process.Start(new ProcessStartInfo("explorer.exe", AppContext.BaseDirectory) { UseShellExecute = true });
+                    break;
+                case "action=snooze":
+                    Console.WriteLine("Toast action: Snooze acknowledged.");
+                    break;
+            }
+        };
+
         void OpenScriptFolder()
         {
             string folder = AppContext.BaseDirectory;
             Process.Start(new ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
-        }
-
-        void ShowNotification()
-        {
-            Console.WriteLine("Tray action: show notification requested (placeholder).");
         }
 
         void SwitchIcon()
@@ -687,7 +710,41 @@ public class Program
         var trayMenu = new List<TrayMenuItem>
         {
             TrayMenuItem.ActionItem("Open Script Folder", OpenScriptFolder, iconPath: iconCycler.GetNext()),
-            TrayMenuItem.ActionItem("Show Notification", ShowNotification, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.Submenu(
+                "Show Notification",
+                new List<TrayMenuItem>
+                {
+                    TrayMenuItem.ActionItem("Simple", () =>
+                        toastHost.Show("Macrosharp", "A simple text notification.")),
+                    TrayMenuItem.ActionItem("Long Duration", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "This toast stays visible for ~25 seconds.", Duration = ToastDuration.Long })),
+                    TrayMenuItem.ActionItem("With Attribution", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "A notification with attribution text.", Attribution = "via Macrosharp" })),
+                    TrayMenuItem.ActionItem("Alarm Scenario", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Alarm", Body = "This is an alarm-style notification.", Scenario = ToastScenario.Alarm })),
+                    TrayMenuItem.ActionItem("Reminder Scenario", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Reminder", Body = "Don\u0027t forget your task!", Scenario = ToastScenario.Reminder })),
+                    TrayMenuItem.ActionItem("With App Logo", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "Notification with a custom app logo override.", AppLogoPath = iconPaths.FirstOrDefault() })),
+                    TrayMenuItem.ActionItem("Progress (Indeterminate)", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "Working on it...", ProgressBar = new ToastProgressBar { Title = "Processing", Status = "Please wait..." } })),
+                    TrayMenuItem.ActionItem("Progress (50%)", () =>
+                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "Half way there!", ProgressBar = new ToastProgressBar { Title = "Downloading", Value = 0.5, ValueStringOverride = "5 / 10 files", Status = "In progress" } })),
+                    TrayMenuItem.ActionItem("With Action Buttons", () =>
+                        toastHost.Show(new ToastNotificationContent
+                        {
+                            Title = "Macrosharp",
+                            Body = "Choose an action below.",
+                            Actions = new List<ToastAction>
+                            {
+                                new() { Label = "Close App",   Argument = "action=quit" },
+                                new() { Label = "Open Folder", Argument = "action=open-folder" },
+                                new() { Label = "Snooze",      Argument = "action=snooze" },
+                            }
+                        })),
+                },
+                iconPath: iconCycler.GetNext()
+            ),
             TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: iconCycler.GetNext()),
             TrayMenuItem.Submenu(
                 "Reload",
