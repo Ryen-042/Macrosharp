@@ -25,11 +25,15 @@ public enum ReminderMissedPolicy
 
 public enum ReminderPopupPosition
 {
-    BottomRight,
-    BottomLeft,
     TopRight,
+    TopCenter,
     TopLeft,
+    MiddleRight,
     Center,
+    MiddleLeft,
+    BottomRight,
+    BottomCenter,
+    BottomLeft,
 }
 
 public sealed class ReminderConfiguration
@@ -60,6 +64,7 @@ public sealed class ReminderPopupOptions
 {
     public bool Enabled { get; set; } = true;
     public ReminderPopupPosition Position { get; set; } = ReminderPopupPosition.BottomRight;
+    public int? MonitorIndex { get; set; }
     public int DurationSeconds { get; set; } = 10;
     public int OpacityPercent { get; set; } = 70;
     public List<int> SnoozeMinutes { get; set; } = new() { 5, 10, 15 };

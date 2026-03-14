@@ -58,6 +58,7 @@ Recommended: always use camelCase for enum strings in `reminders.json`.
   "popupDefaults": {
     "enabled": true,
     "position": "bottomRight",
+    "monitorIndex": null,
     "durationSeconds": 10,
     "opacityPercent": 70,
     "snoozeMinutes": [5, 10, 15]
@@ -121,7 +122,10 @@ Fields:
 
 - `enabled` (bool, default `true`)
 - `position` (enum string, default `"bottomRight"`)
-  - Allowed values: `bottomRight`, `bottomLeft`, `topRight`, `topLeft`, `center`
+  - Allowed values: `topLeft`, `topCenter`, `topRight`, `middleLeft`, `center`, `middleRight`, `bottomLeft`, `bottomCenter`, `bottomRight`
+- `monitorIndex` (int?, default `null`)
+  - `null` means primary monitor
+  - values are 0-based monitor indices and out-of-range values are clamped
 - `durationSeconds` (int, default `10`)
   - Normalized range: `3..120`
 - `opacityPercent` (int, default `70`)
@@ -145,6 +149,7 @@ Fields:
   "popup": {
     "enabled": true,
     "position": "bottomRight",
+    "monitorIndex": null,
     "durationSeconds": 10,
     "opacityPercent": 70,
     "snoozeMinutes": [5, 10, 15]
@@ -342,9 +347,16 @@ Notes:
 For each fired reminder:
 
 - If app is in silent mode: channels are suppressed.
-- If `channels.toast = true`: toast notification is shown.
+- If `channels.toast = true`: toast notification is shown with rich tags stripped to plain text.
 - If `channels.sound = true`: sound is played.
 - If `channels.popup = true` and popup enabled: popup window is shown.
+
+Popup stacking behavior:
+
+- Concurrent popups are slot-allocated so they do not overlap.
+- Right-anchored positions stack vertically then overflow to columns on the left.
+- Left-anchored positions stack vertically then overflow to columns on the right.
+- Center-anchored positions stack around center first, then overflow into side columns.
 
 Popup user actions:
 
@@ -398,6 +410,7 @@ When config is invalid/corrupt:
     "popupDefaults": {
       "enabled": true,
       "position": "bottomRight",
+      "monitorIndex": null,
       "durationSeconds": 12,
       "opacityPercent": 75,
       "snoozeMinutes": [5, 10, 20]

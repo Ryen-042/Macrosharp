@@ -29,15 +29,15 @@
       "Message": "[b]20-20-20 rule:[/b] Look at something [color=#5dade2]20 feet[/color] away for [i]20 seconds[/i].",
       "Enabled": true,
       "Channels": {
-        "Toast": true,
+        "Toast": false,
         "Popup": true,
-        "Sound": false
+        "Sound": true
       },
       "Popup": {
         "Enabled": true,
         "Position": "bottomRight",
-        "DurationSeconds": 10,
-        "OpacityPercent": 70,
+        "DurationSeconds": 20,
+        "OpacityPercent": 90,
         "SnoozeMinutes": [
           5,
           10,
@@ -50,7 +50,7 @@
         "Anchor": "programStart",
         "DaysOfWeek": []
       },
-      "LastTriggeredUtc": "2026-03-14T13:09:36.510361+00:00",
+      "LastTriggeredUtc": "2026-03-14T14:22:14.0615088+00:00",
       "LastTriggerWasMonthEndClamp": false
     },
     {
@@ -65,7 +65,7 @@
       },
       "Popup": {
         "Enabled": true,
-        "Position": "bottomRight",
+        "Position": "bottomCenter",
         "DurationSeconds": 10,
         "OpacityPercent": 70,
         "SnoozeMinutes": [
@@ -94,7 +94,8 @@
       },
       "Popup": {
         "Enabled": true,
-        "Position": "bottomRight",
+        "Position": "middleRight",
+        "MonitorIndex": 0,
         "DurationSeconds": 10,
         "OpacityPercent": 70,
         "SnoozeMinutes": [

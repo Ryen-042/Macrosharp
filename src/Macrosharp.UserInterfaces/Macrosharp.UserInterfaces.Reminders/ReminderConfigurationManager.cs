@@ -206,6 +206,7 @@ public sealed class ReminderConfigurationManager : IDisposable
         config.Settings ??= new ReminderSettings();
         config.Settings.DefaultChannels ??= new ReminderChannels();
         config.Settings.PopupDefaults ??= new ReminderPopupOptions();
+        config.Settings.PopupDefaults.MonitorIndex = config.Settings.PopupDefaults.MonitorIndex is >= 0 ? config.Settings.PopupDefaults.MonitorIndex : null;
         config.Reminders ??= new List<ReminderDefinition>();
 
         foreach (var reminder in config.Reminders)
@@ -229,11 +230,13 @@ public sealed class ReminderConfigurationManager : IDisposable
             {
                 Enabled = config.Settings.PopupDefaults.Enabled,
                 Position = config.Settings.PopupDefaults.Position,
+                MonitorIndex = config.Settings.PopupDefaults.MonitorIndex,
                 DurationSeconds = config.Settings.PopupDefaults.DurationSeconds,
                 OpacityPercent = config.Settings.PopupDefaults.OpacityPercent,
                 SnoozeMinutes = new List<int>(config.Settings.PopupDefaults.SnoozeMinutes),
             };
 
+            reminder.Popup.MonitorIndex = reminder.Popup.MonitorIndex is >= 0 ? reminder.Popup.MonitorIndex : null;
             reminder.Popup.DurationSeconds = Math.Clamp(reminder.Popup.DurationSeconds, 3, 120);
             reminder.Popup.OpacityPercent = Math.Clamp(reminder.Popup.OpacityPercent, 30, 100);
             if (reminder.Popup.SnoozeMinutes.Count == 0)

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.ToastNotifications;
 
@@ -5,6 +6,8 @@ namespace Macrosharp.UserInterfaces.Reminders;
 
 public sealed class ReminderScheduler : IDisposable
 {
+    private static readonly Regex RichTagRegex = new("\\[/?(?:b|i|color(?:=[^\\]]+)?)\\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private readonly ReminderConfigurationManager _configurationManager;
     private readonly ToastNotificationHost _toastHost;
     private readonly Func<bool> _isSilentMode;
@@ -173,6 +176,7 @@ public sealed class ReminderScheduler : IDisposable
 
         var clampedPrefix = reminder.LastTriggerWasMonthEndClamp ? "(Clamped to month-end) " : string.Empty;
         var message = clampedPrefix + reminder.Message;
+        var toastMessage = StripRichTextTags(message);
 
         if (!_isSilentMode())
         {
@@ -182,7 +186,7 @@ public sealed class ReminderScheduler : IDisposable
                     new ToastNotificationContent
                     {
                         Title = reminder.Title,
-                        Body = message,
+                        Body = toastMessage,
                         Scenario = ToastScenario.Reminder,
                         Duration = ToastDuration.Long,
                     }
@@ -252,5 +256,15 @@ public sealed class ReminderScheduler : IDisposable
     public void Dispose()
     {
         Stop();
+    }
+
+    private static string StripRichTextTags(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        return RichTagRegex.Replace(text, string.Empty);
     }
 }

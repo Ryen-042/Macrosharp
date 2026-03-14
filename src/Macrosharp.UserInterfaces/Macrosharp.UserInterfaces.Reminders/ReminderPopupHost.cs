@@ -29,6 +29,8 @@ public sealed class ReminderPopupHost
         private const string ClassName = "Macrosharp.ReminderPopup";
         private const int SnoozeButtonId = 1001;
         private const int DismissButtonId = 1002;
+        private const int PopupWidth = 430;
+        private const int PopupHeight = 230;
 
         private readonly ReminderDefinition _reminder;
         private readonly ReminderPopupOptions _popupOptions;
@@ -44,6 +46,7 @@ public sealed class ReminderPopupHost
 
         private HWND _hwnd;
         private bool _resultSubmitted;
+        private PopupPlacement _placement;
 
         public ReminderPopupWindow(ReminderDefinition reminder, ReminderPopupOptions popupOptions, Action<ReminderPopupResult> onResult)
         {
@@ -56,45 +59,51 @@ public sealed class ReminderPopupHost
 
         public void Run()
         {
-            RegisterClass();
-            CreateWindow();
-            InitializeFonts();
-            CreateControls();
-
-            PInvoke.ShowWindow(_hwnd, SHOW_WINDOW_CMD.SW_SHOW);
-            PInvoke.UpdateWindow(_hwnd);
-
-            var duration = Math.Clamp(_popupOptions.DurationSeconds, 3, 120);
-            Task.Delay(TimeSpan.FromSeconds(duration))
-                .ContinueWith(_ =>
-                {
-                    if (_resultSubmitted || _hwnd == HWND.Null)
-                    {
-                        return;
-                    }
-
-                    PInvoke.PostMessage(_hwnd, PInvoke.WM_CLOSE, 0, 0);
-                });
-
-            MSG msg = new();
-            while (PInvoke.GetMessage(out msg, HWND.Null, 0, 0))
+            try
             {
-                PInvoke.TranslateMessage(msg);
-                PInvoke.DispatchMessage(msg);
-            }
+                RegisterClass();
+                CreateWindow();
+                InitializeFonts();
+                CreateControls();
 
-            PInvoke.UnregisterClass(ClassName, default);
-            PInvoke.DeleteObject(_backgroundBrush);
-            if (_titleFont != 0)
-                DeleteObject(_titleFont);
-            if (_regularFont != 0)
-                DeleteObject(_regularFont);
-            if (_boldFont != 0)
-                DeleteObject(_boldFont);
-            if (_italicFont != 0)
-                DeleteObject(_italicFont);
-            if (_boldItalicFont != 0)
-                DeleteObject(_boldItalicFont);
+                PInvoke.ShowWindow(_hwnd, SHOW_WINDOW_CMD.SW_SHOW);
+                PInvoke.UpdateWindow(_hwnd);
+
+                var duration = Math.Clamp(_popupOptions.DurationSeconds, 3, 120);
+                Task.Delay(TimeSpan.FromSeconds(duration))
+                    .ContinueWith(_ =>
+                    {
+                        if (_resultSubmitted || _hwnd == HWND.Null)
+                        {
+                            return;
+                        }
+
+                        PInvoke.PostMessage(_hwnd, PInvoke.WM_CLOSE, 0, 0);
+                    });
+
+                MSG msg = new();
+                while (PInvoke.GetMessage(out msg, HWND.Null, 0, 0))
+                {
+                    PInvoke.TranslateMessage(msg);
+                    PInvoke.DispatchMessage(msg);
+                }
+            }
+            finally
+            {
+                PopupPlacementCoordinator.Release(_placement);
+                PInvoke.UnregisterClass(ClassName, default);
+                PInvoke.DeleteObject(_backgroundBrush);
+                if (_titleFont != 0)
+                    DeleteObject(_titleFont);
+                if (_regularFont != 0)
+                    DeleteObject(_regularFont);
+                if (_boldFont != 0)
+                    DeleteObject(_boldFont);
+                if (_italicFont != 0)
+                    DeleteObject(_italicFont);
+                if (_boldItalicFont != 0)
+                    DeleteObject(_boldItalicFont);
+            }
         }
 
         private void InitializeFonts()
@@ -134,19 +143,17 @@ public sealed class ReminderPopupHost
 
         private unsafe void CreateWindow()
         {
-            const int width = 430;
-            const int height = 230;
-            var (x, y) = ResolvePosition(width, height, _popupOptions.Position);
+            _placement = PopupPlacementCoordinator.Allocate(_popupOptions.Position, _popupOptions.MonitorIndex, PopupWidth, PopupHeight);
 
             _hwnd = PInvoke.CreateWindowEx(
                 WINDOW_EX_STYLE.WS_EX_TOPMOST | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_LAYERED,
                 ClassName,
                 _reminder.Title,
                 WINDOW_STYLE.WS_POPUP,
-                x,
-                y,
-                width,
-                height,
+                _placement.X,
+                _placement.Y,
+                PopupWidth,
+                PopupHeight,
                 default,
                 default,
                 PInvoke.GetModuleHandle((string?)null),
@@ -445,37 +452,240 @@ public sealed class ReminderPopupHost
 
             return Math.Clamp(popupOptions.SnoozeMinutes[0], 1, 180);
         }
+    }
 
-        private static (int x, int y) ResolvePosition(int width, int height, ReminderPopupPosition position)
+    private enum HorizontalAnchor
+    {
+        Left,
+        Center,
+        Right,
+    }
+
+    private enum VerticalAnchor
+    {
+        Top,
+        Middle,
+        Bottom,
+    }
+
+    private readonly record struct MonitorWorkArea(int Left, int Top, int Right, int Bottom, bool IsPrimary)
+    {
+        public int Width => Right - Left;
+        public int Height => Bottom - Top;
+    }
+
+    private readonly record struct SlotKey(int Monitor, ReminderPopupPosition Position, int Column, int Row);
+
+    private readonly record struct PopupPlacement(int X, int Y, SlotKey Slot)
+    {
+        public static PopupPlacement Empty => new(0, 0, default);
+    }
+
+    private static class PopupPlacementCoordinator
+    {
+        private const int Margin = 18;
+        private const int Spacing = 10;
+        private const uint MONITORINFOF_PRIMARY = 0x00000001;
+
+        private static readonly object Gate = new();
+        private static readonly HashSet<SlotKey> Occupied = new();
+
+        private delegate bool MonitorEnumProc(nint hMonitor, nint hdcMonitor, nint lprcMonitor, nint dwData);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct MONITORINFOEX
         {
-            var sw = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSCREEN);
-            var sh = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYSCREEN);
-            const int margin = 18;
+            public uint cbSize;
+            public RECT rcMonitor;
+            public RECT rcWork;
+            public uint dwFlags;
 
-            var x = sw - width - margin;
-            var y = sh - height - margin;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string szDevice;
+        }
 
-            switch (position)
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool EnumDisplayMonitors(nint hdc, nint lprcClip, MonitorEnumProc lpfnEnum, nint dwData);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool GetMonitorInfoW(nint hMonitor, ref MONITORINFOEX lpmi);
+
+        public static PopupPlacement Allocate(ReminderPopupPosition position, int? monitorIndex, int width, int height)
+        {
+            lock (Gate)
             {
-                case ReminderPopupPosition.BottomLeft:
-                    x = margin;
-                    y = sh - height - margin;
-                    break;
-                case ReminderPopupPosition.TopRight:
-                    x = sw - width - margin;
-                    y = margin;
-                    break;
-                case ReminderPopupPosition.TopLeft:
-                    x = margin;
-                    y = margin;
-                    break;
-                case ReminderPopupPosition.Center:
-                    x = (sw - width) / 2;
-                    y = (sh - height) / 2;
-                    break;
+                var monitors = EnumerateMonitors();
+                var selectedMonitorIndex = ResolveMonitorIndex(monitors, monitorIndex);
+                var monitor = monitors[selectedMonitorIndex];
+                var (horizontalAnchor, verticalAnchor) = ResolveAnchors(position);
+
+                var stepX = width + Spacing;
+                var stepY = height + Spacing;
+
+                var maxCols = Math.Max(1, (monitor.Width - (2 * Margin) + Spacing) / stepX);
+                var maxRows = Math.Max(1, (monitor.Height - (2 * Margin) + Spacing) / stepY);
+
+                var columns = BuildColumns(maxCols, horizontalAnchor);
+                var rows = BuildRows(maxRows, verticalAnchor);
+
+                foreach (var column in columns)
+                {
+                    foreach (var row in rows)
+                    {
+                        var x = ResolveX(monitor, horizontalAnchor, width, stepX, column);
+                        var y = ResolveY(monitor, verticalAnchor, height, stepY, row);
+
+                        if (!IsWithinWorkArea(monitor, x, y, width, height))
+                        {
+                            continue;
+                        }
+
+                        var slot = new SlotKey(selectedMonitorIndex, position, column, row);
+                        if (Occupied.Contains(slot))
+                        {
+                            continue;
+                        }
+
+                        Occupied.Add(slot);
+                        return new PopupPlacement(x, y, slot);
+                    }
+                }
+
+                var fallbackX = monitor.Right - Margin - width;
+                var fallbackY = monitor.Bottom - Margin - height;
+                var fallback = new SlotKey(selectedMonitorIndex, position, int.MinValue, int.MinValue);
+                Occupied.Add(fallback);
+                return new PopupPlacement(fallbackX, fallbackY, fallback);
+            }
+        }
+
+        public static void Release(PopupPlacement placement)
+        {
+            if (placement.Slot == default)
+            {
+                return;
             }
 
-            return (x, y);
+            lock (Gate)
+            {
+                Occupied.Remove(placement.Slot);
+            }
+        }
+
+        private static int ResolveMonitorIndex(IReadOnlyList<MonitorWorkArea> monitors, int? requested)
+        {
+            if (requested.HasValue)
+            {
+                return Math.Clamp(requested.Value, 0, monitors.Count - 1);
+            }
+
+            var primaryIndex = monitors
+                .Select((m, i) => new { Monitor = m, Index = i })
+                .FirstOrDefault(x => x.Monitor.IsPrimary)?.Index;
+
+            return primaryIndex ?? 0;
+        }
+
+        private static List<MonitorWorkArea> EnumerateMonitors()
+        {
+            var result = new List<MonitorWorkArea>();
+
+            EnumDisplayMonitors(
+                0,
+                0,
+                (hMonitor, _, _, _) =>
+                {
+                    var info = new MONITORINFOEX { cbSize = (uint)Marshal.SizeOf<MONITORINFOEX>(), szDevice = string.Empty };
+                    if (GetMonitorInfoW(hMonitor, ref info))
+                    {
+                        result.Add(
+                            new MonitorWorkArea(
+                                info.rcWork.left,
+                                info.rcWork.top,
+                                info.rcWork.right,
+                                info.rcWork.bottom,
+                                (info.dwFlags & MONITORINFOF_PRIMARY) != 0
+                            )
+                        );
+                    }
+
+                    return true;
+                },
+                0
+            );
+
+            if (result.Count == 0)
+            {
+                var width = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CXSCREEN);
+                var height = PInvoke.GetSystemMetrics(SYSTEM_METRICS_INDEX.SM_CYSCREEN);
+                result.Add(new MonitorWorkArea(0, 0, width, height, true));
+            }
+
+            return result;
+        }
+
+        private static IEnumerable<int> BuildColumns(int maxColumns, HorizontalAnchor anchor)
+        {
+            return anchor == HorizontalAnchor.Center ? BuildCenteredSequence(maxColumns) : Enumerable.Range(0, maxColumns);
+        }
+
+        private static IEnumerable<int> BuildRows(int maxRows, VerticalAnchor anchor)
+        {
+            return anchor == VerticalAnchor.Middle ? BuildCenteredSequence(maxRows) : Enumerable.Range(0, maxRows);
+        }
+
+        private static IEnumerable<int> BuildCenteredSequence(int count)
+        {
+            yield return 0;
+            for (var i = 1; i < count; i++)
+            {
+                var offset = (i + 1) / 2;
+                yield return i % 2 == 1 ? offset : -offset;
+            }
+        }
+
+        private static int ResolveX(MonitorWorkArea area, HorizontalAnchor anchor, int width, int stepX, int column)
+        {
+            return anchor switch
+            {
+                HorizontalAnchor.Left => area.Left + Margin + (column * stepX),
+                HorizontalAnchor.Right => area.Right - Margin - width - (column * stepX),
+                _ => area.Left + ((area.Width - width) / 2) + (column * stepX),
+            };
+        }
+
+        private static int ResolveY(MonitorWorkArea area, VerticalAnchor anchor, int height, int stepY, int row)
+        {
+            return anchor switch
+            {
+                VerticalAnchor.Top => area.Top + Margin + (row * stepY),
+                VerticalAnchor.Bottom => area.Bottom - Margin - height - (row * stepY),
+                _ => area.Top + ((area.Height - height) / 2) + (row * stepY),
+            };
+        }
+
+        private static bool IsWithinWorkArea(MonitorWorkArea area, int x, int y, int width, int height)
+        {
+            return x >= area.Left + Margin
+                && y >= area.Top + Margin
+                && (x + width) <= area.Right - Margin
+                && (y + height) <= area.Bottom - Margin;
+        }
+
+        private static (HorizontalAnchor horizontal, VerticalAnchor vertical) ResolveAnchors(ReminderPopupPosition position)
+        {
+            return position switch
+            {
+                ReminderPopupPosition.TopLeft => (HorizontalAnchor.Left, VerticalAnchor.Top),
+                ReminderPopupPosition.TopCenter => (HorizontalAnchor.Center, VerticalAnchor.Top),
+                ReminderPopupPosition.TopRight => (HorizontalAnchor.Right, VerticalAnchor.Top),
+                ReminderPopupPosition.MiddleLeft => (HorizontalAnchor.Left, VerticalAnchor.Middle),
+                ReminderPopupPosition.Center => (HorizontalAnchor.Center, VerticalAnchor.Middle),
+                ReminderPopupPosition.MiddleRight => (HorizontalAnchor.Right, VerticalAnchor.Middle),
+                ReminderPopupPosition.BottomLeft => (HorizontalAnchor.Left, VerticalAnchor.Bottom),
+                ReminderPopupPosition.BottomCenter => (HorizontalAnchor.Center, VerticalAnchor.Bottom),
+                _ => (HorizontalAnchor.Right, VerticalAnchor.Bottom),
+            };
         }
     }
 
