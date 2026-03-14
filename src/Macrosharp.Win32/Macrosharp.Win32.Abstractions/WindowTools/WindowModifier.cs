@@ -39,12 +39,21 @@ public class WindowModifier
         return isAlwaysOnTop ? 0 : 1;
     }
 
-    ///<summary> Adjusts the position and size of the given window by adding the specified deltas. If no window is specified (hwnd is default), uses the foreground window.</summary>
+    ///<summary> Adjusts the position and size of the given window by adding the specified deltas. If no window is specified (hwnd is default), uses the foreground window. Restores maximized/full-screen windows before repositioning so that SetWindowPos takes effect.</summary>
     public static void AdjustWindowPositionAndSize(HWND hwnd = default, int deltaX = 0, int deltaY = 0, int deltaWidth = 0, int deltaHeight = 0)
     {
         if (hwnd == HWND.Null)
         {
             hwnd = PInvoke.GetForegroundWindow();
+        }
+
+        // If the window is maximized, clear the WS_MAXIMIZE style bit so SetWindowPos can reposition it
+        // freely — without calling ShowWindow(SW_RESTORE), which would snap the window back to its
+        // pre-maximize size. This keeps the current (screen-filling) size and just moves it.
+        var style = (WINDOW_STYLE)PInvoke.GetWindowLong(hwnd, WINDOW_LONG_PTR_INDEX.GWL_STYLE);
+        if (style.HasFlag(WINDOW_STYLE.WS_MAXIMIZE))
+        {
+            PInvoke.SetWindowLong(hwnd, WINDOW_LONG_PTR_INDEX.GWL_STYLE, (int)(style & ~WINDOW_STYLE.WS_MAXIMIZE));
         }
 
         // Get the current window rectangle.
@@ -56,6 +65,10 @@ public class WindowModifier
         int newWidth = rect.right - rect.left + deltaWidth;
         int newHeight = rect.bottom - rect.top + deltaHeight;
 
+        SET_WINDOW_POS_FLAGS flags = SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE;
+        if (deltaWidth == 0 && deltaHeight == 0)
+            flags |= SET_WINDOW_POS_FLAGS.SWP_NOSIZE;
+
         BOOL resizeSuccess = PInvoke.SetWindowPos(
             hwnd,
             HWND.Null, // No z-order change.
@@ -63,7 +76,7 @@ public class WindowModifier
             newY,
             newWidth,
             newHeight,
-            SET_WINDOW_POS_FLAGS.SWP_NOZORDER | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE
+            flags
         );
 
         if (resizeSuccess.Value == 0)

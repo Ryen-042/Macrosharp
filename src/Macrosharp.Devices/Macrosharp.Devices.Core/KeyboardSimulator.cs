@@ -380,7 +380,7 @@ public static partial class KeyboardSimulator
     /// Sets text to the clipboard using Win32 APIs.
     /// </summary>
     /// <param name="text">The text to set.</param>
-    private static void SetClipboardText(string text)
+    public static void SetClipboardText(string text)
     {
         if (!PInvoke.OpenClipboard(default))
             throw new InvalidOperationException("Could not open clipboard.");

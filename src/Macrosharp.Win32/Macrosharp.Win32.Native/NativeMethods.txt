@@ -416,3 +416,11 @@ BACKGROUND_MODE
 DIB_USAGE
 ROP_CODE
 BI_COMPRESSION
+
+// SystemControl & ProcessControl
+GetConsoleWindow
+GetCurrentThreadId
+GetWindowThreadProcessId
+OpenProcess
+CloseHandle
+PROCESS_ACCESS_RIGHTS

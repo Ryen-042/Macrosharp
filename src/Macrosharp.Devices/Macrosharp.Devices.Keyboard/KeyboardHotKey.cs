@@ -60,8 +60,8 @@ public class HotkeyManager : IDisposable
 {
     private readonly KeyboardHookManager _keyboardHookManager;
 
-    // Stores registered hotkeys and their associated actions.
-    private readonly Dictionary<Hotkey, Action> _registeredHotkeys = new();
+    // Stores registered hotkeys and their associated actions with optional guard conditions.
+    private readonly Dictionary<Hotkey, (Action Action, Func<bool>? Condition, bool AllowRepeat)> _registeredHotkeys = new();
 
     // To prevent a hotkey from firing repeatedly while held down.
     private Hotkey? _activeHotkey = null;
@@ -83,6 +83,39 @@ public class HotkeyManager : IDisposable
     public bool RegisterHotkey(VirtualKey key, int modifiers, Action action)
     {
         return RegisterInternal(key, modifiers, action);
+    }
+
+    /// <summary>Registers a new hotkey with an associated action and a guard condition.
+    /// When the condition returns false the key event is NOT suppressed and passes through to other applications.</summary>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys.</param>
+    /// <param name="action">The action to execute when the hotkey is pressed and the condition is met.</param>
+    /// <param name="condition">A predicate that must return true for the hotkey to fire. When false, the key event passes through.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterConditionalHotkey(VirtualKey key, int modifiers, Action action, Func<bool> condition)
+    {
+        return RegisterInternal(key, modifiers, action, condition);
+    }
+
+    /// <summary>Registers a new repeatable hotkey that fires on every key repeat while held.</summary>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys.</param>
+    /// <param name="action">The action to execute on each key-down event (including repeats).</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterRepeatableHotkey(VirtualKey key, int modifiers, Action action)
+    {
+        return RegisterInternal(key, modifiers, action, condition: null, allowRepeat: true);
+    }
+
+    /// <summary>Registers a new repeatable hotkey with a guard condition. Fires on every key repeat while held and the condition is met.</summary>
+    /// <param name="key">The main virtual key for the hotkey.</param>
+    /// <param name="modifiers">The bitmask of modifier keys.</param>
+    /// <param name="action">The action to execute on each key-down event (including repeats).</param>
+    /// <param name="condition">A predicate that must return true for the hotkey to fire. When false, the key event passes through.</param>
+    /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
+    public bool RegisterConditionalRepeatableHotkey(VirtualKey key, int modifiers, Action action, Func<bool> condition)
+    {
+        return RegisterInternal(key, modifiers, action, condition, allowRepeat: true);
     }
 
     /// <summary>Registers a new hotkey with an associated action and one bound argument.</summary>
@@ -165,12 +198,14 @@ public class HotkeyManager : IDisposable
         return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3, arg4, arg5));
     }
 
-    /// <summary>Registers a new hotkey with a parameterless action.</summary>
+    /// <summary>Registers a new hotkey with a parameterless action and optional guard condition.</summary>
     /// <param name="key">The main virtual key for the hotkey.</param>
     /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
     /// <param name="boundAction">The parameterless action bound at registration time.</param>
+    /// <param name="condition">Optional guard condition; when provided and returns false, the key event passes through.</param>
+    /// <param name="allowRepeat">When true, the hotkey fires on every key repeat while held.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    private bool RegisterInternal(VirtualKey key, int modifiers, Action boundAction)
+    private bool RegisterInternal(VirtualKey key, int modifiers, Action boundAction, Func<bool>? condition = null, bool allowRepeat = false)
     {
         Hotkey hotkey = new Hotkey(key, modifiers);
         if (_registeredHotkeys.ContainsKey(hotkey))
@@ -179,7 +214,7 @@ public class HotkeyManager : IDisposable
             return false;
         }
 
-        _registeredHotkeys.Add(hotkey, boundAction);
+        _registeredHotkeys.Add(hotkey, (boundAction, condition, allowRepeat));
         return true;
     }
 
@@ -206,7 +241,9 @@ public class HotkeyManager : IDisposable
         return removed;
     }
 
-    /// <summary>Handles key down events from the keyboard hook.</summary>
+    /// <summary>Handles key down events from the keyboard hook.
+    /// Actions are dispatched via Task.Run so the low-level hook callback returns immediately,
+    /// preventing the OS from timing out and removing the hook.</summary>
     private void OnKeyDown(object? sender, KeyboardEvent e)
     {
         // Don't process if the event has already been handled by another hook or application.
@@ -222,30 +259,39 @@ public class HotkeyManager : IDisposable
             //     e.Handled = true;
             // }
 
-            return; // No need to updated modifiers state as it's handled by the hook manager.
+            return;
         }
 
         // Create a Hotkey object representing the current key press combined with active modifiers
         Hotkey hotkey = new Hotkey(e.KeyCode, Modifiers.CurrentModifiers);
 
-        // Check if this combination matches any registered hotkey and it's not currently active
-        if (_registeredHotkeys.TryGetValue(hotkey, out Action? action))
+        if (_registeredHotkeys.TryGetValue(hotkey, out var entry))
         {
-            if (_activeHotkey == null || !_activeHotkey.Value.Equals(hotkey))
+            // If a guard condition is present, check it first.
+            // When the condition returns false the key event passes through unhandled.
+            if (entry.Condition != null && !entry.Condition())
+                return;
+
+            bool shouldFire = entry.AllowRepeat || _activeHotkey == null || !_activeHotkey.Value.Equals(hotkey);
+            e.Handled = true; // Always suppress matched hotkey key events
+
+            // If the hotkey is already active and repeats are not allowed, do not fire the action again.
+            if (shouldFire)
             {
-                // This hotkey has not been activated yet since the last key up, or it's a new hotkey.
-                // Execute the action.
-                Console.WriteLine($"Hotkey '{hotkey}' pressed. Executing action...");
-                action.Invoke();
-                e.Handled = true; // Mark as handled to suppress the key press
-                _activeHotkey = hotkey; // Mark this hotkey as active
-            }
-            else
-            {
-                // Hotkey is already active (held down), do not re-trigger action
-                // Optionally, you might still want to handle the key to suppress repeat
-                // e.Handled = true;
-                Console.WriteLine($"Hotkey '{hotkey}' is already active. Ignoring repeat press.");
+                if (!entry.AllowRepeat)
+                    _activeHotkey = hotkey;
+
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        entry.Action.Invoke();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Hotkey '{hotkey}' action error: {ex.Message}");
+                    }
+                });
             }
         }
     }

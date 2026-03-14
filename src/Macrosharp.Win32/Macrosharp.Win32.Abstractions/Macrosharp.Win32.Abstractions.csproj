@@ -18,4 +18,8 @@
     <ProjectReference Include="..\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Infrastructure\Macrosharp.Infrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management" />
+  </ItemGroup>
 </Project>
