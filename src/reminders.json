@@ -1,0 +1,115 @@
+{
+  "Version": 1,
+  "Settings": {
+    "Enabled": true,
+    "LocalTimeOnly": true,
+    "MissedPolicy": "skip",
+    "StartupGraceMinutes": 0,
+    "DefaultChannels": {
+      "Toast": true,
+      "Popup": true,
+      "Sound": false
+    },
+    "PopupDefaults": {
+      "Enabled": true,
+      "Position": "bottomRight",
+      "DurationSeconds": 10,
+      "OpacityPercent": 70,
+      "SnoozeMinutes": [
+        5,
+        10,
+        15
+      ]
+    }
+  },
+  "Reminders": [
+    {
+      "Id": "break-20",
+      "Title": "Eye break",
+      "Message": "[b]20-20-20 rule:[/b] Look at something [color=#5dade2]20 feet[/color] away for [i]20 seconds[/i].",
+      "Enabled": true,
+      "Channels": {
+        "Toast": true,
+        "Popup": true,
+        "Sound": false
+      },
+      "Popup": {
+        "Enabled": true,
+        "Position": "bottomRight",
+        "DurationSeconds": 10,
+        "OpacityPercent": 70,
+        "SnoozeMinutes": [
+          5,
+          10,
+          15
+        ]
+      },
+      "Recurrence": {
+        "Kind": "everyInterval",
+        "Interval": "00:20:00",
+        "Anchor": "programStart",
+        "DaysOfWeek": []
+      },
+      "LastTriggeredUtc": "2026-03-14T13:09:36.510361+00:00",
+      "LastTriggerWasMonthEndClamp": false
+    },
+    {
+      "Id": "hydrate-hourly",
+      "Title": "Hydration",
+      "Message": "Drink some [b][color=#58d68d]water[/color][/b].",
+      "Enabled": true,
+      "Channels": {
+        "Toast": true,
+        "Popup": true,
+        "Sound": false
+      },
+      "Popup": {
+        "Enabled": true,
+        "Position": "bottomRight",
+        "DurationSeconds": 10,
+        "OpacityPercent": 70,
+        "SnoozeMinutes": [
+          5,
+          10,
+          15
+        ]
+      },
+      "Recurrence": {
+        "Kind": "everyInterval",
+        "Interval": "01:00:00",
+        "Anchor": "programStart",
+        "DaysOfWeek": []
+      },
+      "LastTriggerWasMonthEndClamp": false
+    },
+    {
+      "Id": "posture-check",
+      "Title": "Posture check",
+      "Message": "[b]Shoulders relaxed[/b], back straight, wrists neutral.",
+      "Enabled": true,
+      "Channels": {
+        "Toast": true,
+        "Popup": true,
+        "Sound": false
+      },
+      "Popup": {
+        "Enabled": true,
+        "Position": "bottomRight",
+        "DurationSeconds": 10,
+        "OpacityPercent": 70,
+        "SnoozeMinutes": [
+          5,
+          10,
+          15
+        ]
+      },
+      "Recurrence": {
+        "Kind": "daily",
+        "Time": "10:30",
+        "Anchor": "programStart",
+        "DaysOfWeek": []
+      },
+      "LastTriggerWasMonthEndClamp": false
+    }
+  ]
+}

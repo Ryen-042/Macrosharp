@@ -66,6 +66,21 @@ cd .\src\Macrosharp.Hosts\Macrosharp.Hosts.Console
 dotnet run
 ```
 
+## Reminders Configuration
+
+- Primary config file: src/reminders.json
+- Full guide: src/REMINDERS_GUIDE.md
+
+The reminders system supports interval, daily, weekly, and monthly recurrences, toast/popup/sound channels, popup position and opacity settings, snooze options, and rich popup message tags (`[b]`, `[i]`, `[color=#RRGGBB]`).
+
+Use the comprehensive guide for:
+
+- complete schema and defaults
+- all recurrence modes with examples
+- enum values and formatting rules
+- runtime normalization and recovery behavior
+- tray actions for reload/add/edit/delete reminder entries
+
 ## Image Editor Window Quick Start
 
 - Launch example: see the ImageEditorWindow section in src/Macrosharp.Hosts/Macrosharp.Hosts.Console/Program.cs.

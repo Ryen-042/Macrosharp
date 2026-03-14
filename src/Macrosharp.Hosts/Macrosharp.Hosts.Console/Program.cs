@@ -1,8 +1,3 @@
-﻿// using System;
-// using System.Runtime.CompilerServices;
-// using Macrosharp.Win32.Abstractions.WindowTools;
-// using System.Runtime.InteropServices;
-// using Macrosharp.UserInterfaces.DynamicWindow;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -11,13 +6,14 @@ using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Devices.Mouse;
 using Macrosharp.Infrastructure;
-using Macrosharp.UserInterfaces.DynamicWindow;
+using Macrosharp.UserInterfaces.Reminders;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.UserInterfaces.TrayIcon;
 using Macrosharp.Win32.Abstractions.Explorer;
-using Windows.Win32; // For PInvoke access to generated constants and methods
+using Macrosharp.Win32.Abstractions.SystemControl;
+using Macrosharp.Win32.Abstractions.WindowTools;
+using Windows.Win32;
 using Windows.Win32.Foundation;
-using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 using static Macrosharp.Devices.Keyboard.KeyboardHookManager;
 
@@ -25,627 +21,23 @@ namespace Macrosharp.Hosts.ConsoleHost;
 
 public class Program
 {
+    // ─── Global State ──────────────────────────────────────────────────────────
+    private static bool _paused; // Ctrl+Alt+Win+P toggle
+    private static bool _leftMouseHeld,
+        _rightMouseHeld,
+        _middleMouseHeld; // Scroll Lock mouse-hold toggles
+
     static void Main()
     {
-        // Register AUMID before any Shell / notification / tray icon work
+        // ═══════════════════════════════════════════════════════════════════════
+        //  1. Early Initialization
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // Capture the main thread's Win32 ID so hotkey callbacks running on Task.Run thread-pool
+        // threads can post WM_QUIT to the correct message loop thread.
+        uint mainThreadId = PInvoke.GetCurrentThreadId();
+
         ToastNotificationHost.RegisterAppUserModelId();
-
-        #region AcquireMutex
-        // var mutex = MutexGuardLock.AcquireMutex("Macrosharp");
-        // var mutex2 = MutexGuardLock.AcquireMutex("Macrosharp");
-
-        // if (mutex.IsError) {
-        //     Console.WriteLine(mutex.Errors[0].Description);
-        //     Environment.Exit(1);
-        // }
-
-        // Console.WriteLine("Mutex acquired");
-        // mutex.Value.ReleaseMutex();
-        // Development.PrintObjectMembers(mutex);
-        #endregion
-
-        #region GetWindowHandleByClassName
-        // To get the first window with the specified class name
-        //Task.Delay(2000).Wait();
-
-        //var hWnd = PInvoke.GetForegroundWindow();
-        //if (hWnd == HWND.Null)
-        //{
-        //    Console.WriteLine("No foreground window found");
-        //    return;
-        //}
-
-        //var className = WindowFinder.GetWindowClassName();
-        //if (className == null)
-        //{
-        //    Console.WriteLine("Failed to get window class name");
-        //    return;
-        //}
-        //Console.WriteLine($"Foreground window class name: {className}");
-
-        //var result = WindowFinder.GetHwndByClassName(className);
-        //if (result.Count > 0)
-        //    Console.WriteLine($"Found window handle: {result[0]}");
-        //else
-        //{
-        //    Console.WriteLine("No window found");
-        //    return;
-        //}
-
-        ////To get all windows with the specified class name
-        //var allWindows = WindowFinder.GetHwndByClassName(className, true);
-        //Console.WriteLine($"Found {allWindows.Count} windows");
-
-        //// Get Window by its title
-        //var allHandles = WindowFinder.GetHwndByTitle("Untitled - Paint", true);
-        //if (allHandles.Count > 0)
-        //    Console.WriteLine($"Found {allHandles.Count} window handles with title: \"Untitled - Paint\"");
-        //else
-        //    Console.WriteLine("No window found with title: \"Untitled - Paint\"");
-
-        #endregion
-
-        #region GetHwndByTitle & ToggleAlwaysOnTopState
-        //var hwnd = WindowFinder.GetHwndByTitle("Untitled - Paint");
-
-        //if (hwnd == HWND.Null)
-        //{
-        //    Console.WriteLine("No window found with the specified title");
-        //    return;
-        //}
-
-        //Console.WriteLine($"Found window handle: {hwnd}");
-
-        //var isTopMost = WindowModifier.ToggleAlwaysOnTopState(hwnd);
-        //Console.WriteLine($"The always-on-top state of the window is now: {(isTopMost == 1 ? "On" : "Off")}");
-        #endregion
-
-        #region MessageBox
-        //var result = PInvoke.MessageBox(HWND.Null, "This is a test message.", "Test", MESSAGEBOX_STYLE.MB_ICONINFORMATION);
-        //Console.WriteLine($"User clicked button with value: {result}");
-        #endregion
-
-        #region AdjustWindowPositionAndSize
-        //var hwnd = WindowFinder.GetHwndByTitle("Untitled - Paint");
-        //if (hwnd != HWND.Null)
-        //{
-        // Move the window window 50 pixels right and 30 pixels down
-        //WindowModifier.AdjustWindowPositionAndSize(hwnd, deltaX: 50, deltaY: 30);
-        //Console.ReadLine();
-
-        // Increase window width by 100 and decrease its height by 50 pixels
-        //WindowModifier.AdjustWindowPositionAndSize(hwnd, deltaWidth: 250, deltaHeight: -250);
-        //Console.ReadLine();
-
-        // Move a window diagonally and make it slightly larger
-        //WindowModifier.AdjustWindowPositionAndSize(hwnd, deltaX: 20, deltaY: 20, deltaWidth: 10, deltaHeight: 10);
-        //}
-        #endregion
-
-        #region AdjustWindowOpacity
-        //var hwnd = WindowFinder.GetHwndByTitle("Untitled - Paint");
-        //if (hwnd != HWND.Null)
-        //{
-        //    WindowModifier.AdjustWindowOpacity(hwnd, opacityDelta: -50);
-        //}
-        #endregion
-
-        #region SendMessageToWindow & PostMessageToWindow
-        //var allHandles = WindowFinder.GetHwndByTitle("Untitled - Paint");
-        //if (allHandles == null) {
-        //    Console.WriteLine("No window found with the specified title");
-        //    return;
-        //}
-
-        //var hwnd = allHandles[0];
-        //if (hwnd != HWND.Null)
-        //{
-        //    //Close a window
-        //    Messaging.SendMessageToWindow(hwnd, PInvoke.WM_CLOSE);
-        //    Messaging.PostMessageToWindow(hwnd, PInvoke.WM_CLOSE);
-
-        //    //Set window text
-        //    Messaging.SendMessageToWindow(hwnd, PInvoke.WM_SETTEXT, default, "New Window Title");
-
-        //    //Send a custom message
-        //    var WM_MYCUSTOMMESSAGE = PInvoke.WM_APP + 1; // Custom message should be in the range of WM_APP to 0xBFFF
-        //    Messaging.SendMessageToWindow(hwnd, WM_MYCUSTOMMESSAGE, (WPARAM)1, (LPARAM)2);
-        //}
-        #endregion
-
-        #region Keyboard
-        // KeyboardListener listener = new KeyboardListener();
-        // listener.StartListening();
-        #endregion
-
-        #region Notes
-        // PInvoke.GetModuleHandle(null) causes compiler error. But PInvoke.GetModuleHandle((string?)null) works.
-        #endregion
-
-        #region WindowSample
-        // WindowSample.Main();
-
-        // var window = new SimpleWindow("Dynamic Input Window", 150, 250, 50, 20, 10, 50, 50);
-        // window.CreateDynamicInputWindow(["Character", "Delay", "Another Input"], ["A", "0", "Another Placeholder"], true);
-        // Console.WriteLine($"Pressed Keys: {(window.userInputs.Count > 0 ? window.userInputs[0] : "0")}\nCaptured VK: {window.capturedKeyVK}\nCaptured ScanCode: {window.capturedKeyScanCode}\nCaptured Key Name: {window.capturedKeyName}");
-        #endregion
-
-        #region KeyMapper
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_A, false)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_A, false)}"); // 97 ('a')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_A, true)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_A, true)}"); // 65 ('A')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_1, false)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_1, false)}"); // 49 ('1')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_1, true)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_1, true)}"); // 33 ('!')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.OEM_1, false)} | {KeysMapper.GetAsciiCode(VirtualKey.OEM_1, false)}"); // 59 (';')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.OEM_1, true)} | {KeysMapper.GetAsciiCode(VirtualKey.OEM_1, true)}"); // 58 (':')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.RETURN, false)} | {KeysMapper.GetAsciiCode(VirtualKey.RETURN, false)}"); // 13 (RETURN)
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.LCONTROL, false)} | {KeysMapper.GetAsciiCode(VirtualKey.LCONTROL, false)}"); // 0 (LCONTROL)
-
-        // // Press 'Caps Lock' to toggle the case of letters
-        // PInvoke.keybd_event((byte)VirtualKey.CAPITAL, 0, 0, 0);
-        // PInvoke.keybd_event((byte)VirtualKey.CAPITAL, 0, KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP, 0);
-        // Console.WriteLine("\n\nCaps Lock toggled. Now the next letter keys will be uppercase.");
-
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_A, false)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_A, false)}"); // 97 ('a')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_A, true)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_A, true)}"); // 65 ('A')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_1, false)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_1, false)}"); // 49 ('1')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.KEY_1, true)} | {KeysMapper.GetAsciiCode(VirtualKey.KEY_1, true)}"); // 33 ('!')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.OEM_1, false)} | {KeysMapper.GetAsciiCode(VirtualKey.OEM_1, false)}"); // 59 (';')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.OEM_1, true)} | {KeysMapper.GetAsciiCode(VirtualKey.OEM_1, true)}"); // 58 (':')
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.RETURN, false)} | {KeysMapper.GetAsciiCode(VirtualKey.RETURN, false)}"); // 13 (RETURN)
-        // Console.WriteLine($"{KeysMapper.GetDisplayName(VirtualKey.LCONTROL, false)} | {KeysMapper.GetAsciiCode(VirtualKey.LCONTROL, false)}"); // 0 (LCONTROL)
-        #endregion
-
-        #region KeyboardListener
-        // StartKeyboardHook();
-        #endregion
-
-        #region Mouse & Keyboard Simulators
-        // StartMouseSimulator();
-        StartKeyboardSimulator(); // Now includes text expansion support
-        #endregion
-
-        #region TextExpansion (Standalone)
-        // StartTextExpansion(); // Use this for text expansion only (without hotkey simulator)
-        #endregion
-
-        #region MouseHook
-        StartMouseHook(); // Use this to demo the global mouse hook manager
-        #endregion
-
-        #region ImageEditorWindow
-        // Launch the lightweight image editor window
-        // Usage: press W/L/C/Space to switch tools, Ctrl+Z/Y to undo/redo, F1 to toggle status bar.
-        // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.Run("Macrosharp Image Editor");
-
-        // Example: open an image file via Ctrl+O dialog, or paste from clipboard via Ctrl+V.
-        // If you want to load a known file path programmatically, call the editor API directly:
-        // var window = new UserInterfaces.ImageEditorWindow.ImageEditorWindow("Macrosharp Image Editor");
-        // window.Run(); // inside the editor: Ctrl+O / Ctrl+V
-
-        // Direct launch with a file
-        // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithFile("C:\\Images\\sample.png");
-
-        // Direct launch from clipboard
-        // Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard();
-        #endregion
-
-        #region ExplorerController
-        // HWND activeHwnd = PInvoke.GetForegroundWindow();
-        // HWND activeHwnd = default;
-        // Console.WriteLine($"Active HWND: {activeHwnd}");
-
-        // string? currentFolder = ExplorerController.GetCurrentFolderPath(activeHwnd);
-        // Console.WriteLine($"Current folder: {currentFolder ?? "<unknown>"}");
-
-        // var selectedItems = ExplorerController.GetSelectedItems(activeHwnd);
-        // Console.WriteLine("Selected items:");
-        // foreach (var item in selectedItems)
-        //     Console.WriteLine($" - {item}");
-
-        // ExplorerController.Refresh(activeHwnd);
-
-        // string demoFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        // ExplorerController.OpenFolder(demoFolder);
-        // string? currentFolder = ExplorerController.GetCurrentFolderPath();
-
-        // // Select items in the current folder
-        // if (!string.IsNullOrWhiteSpace(currentFolder) && Directory.Exists(currentFolder))
-        // {
-        //     var candidates = Directory.EnumerateFileSystemEntries(currentFolder).ToList();
-        //     if (candidates.Count > 0)
-        //     {
-        //         ExplorerController.SelectItems(currentFolder, candidates, activeHwnd);
-        //         Console.WriteLine($"Selected {candidates.Count} items in folder: {currentFolder}");
-        //     }
-        // }
-
-        // if (Directory.Exists(demoFolder))
-        // {
-        // var demoCandidates = Directory.EnumerateFileSystemEntries(demoFolder).ToList();
-        // if (demoCandidates.Count > 0)
-        // {
-        // ExplorerShellManager.OpenAndSelectItems(demoFolder, demoCandidates);
-
-        // Example: invoke a context menu verb on the selected items.
-        // Common verbs include: "open", "properties", "delete".
-        // Multi-select uses the active Explorer window, so ensure the folder is open and focused.
-        // bool invoked = ExplorerShellManager.ExecuteContextMenuAction(demoFolder, demoCandidates, "properties", mode: ExplorerShellManager.ContextMenuInvokeMode.MultiSelect);
-
-        // Per-item invocation (explicit):
-        // bool invoked = ExplorerController.ExecuteContextMenuAction(demoFolder, demoCandidates, "properties", mode: ExplorerController.ContextMenuInvokeMode.PerItem);
-
-        // Console.WriteLine($"Context menu action invoked: {invoked}");
-        // }
-        // }
-        #endregion
-
-        #region ExplorerFileAutomation
-        // Ensure an Explorer window is focused for these tests.
-        // HWND targetHwnd = PInvoke.GetForegroundWindow();
-
-        // 1) Create a new incremental text file in the active Explorer/desktop and enter edit mode.
-        // int created = ExplorerFileAutomation.CreateNewFile(targetHwnd);
-        // Console.WriteLine($"CreateNewFile result: {created}");
-
-        // 2) Convert selected Office files to PDF (PowerPoint/Word/Excel supported).
-        // ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint");
-        // ExplorerFileAutomation.OfficeFilesToPdf("Word");
-        // ExplorerFileAutomation.OfficeFilesToPdf("Excel");
-
-        // 3) Convert selected files with a custom converter.
-        // Example: convert .txt files to .bak copies in the same folder.
-        // ExplorerFileAutomation.GenericFileConverter(new[] { ".txt" }, (input, output) => File.Copy(input, output), newExtension: ".bak");
-
-        // Example: convert .mp3 files to .wav using ffmpeg.
-        // ExplorerFileAutomation.GenericFileConverter(
-        //     new[] { ".mp3" },
-        //     (input, output) =>
-        //     {
-        //         var ffmpeg = new ProcessStartInfo("ffmpeg") { UseShellExecute = false, CreateNoWindow = true };
-        //         ffmpeg.ArgumentList.Add("-loglevel");
-        //         ffmpeg.ArgumentList.Add("error");
-        //         ffmpeg.ArgumentList.Add("-hide_banner");
-        //         ffmpeg.ArgumentList.Add("-nostats");
-        //         ffmpeg.ArgumentList.Add("-i");
-        //         ffmpeg.ArgumentList.Add(input);
-        //         ffmpeg.ArgumentList.Add(output);
-
-        //         using var process = Process.Start(ffmpeg);
-        //         process?.WaitForExit();
-        //     },
-        //     newExtension: ".wav",
-        //     hwnd: targetHwnd
-        // );
-
-        // 4) Flatten selected folders into a new "Flattened" directory.
-        // ExplorerFileAutomation.FlattenDirectories();
-
-        // 5) Combine selected images into a PDF (Normal = no resize, Resize = resize mode).
-        // ExplorerFileAutomation.ImagesToPdf();
-        // ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: 690, widthThreshold: 1200, minWidth: 100, minHeight: 100, hwnd: default);
-
-        #endregion
-
-        Console.WriteLine("Press any key to continue...");
-        Console.ReadKey();
-    }
-
-    private static void HookManager_KeyPressed(object? sender, KeyboardEvent e)
-    {
-        // Console.WriteLine($"Key Pressed: {e.Key} ({(ushort)e.Key}) | IsExtendedKey: {e.IsExtendedKey} | IsInjected: {e.IsInjected} | IsAltDown: {e.IsAltDown}");
-        var scanCode = PInvoke.MapVirtualKey((uint)e.KeyCode, MAP_VIRTUAL_KEY_TYPE.MAPVK_VK_TO_VSC);
-
-        string pressedModifiers = Modifiers.GetModifiersStringFromMask(Modifiers.CurrentModifiers);
-        if (string.IsNullOrEmpty(pressedModifiers))
-            pressedModifiers = "None";
-
-        Console.WriteLine($"Pressed Modifiers: {Modifiers.CurrentModifiers}, {pressedModifiers} | Pressed Key: {e} | CapsLck={Modifiers.IsCapsLockOn}, NumLck={Modifiers.IsNumLockOn}, ScrollLck={Modifiers.IsScrollLockOn}");
-
-        // If 'Q' is pressed, post a quit message to terminate the message loop.
-        if (e.KeyCode == VirtualKey.KEY_Q)
-        {
-            PInvoke.PostQuitMessage(0);
-            e.Handled = true; // Optionally suppress 'Q' from reaching other apps if you quit cleanly.
-        }
-    }
-
-    private static void ShowMessage(string message, string moreInfo)
-    {
-        Console.WriteLine(message);
-        Console.WriteLine(moreInfo);
-    }
-
-    private static void MoveCursor(int dx, int dy)
-    {
-        Console.WriteLine($"Moving cursor by ({dx}, {dy}).");
-        MouseSimulator.MoveCursor(dx, dy);
-    }
-
-    private static void SuppressKEY_A(object? sender, KeyboardEvent e)
-    {
-        Console.WriteLine($"Key Pressed (event 2): {e.KeyCode} ({(ushort)e.KeyCode}) | IsExtendedKey: {e.IsExtendedKey} | IsInjected: {e.IsInjected} | IsAltDown: {e.IsAltDown}");
-
-        //We can define a handler for suppressing specific keys.
-        if (e.KeyCode == VirtualKey.KEY_A)
-        {
-            e.Handled = true; // Prevents 'A' from reaching other applications.
-            Console.WriteLine(" 'A' key press suppressed!");
-        }
-    }
-
-    private static void HookManager_KeyReleased(object? sender, KeyboardEvent e)
-    {
-        // Accessing these properties to ensure they are updated.
-        // _ = Modifiers.IsNumLockOn;
-        // _ = Modifiers.IsCapsLockOn;
-        // _ = Modifiers.IsScrollLockOn;
-    }
-
-    private static void StartKeyboardHook()
-    {
-        Console.WriteLine("Starting Keyboard Hook and Hotkey Manager...");
-        Console.WriteLine("Press ESCAPE or 'q' to quit and unhook.");
-        Console.WriteLine("Registered Hotkeys: Ctrl+Alt+Z | Shift+A");
-        Console.WriteLine("Press F1 to click at current mouse position.");
-        Console.WriteLine("Press F2 to move cursor by (50, 50).");
-        Console.WriteLine("Press F3 to scroll down.");
-
-        using KeyboardHookManager hookManager = new KeyboardHookManager();
-        using HotkeyManager hotkeyManager = new HotkeyManager(hookManager);
-
-        // EventHandler<KeyPressedArgs>[] keyPressedEventHandlers = [HookManager_KeyPressed, HookManager_KeyPressed2];
-        // foreach (var handler in keyPressedEventHandlers)
-        //     _hookManager.KeyPressed += handler;
-
-        hookManager.KeyDownHandler += HookManager_KeyPressed;
-        // _hookManager.KeyPressed += SuppressKEY_A;
-
-        hookManager.KeyUpHandler += HookManager_KeyReleased;
-
-        try
-        {
-            hookManager.Start();
-            Console.WriteLine("Hook installed successfully.");
-
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.KEY_Z,
-                Modifiers.CTRL | Modifiers.ALT,
-                () =>
-                {
-                    Console.WriteLine("!!! Ctrl+Alt+Z Hotkey Activated !!!");
-                }
-            );
-
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.KEY_A,
-                Modifiers.SHIFT,
-                () =>
-                {
-                    Console.WriteLine("!!! Shift+A Hotkey Activated !!!");
-                }
-            );
-
-            // Register an exit hotkey (e.g., Escape)
-            // Note: For single keys without modifiers, pass 0 for modifiers.
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.ESCAPE,
-                0,
-                () =>
-                {
-                    Console.WriteLine("Escape pressed. Exiting...");
-                    PInvoke.PostQuitMessage(0);
-                }
-            );
-
-            // Register mouse manipulation hotkeys
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F1,
-                0,
-                () =>
-                {
-                    Console.WriteLine("F1 pressed. Simulating Left Click at current position.");
-                    MouseSimulator.SendMouseClick(); // Left click at current position
-                }
-            );
-
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F2,
-                0,
-                () =>
-                {
-                    Console.WriteLine("F2 pressed. Moving cursor by (50, 50).");
-                    MouseSimulator.MoveCursor(50, 50);
-                }
-            );
-
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F3,
-                0,
-                () =>
-                {
-                    Console.WriteLine("F3 pressed. Scrolling mouse wheel up.");
-                    MouseSimulator.SendMouseScroll(steps: 1); // Scroll up by one step
-                }
-            );
-
-            // Keep the application running and process messages.
-            MSG msg;
-
-            while (PInvoke.GetMessage(out msg, HWND.Null, 0, 0) != 0) // Use HWND.Null for nint.Zero where appropriate
-            {
-                if (msg.message == PInvoke.WM_QUIT)
-                {
-                    break; // Exit the loop if WM_QUIT is received
-                }
-                PInvoke.TranslateMessage(in msg);
-                PInvoke.DispatchMessage(in msg);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-        }
-        finally
-        {
-            // Ensure the hook is stopped when the application exits.
-            if (hookManager != null)
-            {
-                hookManager.Stop();
-                hookManager.Dispose();
-                hotkeyManager.Dispose();
-
-                Console.WriteLine("Hook uninstalled.");
-            }
-        }
-
-        Console.WriteLine("Application exiting.");
-    }
-
-    private static void StartMouseSimulator()
-    {
-        Console.WriteLine("Starting Keyboard Hook and Hotkey Manager for Mouse Simulator examples...");
-        Console.WriteLine("Press F1 to Left Click at current mouse position.");
-        Console.WriteLine("Press F2 to Right Click at current mouse position (Mouse Down only).");
-        Console.WriteLine("Press F3 to Middle Click at (100, 150) screen coordinates.");
-        Console.WriteLine("Press F4 to simulate XButton1 click.");
-        Console.WriteLine("Press F5 to move cursor by (50, 50).");
-        Console.WriteLine("Press F6 to scroll mouse wheel up.");
-        Console.WriteLine("Press F7 to scroll mouse wheel down.");
-        Console.WriteLine("Press F8 to scroll mouse wheel left (horizontal).");
-        Console.WriteLine("Press Escape to exit.");
-
-        // Use 'using' statements to ensure proper disposal of hook managers.
-        using (var keyboardHookManager = new KeyboardHookManager())
-        using (var hotkeyManager = new HotkeyManager(keyboardHookManager))
-        {
-            // Start the keyboard hook to listen for hotkeys.
-            keyboardHookManager.Start();
-
-            // --- Register Hotkeys for MouseSimulator Actions ---
-
-            // F1: Left Click at current position
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F1,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF1 pressed: Simulating Left Click at current mouse position.");
-                    MouseSimulator.SendMouseClick(button: MouseButton.LeftButton, op: MouseEventOperation.MouseDown);
-                }
-            );
-
-            // F2: Right Click (Mouse Down only) at current position
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F2,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF2 pressed: Simulating Right Mouse Down only.");
-                    MouseSimulator.SendMouseClick(button: MouseButton.RightButton, op: MouseEventOperation.Click);
-                }
-            );
-
-            // F3: Middle Click at specific screen coordinates
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F3,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF3 pressed: Simulating Middle Click at (100, 150).");
-                    MouseSimulator.SendMouseClick(x: 100, y: 150, button: MouseButton.MiddleButton, op: MouseEventOperation.Click);
-                }
-            );
-
-            // F4: XButton1 Click (example for a typical side mouse button)
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F4,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF4 pressed: Simulating XButton1 click.");
-                    MouseSimulator.SendMouseClick(button: MouseButton.XButton1, op: MouseEventOperation.Click);
-                }
-            );
-
-            // F5: Move Cursor
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F5,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF5 pressed: Moving cursor by (50, 50) from current position.");
-                    MouseSimulator.MoveCursor(dx: 50, dy: 50);
-                }
-            );
-
-            // F6: Scroll Up
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F6,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF6 pressed: Scrolling mouse wheel up.");
-                    MouseSimulator.SendMouseScroll(steps: 1, direction: 1); // Vertical scroll, 1 step up
-                }
-            );
-
-            // F7: Scroll Down
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F7,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF7 pressed: Scrolling mouse wheel down.");
-                    MouseSimulator.SendMouseScroll(steps: -1, direction: 1); // Vertical scroll, 1 step down
-                }
-            );
-
-            // F8: Scroll Left (Horizontal)
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.F8,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nF8 pressed: Scrolling mouse wheel left.");
-                    MouseSimulator.SendMouseScroll(steps: -1, direction: 0); // Horizontal scroll, 1 step left
-                }
-            );
-
-            // Escape: Exit the application
-            hotkeyManager.RegisterHotkey(
-                VirtualKey.ESCAPE,
-                0,
-                () =>
-                {
-                    Console.WriteLine("\nEscape pressed. Exiting application.");
-                    // This will post a WM_QUIT message to the current thread's message queue,
-                    // causing GetMessage to return 0 and break the loop.
-                    PInvoke.PostQuitMessage(0);
-                }
-            );
-
-            // Message loop to keep the application running and process Windows messages.
-            // This is essential for the low-level keyboard hook to function correctly.
-            MSG msg;
-            while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
-            {
-                PInvoke.TranslateMessage(msg);
-                PInvoke.DispatchMessage(msg);
-            }
-        }
-    }
-
-    private static void StartKeyboardSimulator()
-    {
-        Console.WriteLine("Starting Keyboard Hook and Hotkey Manager for Keyboard Simulator examples...");
-        Console.WriteLine("Press '1' to simulate a single 'A' key press.");
-        Console.WriteLine("Press '2' to simulate 'Hello World!' sequence with delays.");
-        Console.WriteLine("Press '3' to find 'Notepad' and send 'Hello Notepad!' (using default PostMessage).");
-        Console.WriteLine("Press '4' to start the interactive Burst Click Simulator.");
-        Console.WriteLine("Typed HotKeys: 'Z', 'X', and 'C' to demonstrate different behaviors.");
-        Console.WriteLine("Text Expansion: Type abbreviations like ':date', ':shrug', ':sig ' to expand.");
-        Console.WriteLine("Press Ctrl+Alt+T to toggle text expansion on/off.");
-        Console.WriteLine("Press Escape to exit.");
 
         var iconPaths = PathLocator.GetIconFilesFromAssets();
         var iconCycler = IconCycler.Create(iconPaths);
@@ -653,11 +45,19 @@ public class Program
         bool isSilentMode = false;
         TrayIconHost? trayHost = null;
 
-        // Create and start toast notification host
+        // ═══════════════════════════════════════════════════════════════════════
+        //  2. Toast Notification Host
+        // ═══════════════════════════════════════════════════════════════════════
         using var toastHost = new ToastNotificationHost("Macrosharp", iconCycler.GetNext());
         toastHost.Start();
 
-        // Handle toast action button activations (fires on a background COM thread)
+        string reminderConfigPath = PathLocator.GetConfigPath("reminders.json");
+        using var reminderConfigManager = new ReminderConfigurationManager(reminderConfigPath);
+        var reminderCrudService = new ReminderCrudService(reminderConfigManager);
+        using var reminderScheduler = new ReminderScheduler(reminderConfigManager, toastHost, () => isSilentMode);
+        reminderConfigManager.LoadConfiguration();
+        reminderScheduler.Start();
+
         toastHost.Activated += (_, e) =>
         {
             switch (e.Argument)
@@ -677,34 +77,49 @@ public class Program
             }
         };
 
-        void OpenScriptFolder()
-        {
-            string folder = AppContext.BaseDirectory;
-            Process.Start(new ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
-        }
+        // Reusable toast content matching the "With Action Buttons" entry
+        ToastNotificationContent MakeRunningToast() =>
+            new()
+            {
+                Title = "Macrosharp",
+                Body = "Application is running.",
+                Actions = new List<ToastAction>
+                {
+                    new() { Label = "Close App", Argument = "action=quit" },
+                    new() { Label = "Open Folder", Argument = "action=open-folder" },
+                    new() { Label = "Snooze", Argument = "action=snooze" },
+                },
+            };
 
+        // ═══════════════════════════════════════════════════════════════════════
+        //  3. System Tray Icon
+        // ═══════════════════════════════════════════════════════════════════════
+        void OpenScriptFolder() => Process.Start(new ProcessStartInfo("explorer.exe", AppContext.BaseDirectory) { UseShellExecute = true });
         void SwitchIcon()
         {
-            string? nextIcon = iconCycler.GetNext();
-            if (!string.IsNullOrWhiteSpace(nextIcon))
-            {
-                trayHost?.UpdateIcon(nextIcon);
-            }
+            string? next = iconCycler.GetNext();
+            if (!string.IsNullOrWhiteSpace(next))
+                trayHost?.UpdateIcon(next);
         }
-
         void ReloadHotkeys() => Console.WriteLine("Tray action: reload hotkeys.");
         void ReloadConfigs() => Console.WriteLine("Tray action: reload configs.");
-
+        void ReloadReminders()
+        {
+            reminderConfigManager.ReloadNow();
+            Console.WriteLine("Tray action: reminders config reloaded.");
+        }
+        void AddReminder() => reminderCrudService.AddReminderInteractively();
+        void EditReminder() => reminderCrudService.EditReminderInteractively();
+        void DeleteReminder() => reminderCrudService.DeleteReminderInteractively();
         void ClearConsoleLogs()
         {
             Console.Clear();
             Console.WriteLine("Console cleared by tray action.");
         }
-
         void ToggleSilentMode()
         {
             isSilentMode = !isSilentMode;
-            Console.WriteLine($"Silent mode toggled: {(isSilentMode ? "On" : "Off")}");
+            Console.WriteLine($"Silent mode: {(isSilentMode ? "On" : "Off")}");
         }
 
         var trayMenu = new List<TrayMenuItem>
@@ -714,34 +129,98 @@ public class Program
                 "Show Notification",
                 new List<TrayMenuItem>
                 {
-                    TrayMenuItem.ActionItem("Simple", () =>
-                        toastHost.Show("Macrosharp", "A simple text notification.")),
-                    TrayMenuItem.ActionItem("Long Duration", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "This toast stays visible for ~25 seconds.", Duration = ToastDuration.Long })),
-                    TrayMenuItem.ActionItem("With Attribution", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "A notification with attribution text.", Attribution = "via Macrosharp" })),
-                    TrayMenuItem.ActionItem("Alarm Scenario", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Alarm", Body = "This is an alarm-style notification.", Scenario = ToastScenario.Alarm })),
-                    TrayMenuItem.ActionItem("Reminder Scenario", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Reminder", Body = "Don\u0027t forget your task!", Scenario = ToastScenario.Reminder })),
-                    TrayMenuItem.ActionItem("With App Logo", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "Notification with a custom app logo override.", AppLogoPath = iconPaths.FirstOrDefault() })),
-                    TrayMenuItem.ActionItem("Progress (Indeterminate)", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "Working on it...", ProgressBar = new ToastProgressBar { Title = "Processing", Status = "Please wait..." } })),
-                    TrayMenuItem.ActionItem("Progress (50%)", () =>
-                        toastHost.Show(new ToastNotificationContent { Title = "Macrosharp", Body = "Half way there!", ProgressBar = new ToastProgressBar { Title = "Downloading", Value = 0.5, ValueStringOverride = "5 / 10 files", Status = "In progress" } })),
-                    TrayMenuItem.ActionItem("With Action Buttons", () =>
-                        toastHost.Show(new ToastNotificationContent
-                        {
-                            Title = "Macrosharp",
-                            Body = "Choose an action below.",
-                            Actions = new List<ToastAction>
-                            {
-                                new() { Label = "Close App",   Argument = "action=quit" },
-                                new() { Label = "Open Folder", Argument = "action=open-folder" },
-                                new() { Label = "Snooze",      Argument = "action=snooze" },
-                            }
-                        })),
+                    TrayMenuItem.ActionItem("Simple", () => toastHost.Show("Macrosharp", "A simple text notification.")),
+                    TrayMenuItem.ActionItem(
+                        "Long Duration",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Macrosharp",
+                                    Body = "This toast stays visible for ~25 seconds.",
+                                    Duration = ToastDuration.Long,
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem(
+                        "With Attribution",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Macrosharp",
+                                    Body = "A notification with attribution text.",
+                                    Attribution = "via Macrosharp",
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem(
+                        "Alarm Scenario",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Alarm",
+                                    Body = "This is an alarm-style notification.",
+                                    Scenario = ToastScenario.Alarm,
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem(
+                        "Reminder Scenario",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Reminder",
+                                    Body = "Don\u0027t forget your task!",
+                                    Scenario = ToastScenario.Reminder,
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem(
+                        "With App Logo",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Macrosharp",
+                                    Body = "Notification with a custom app logo.",
+                                    AppLogoPath = iconPaths.FirstOrDefault(),
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem(
+                        "Progress (Indeterminate)",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Macrosharp",
+                                    Body = "Working on it...",
+                                    ProgressBar = new ToastProgressBar { Title = "Processing", Status = "Please wait..." },
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem(
+                        "Progress (50%)",
+                        () =>
+                            toastHost.Show(
+                                new ToastNotificationContent
+                                {
+                                    Title = "Macrosharp",
+                                    Body = "Half way there!",
+                                    ProgressBar = new ToastProgressBar
+                                    {
+                                        Title = "Downloading",
+                                        Value = 0.5,
+                                        ValueStringOverride = "5 / 10 files",
+                                        Status = "In progress",
+                                    },
+                                }
+                            )
+                    ),
+                    TrayMenuItem.ActionItem("With Action Buttons", () => toastHost.Show(MakeRunningToast())),
                 },
                 iconPath: iconCycler.GetNext()
             ),
@@ -751,414 +230,617 @@ public class Program
                 new List<TrayMenuItem> { TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: iconCycler.GetNext()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: iconCycler.GetNext()) },
                 iconPath: iconCycler.GetNext()
             ),
+            TrayMenuItem.Submenu(
+                "Reminders",
+                new List<TrayMenuItem>
+                {
+                    TrayMenuItem.ActionItem("Reload reminders config", ReloadReminders, iconPath: iconCycler.GetNext()),
+                    TrayMenuItem.ActionItem("Add reminder", AddReminder, iconPath: iconCycler.GetNext()),
+                    TrayMenuItem.ActionItem("Edit reminder", EditReminder, iconPath: iconCycler.GetNext()),
+                    TrayMenuItem.ActionItem("Delete reminder", DeleteReminder, iconPath: iconCycler.GetNext()),
+                },
+                iconPath: iconCycler.GetNext()
+            ),
             TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: iconCycler.GetNext()),
             TrayMenuItem.ActionItem("Toggle Silent Mode", ToggleSilentMode, iconPath: iconCycler.GetNext()),
         };
 
-        trayHost = new TrayIconHost("Macropy", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0);
+        trayHost = new TrayIconHost("Macrosharp", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0);
         trayHost.Start();
 
-        // Locate the text expansion configuration file
+        // ═══════════════════════════════════════════════════════════════════════
+        //  4. Text Expansion
+        // ═══════════════════════════════════════════════════════════════════════
         string configPath = PathLocator.GetConfigPath("text-expansions.json");
         Console.WriteLine($"Text expansion config: {configPath}");
 
-        // Use 'using' statements to ensure proper disposal of hook managers.
         using var keyboardHookManager = new KeyboardHookManager();
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
         using var textExpansionConfigManager = new TextExpansionConfigurationManager(configPath);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
 
-        // Load text expansion configuration
         var config = textExpansionConfigManager.LoadConfiguration();
         textExpansionManager.LoadConfiguration(config);
 
-        // Subscribe to text expansion configuration changes for live reload
-        textExpansionConfigManager.ConfigurationChanged += (sender, newConfig) =>
+        textExpansionConfigManager.ConfigurationChanged += (_, newConfig) =>
         {
             textExpansionManager.LoadConfiguration(newConfig);
             Console.WriteLine("Text expansion configuration reloaded.");
         };
-
-        // Subscribe to expansion events for logging
-        textExpansionManager.ExpansionOccurred += (sender, e) =>
+        textExpansionManager.ExpansionOccurred += (_, e) =>
         {
             Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
+            AudioPlayer.PlayKnobAsync();
         };
-
-        textExpansionManager.ExpansionError += (sender, e) =>
+        textExpansionManager.ExpansionError += (_, e) =>
         {
             Console.WriteLine($"Expansion error for '{e.Rule.Trigger}': {e.Exception.Message}");
+            AudioPlayer.PlayFailure();
         };
 
-        // Print loaded text expansion rules
         Console.WriteLine("\nLoaded expansion rules:");
         foreach (var rule in config.Rules.Where(r => r.Enabled))
-        {
             Console.WriteLine($"  {rule}");
-        }
         Console.WriteLine();
 
-        // Start the keyboard hook to listen for hotkeys.
-        keyboardHookManager.Start();
-
-        // --- Register Hotkeys for KeyboardSimulator Actions ---
-
-        // F1: Simulate a single 'A' key press
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_1,
-            0,
-            () =>
-            {
-                Console.WriteLine("\nF1 pressed: Simulating a single 'A' key press.");
-                KeyboardSimulator.SimulateKeyPress(VirtualKey.KEY_A);
-            }
-        );
-
-        // F2: Simulate a sequence of key presses ("Hello World!")
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_2,
-            0,
-            () =>
-            {
-                Console.WriteLine("\nF2 pressed: Simulating 'Hello World!' sequence.");
-                var keysSequence = new List<object>
-                {
-                    VirtualKey.KEY_H,
-                    VirtualKey.KEY_E,
-                    VirtualKey.KEY_L,
-                    VirtualKey.KEY_L,
-                    VirtualKey.KEY_O,
-                    VirtualKey.SPACE,
-                    VirtualKey.KEY_W,
-                    VirtualKey.KEY_O,
-                    VirtualKey.KEY_R,
-                    VirtualKey.KEY_L,
-                    VirtualKey.KEY_D,
-                    // Simulate Shift+1 for '!' using a List<VirtualKey> to represent the hotkey
-                    new List<VirtualKey> { VirtualKey.SHIFT, VirtualKey.KEY_1 },
-                };
-                KeyboardSimulator.SimulateKeyPressSequence(keysSequence, 0);
-            }
-        );
-
-        // F3: Find Notepad and send "Hello Notepad!"
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_3,
-            0,
-            () =>
-            {
-                Console.WriteLine("\nF3 pressed: Finding 'Notepad' and sending 'Hello Notepad!'.");
-                // You might need to adjust "Notepad" to your system's actual Notepad window class name
-                // (e.g., "Notepad" or "Edit"). You can use tools like Spy++ to find it.
-                // For a simpler test, ensure Notepad is open before pressing F3.
-
-                // Example of sending 'H' to Notepad
-                int result1 = KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_H);
-                if (result1 == 1)
-                {
-                    Console.WriteLine("Sent 'H' to Notepad successfully.");
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_E);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_L);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_L);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_O);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.SPACE);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_N);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_O);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_T);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_E);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_P);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_A);
-                    KeyboardSimulator.FindAndSendKeyToWindow("Notepad", VirtualKey.KEY_D);
-
-                    // Sending '!' directly with SimulateHotKeyPress. You could also do this with the modified SimulateKeyPressSequence
-                    KeyboardSimulator.SimulateHotKeyPress(new Dictionary<VirtualKey, int> { { VirtualKey.SHIFT, 0 }, { VirtualKey.KEY_1, 0 } });
-                }
-            }
-        );
-
-        // F4: Start interactive Burst Click Simulator
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_4,
-            0,
-            () =>
-            {
-                // This call will block and prompt the user for input in the console.
-                KeyboardSimulator.SimulateBurstClicks();
-            }
-        );
-
-        // Toggle text expansion (Ctrl+Alt+T)
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_T,
-            Modifiers.CTRL | Modifiers.ALT,
-            () =>
-            {
-                textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
-                Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
-            }
-        );
-
-        // Escape: Exit the application
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.ESCAPE,
-            0,
-            () =>
-            {
-                Console.WriteLine("\nEscape pressed. Exiting application.");
-
-                // Ensure tray icon is disposed
-                trayHost?.Dispose();
-
-                // This will post a WM_QUIT message to the current thread's message queue,
-                PInvoke.PostQuitMessage(0);
-            }
-        );
-
-        // -- Typed Hotkey Registrations --
-        // Parameterless example (existing behavior):
-        hotkeyManager.RegisterHotkey(VirtualKey.KEY_Z, 0, () => Console.WriteLine("!!! Ctrl+Alt+Z Hotkey Activated !!!"));
-
-        // Typed example: bind parameters at registration time (no call-site lambda required)
-        hotkeyManager.RegisterHotkey(VirtualKey.KEY_X, 0, ShowMessage, "Hey, Tarek!", "Enjoy your day!");
-
-        // Typed example: bind numeric parameters
-        hotkeyManager.RegisterHotkey(VirtualKey.KEY_C, 0, MoveCursor, 0, -100);
-
-        // Message loop to keep the application running and process Windows messages.
-        MSG msg;
-        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
-        {
-            PInvoke.TranslateMessage(msg);
-            PInvoke.DispatchMessage(msg);
-        }
-    }
-
-    private static void StartTextExpansion()
-    {
-        Console.WriteLine("Starting Text Expansion System...");
-        Console.WriteLine("Type abbreviations to expand them automatically.");
-        Console.WriteLine("Configuration file: text-expansions.json (in workspace root)");
-        Console.WriteLine("Press Ctrl+Alt+T to toggle text expansion on/off.");
-        Console.WriteLine("Press Escape to exit.");
-        Console.WriteLine();
-
-        // Locate the configuration file in the workspace root
-        string configPath = PathLocator.GetConfigPath("text-expansions.json");
-        Console.WriteLine($"Using configuration: {configPath}");
-
-        using var keyboardHookManager = new KeyboardHookManager();
-        using var hotkeyManager = new HotkeyManager(keyboardHookManager);
-        using var textExpansionConfigManager = new TextExpansionConfigurationManager(configPath);
-        using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
-
-        // Load initial configuration
-        var config = textExpansionConfigManager.LoadConfiguration();
-        textExpansionManager.LoadConfiguration(config);
-
-        // Subscribe to configuration changes for live reload
-        textExpansionConfigManager.ConfigurationChanged += (sender, newConfig) =>
-        {
-            textExpansionManager.LoadConfiguration(newConfig);
-            Console.WriteLine("Text expansion configuration reloaded.");
-        };
-
-        // Subscribe to expansion events for logging
-        textExpansionManager.ExpansionOccurred += (sender, e) =>
-        {
-            Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
-        };
-
-        textExpansionManager.ExpansionError += (sender, e) =>
-        {
-            Console.WriteLine($"Expansion error for '{e.Rule.Trigger}': {e.Exception.Message}");
-        };
-
-        // Start the keyboard hook
-        keyboardHookManager.Start();
-
-        // Register toggle hotkey (Ctrl+Alt+T)
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_T,
-            Modifiers.CTRL | Modifiers.ALT,
-            () =>
-            {
-                textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
-                Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
-            }
-        );
-
-        // Register exit hotkey
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.ESCAPE,
-            0,
-            () =>
-            {
-                Console.WriteLine("Escape pressed. Exiting...");
-                PInvoke.PostQuitMessage(0);
-            }
-        );
-
-        // Print loaded rules
-        Console.WriteLine("\nLoaded expansion rules:");
-        foreach (var rule in config.Rules.Where(r => r.Enabled))
-        {
-            Console.WriteLine($"  {rule}");
-        }
-        Console.WriteLine();
-
-        // Message loop
-        MSG msg;
-        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
-        {
-            PInvoke.TranslateMessage(msg);
-            PInvoke.DispatchMessage(msg);
-        }
-    }
-
-    /// <summary>
-    /// Demonstrates the global mouse hook manager with various binding examples.
-    /// Includes: single-button actions, multi-button combinations, scroll bindings,
-    /// double-click detection (user-handled), and scroll-while-holding-keyboard-modifier.
-    /// </summary>
-    private static void StartMouseHook()
-    {
-        Console.WriteLine("=== Global Mouse Hook Manager Demo ===");
-        Console.WriteLine();
-        Console.WriteLine("Registered Mouse Bindings:");
-        Console.WriteLine("  - Middle Click: Print message");
-        Console.WriteLine("  - Left+Right together: Print 'Chord click detected'");
-        Console.WriteLine("  - XButton1: Print 'Back button'");
-        Console.WriteLine("  - XButton2: Print 'Forward button'");
-        Console.WriteLine("  - Scroll while holding Right button: Zoom simulation");
-        Console.WriteLine("  - Scroll while holding Ctrl key: Volume control simulation");
-        Console.WriteLine("  - Left Double-Click: Print 'Double-click!' (user-handled timing)");
-        Console.WriteLine();
-        Console.WriteLine("Press Escape to exit.");
-        Console.WriteLine();
-
-        // Create the mouse hook manager
+        // ═══════════════════════════════════════════════════════════════════════
+        //  5. Mouse Hook
+        // ═══════════════════════════════════════════════════════════════════════
         using var mouseHookManager = new MouseHookManager();
-
-        // Create the binding manager for high-level bindings
         using var mouseBindingManager = new MouseBindingManager(mouseHookManager);
 
-        // Also need keyboard hook to detect Ctrl key for scroll+Ctrl
-        using var keyboardHookManager = new KeyboardHookManager();
-        using var hotkeyManager = new HotkeyManager(keyboardHookManager);
-
-        // ========================================
-        // Example 1: Single Button Action
-        // ========================================
-        mouseBindingManager.RegisterBinding(MouseButtons.Middle, () => Console.WriteLine("[Mouse] Middle button clicked!"));
-
-        // ========================================
-        // Example 2: Multi-Button Combination
-        // ========================================
-        // Trigger: Left button pressed while Right button is already held
-        mouseBindingManager.RegisterBinding(triggerButton: MouseButtons.Left, heldButtons: MouseButtons.Right, action: () => Console.WriteLine("[Mouse] Chord detected: Left+Right pressed together!"));
-
-        // Also register the reverse: Right while Left is held
-        mouseBindingManager.RegisterBinding(triggerButton: MouseButtons.Right, heldButtons: MouseButtons.Left, action: () => Console.WriteLine("[Mouse] Chord detected: Right+Left pressed together!"));
-
-        // ========================================
-        // Example 3: XButton (Side Buttons)
-        // ========================================
-        mouseBindingManager.RegisterBinding(MouseButtons.XButton1, () => Console.WriteLine("[Mouse] XButton1 (Back) pressed!"));
-
-        mouseBindingManager.RegisterBinding(MouseButtons.XButton2, () => Console.WriteLine("[Mouse] XButton2 (Forward) pressed!"));
-
-        // ========================================
-        // Example 4: Scroll While Holding Mouse Button
-        // ========================================
-        // Scroll while holding Right button → Zoom simulation
-        mouseBindingManager.RegisterScrollBinding(
-            direction: ScrollDirection.Vertical,
-            heldButtons: MouseButtons.Right,
-            action: delta =>
-            {
-                string direction = delta > 0 ? "In" : "Out";
-                Console.WriteLine($"[Mouse] Zoom {direction} (scroll delta: {delta})");
-            }
-        );
-
-        // ========================================
-        // Example 5: Scroll While Holding Keyboard Modifier (Ctrl)
-        // ========================================
-        // For this, we use the raw scroll handler and check keyboard Modifiers
-        mouseHookManager.MouseScrollHandler += (sender, e) =>
+        // ═══════════════════════════════════════════════════════════════════════
+        //  6. Scroll Lock Keyboard-as-Mouse Handler (bypass HotkeyManager)
+        // ═══════════════════════════════════════════════════════════════════════
+        //  These hotkeys use a raw KeyDownHandler for two reasons:
+        //  1. They must check IsScrollLockOn and pass through when OFF.
+        //  2. They should repeat-fire when held (no _activeHotkey suppression).
+        keyboardHookManager.KeyDownHandler += (_, e) =>
         {
-            // Check if Ctrl is held using the keyboard Modifiers class
-            if (Modifiers.HasModifier(Modifiers.CTRL))
-            {
-                // Only handle vertical scroll for this example
-                if (e.ScrollDirection == ScrollDirection.Vertical)
-                {
-                    string action = e.WheelDelta > 0 ? "Volume Up" : "Volume Down";
-                    Console.WriteLine($"[Mouse+Keyboard] Ctrl+Scroll: {action} (delta: {e.WheelDelta})");
+            if (e.Handled || _paused)
+                return;
+            if (!Modifiers.IsScrollLockOn)
+                return;
+            // Skip keys that have modifier combos handled by HotkeyManager
+            // (Ctrl+Q/E for zoom are registered there with the ScrollLock guard)
+            if (Modifiers.HasModifier(Modifiers.CTRL) || Modifiers.HasModifier(Modifiers.WIN))
+                return;
+            if (Modifiers.ModifierKeys.Contains(e.KeyCode))
+                return;
 
-                    // Optionally suppress the scroll event
-                    // e.Handled = true;
+            bool isAlt = Modifiers.HasModifier(Modifiers.ALT);
+            bool isShift = Modifiers.HasModifier(Modifiers.SHIFT);
+            bool isBacktick = Modifiers.HasModifier(Modifiers.BACKTICK);
+
+            switch (e.KeyCode)
+            {
+                // ── Scroll ──
+                case VirtualKey.KEY_W when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? 8 : 3, direction: 1));
+                    e.Handled = true;
+                    return;
+                case VirtualKey.KEY_S when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? -8 : -3, direction: 1));
+                    e.Handled = true;
+                    return;
+                case VirtualKey.KEY_A when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? -8 : -3, direction: 0));
+                    e.Handled = true;
+                    return;
+                case VirtualKey.KEY_D when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? 8 : 3, direction: 0));
+                    e.Handled = true;
+                    return;
+
+                // ── Mouse Clicks ──
+                case VirtualKey.KEY_Q when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton));
+                    e.Handled = true;
+                    return;
+                case VirtualKey.KEY_E when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton));
+                    e.Handled = true;
+                    return;
+                case VirtualKey.KEY_2 when !isBacktick:
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton));
+                    e.Handled = true;
+                    return;
+
+                // ── Mouse Hold Toggles (Backtick + Q/E/2) ──
+                case VirtualKey.KEY_Q when isBacktick:
+                {
+                    _leftMouseHeld = !_leftMouseHeld;
+                    var op = _leftMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton, op: op));
+                    e.Handled = true;
+                    return;
                 }
+                case VirtualKey.KEY_E when isBacktick:
+                {
+                    _rightMouseHeld = !_rightMouseHeld;
+                    var op = _rightMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton, op: op));
+                    e.Handled = true;
+                    return;
+                }
+                case VirtualKey.KEY_2 when isBacktick:
+                {
+                    _middleMouseHeld = !_middleMouseHeld;
+                    var op = _middleMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton, op: op));
+                    e.Handled = true;
+                    return;
+                }
+
+                // ── Cursor Movement: ; ' / . ──
+                case VirtualKey.OEM_1: // ;
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: isAlt ? 80
+                                : isShift ? 3
+                                : 20,
+                            dy: 0
+                        )
+                    );
+                    e.Handled = true;
+                    return;
+                case VirtualKey.OEM_7: // '
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: 0,
+                            dy: isAlt ? 80
+                                : isShift ? 3
+                                : 20
+                        )
+                    );
+                    e.Handled = true;
+                    return;
+                case VirtualKey.OEM_2: // /
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: isAlt ? -80
+                                : isShift ? -3
+                                : -20,
+                            dy: 0
+                        )
+                    );
+                    e.Handled = true;
+                    return;
+                case VirtualKey.OEM_PERIOD: // .
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: 0,
+                            dy: isAlt ? -80
+                                : isShift ? -3
+                                : -20
+                        )
+                    );
+                    e.Handled = true;
+                    return;
             }
         };
 
-        // ========================================
-        // Example 6: Double-Click Detection (User-Handled)
-        // ========================================
-        // Since double-click detection is user-handled, we track timestamps ourselves.
-        uint lastLeftClickTime = 0;
-        const uint DoubleClickThresholdMs = 500; // Typical double-click threshold
-
-        mouseHookManager.MouseButtonDownHandler += (sender, e) =>
-        {
-            if (e.Button == MouseButtons.Left)
-            {
-                uint currentTime = e.Timestamp;
-                uint elapsed = currentTime - lastLeftClickTime;
-
-                if (elapsed > 0 && elapsed < DoubleClickThresholdMs)
-                {
-                    Console.WriteLine($"[Mouse] Double-click detected! (interval: {elapsed}ms)");
-                    // Reset to prevent triple-click counting as another double-click
-                    lastLeftClickTime = 0;
-                }
-                else
-                {
-                    lastLeftClickTime = currentTime;
-                }
-            }
-        };
-
-        // ========================================
-        // Example 7: Raw Event Logging (Optional)
-        // ========================================
-        // Uncomment to see all mouse events:
-        // mouseHookManager.MouseButtonDownHandler += (s, e) =>
-        //     Console.WriteLine($"[RAW] ButtonDown: {e.Button} at ({e.X}, {e.Y})");
-        // mouseHookManager.MouseButtonUpHandler += (s, e) =>
-        //     Console.WriteLine($"[RAW] ButtonUp: {e.Button} at ({e.X}, {e.Y})");
-
-        // ========================================
-        // Start the hooks
-        // ========================================
+        // ═══════════════════════════════════════════════════════════════════════
+        //  7. Start Hooks
+        // ═══════════════════════════════════════════════════════════════════════
         keyboardHookManager.Start();
         mouseHookManager.Start();
 
-        Console.WriteLine("Mouse and keyboard hooks installed. Perform mouse actions to test.");
-        Console.WriteLine();
+        // ═══════════════════════════════════════════════════════════════════════
+        //  8. Register Hotkeys — Application Control
+        // ═══════════════════════════════════════════════════════════════════════
 
-        // Register Escape to exit
+        // Win + Esc → Terminate application
         hotkeyManager.RegisterHotkey(
             VirtualKey.ESCAPE,
-            0,
+            Modifiers.WIN,
             () =>
             {
-                Console.WriteLine("\nEscape pressed. Exiting...");
-                PInvoke.PostQuitMessage(0);
+                Console.WriteLine("Win+Esc: Terminating application...");
+                AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
+                trayHost?.Dispose();
+                // PostQuitMessage only works on the calling thread. Since hotkey actions run
+                // on a Task.Run thread-pool thread, use PostThreadMessage to target the main
+                // thread's GetMessage loop instead.
+                PInvoke.PostThreadMessage(mainThreadId, PInvoke.WM_QUIT, 0, 0);
             }
         );
 
-        // Message loop
+        // Win + ? (Shift + / produces '?') → Show "application is running" notification
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.OEM_2,
+            Modifiers.WIN | Modifiers.SHIFT,
+            () =>
+            {
+                Console.WriteLine("Win+?: Showing 'running' notification.");
+                toastHost.Show(MakeRunningToast());
+            }
+        );
+
+        // Win + Shift + Delete → Clear console output
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.DELETE,
+            Modifiers.WIN | Modifiers.SHIFT,
+            () =>
+            {
+                Console.Clear();
+                Console.WriteLine("Console cleared.");
+                AudioPlayer.PlayUndoAsync();
+            }
+        );
+
+        // Win + Shift + Insert → Toggle terminal output visibility
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.INSERT,
+            Modifiers.WIN | Modifiers.SHIFT,
+            () =>
+            {
+                bool visible = SystemActions.ToggleConsoleVisibility();
+                Console.WriteLine($"Console visibility: {(visible ? "Shown" : "Hidden")}");
+                if (visible)
+                    AudioPlayer.PlayOnAsync();
+                else
+                    AudioPlayer.PlayOffAsync();
+            }
+        );
+
+        // Ctrl + Alt + Win + P → Pause/resume all keyboard and mouse event handling
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_P,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                _paused = !_paused;
+                Console.WriteLine($"Event handling: {(_paused ? "PAUSED" : "RESUMED")}");
+                if (_paused)
+                    AudioPlayer.PlayOffAsync();
+                else
+                    AudioPlayer.PlayOnAsync();
+            }
+        );
+
+        // Ctrl + Alt + T → Toggle text expansion
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_T,
+            Modifiers.CTRL | Modifiers.ALT,
+            () =>
+            {
+                textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
+                Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
+                if (textExpansionManager.IsEnabled)
+                    AudioPlayer.PlayOnAsync();
+                else
+                    AudioPlayer.PlayOffAsync();
+            }
+        );
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  9. Register Hotkeys — Window Management
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // ` + = or ` + Add → Increase opacity
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25));
+
+        // ` + - or ` + Subtract → Decrease opacity
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25));
+
+        // Ctrl + Win + A → Toggle always-on-top
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_A,
+            Modifiers.CTRL_WIN,
+            () =>
+            {
+                int state = WindowModifier.ToggleAlwaysOnTopState(default);
+                Console.WriteLine($"Always-on-top: {(state == 1 ? "On" : "Off")}");
+                if (state == 1)
+                    AudioPlayer.PlayOnAsync();
+                else
+                    AudioPlayer.PlayOffAsync();
+            }
+        );
+
+        // ` + Arrow Keys → Move active window (medium: 50px)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 50));
+
+        // ` + Shift + Arrow Keys → Move active window (small: 10px)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -10));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 10));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -10));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 10));
+
+        // ` + Alt + Arrow Keys → Resize active window (50px)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: -50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: 50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: -50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: 50));
+
+        // Ctrl + Pause → Suspend active window's process
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.PAUSE,
+            Modifiers.CTRL,
+            () =>
+            {
+                bool ok = ProcessControl.SuspendActiveWindowProcess();
+                Console.WriteLine(ok ? "Process suspended." : "Failed to suspend process.");
+                if (ok)
+                    AudioPlayer.PlayOffAsync();
+            }
+        );
+
+        // Ctrl + Shift + Pause → Resume active window's process
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.PAUSE,
+            Modifiers.CTRL_SHIFT,
+            () =>
+            {
+                bool ok = ProcessControl.ResumeActiveWindowProcess();
+                Console.WriteLine(ok ? "Process resumed." : "Failed to resume process.");
+                if (ok)
+                    AudioPlayer.PlayOnAsync();
+            }
+        );
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 10. Register Hotkeys — Miscellaneous
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // ` + \ → Open image processing window
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.OEM_5,
+            Modifiers.BACKTICK,
+            () =>
+            {
+                Console.WriteLine("Opening image editor...");
+                try
+                {
+                    AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Proximity Notification.wav", async: true);
+                }
+                catch { }
+                Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
+            }
+        );
+
+        // ` + W → Seek forward in MPC-HC; ` + S → Seek backward; ` + Space → Play/Pause
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_W, Modifiers.BACKTICK, () => SendMpcCommand(905)); // Jump forward (small)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_S, Modifiers.BACKTICK, () => SendMpcCommand(906)); // Jump backward (small)
+        hotkeyManager.RegisterHotkey(VirtualKey.SPACE, Modifiers.BACKTICK, () => SendMpcCommand(889)); // Play/Pause
+
+        // Win + CapsLock → Toggle Scroll Lock
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.CAPITAL,
+            Modifiers.WIN,
+            () =>
+            {
+                KeyboardSimulator.SimulateKeyPress(VirtualKey.SCROLL);
+                bool scrollOn = Modifiers.IsScrollLockOn;
+                Console.WriteLine($"Scroll Lock toggled → {(scrollOn ? "ON" : "OFF")}");
+                if (scrollOn)
+                    AudioPlayer.PlayOnAsync();
+                else
+                    AudioPlayer.PlayOffAsync();
+            }
+        );
+
+        // Ctrl + Alt + Win + S → Sleep mode
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_S,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                Console.WriteLine("Entering sleep mode...");
+                try
+                {
+                    AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Logoff Sound.wav");
+                }
+                catch { } // sync so it finishes before sleep
+                SystemActions.Sleep();
+            }
+        );
+
+        // Ctrl + Alt + Win + Q → Shutdown (with confirmation)
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_Q,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp — Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
+                if (result == MESSAGEBOX_RESULT.IDYES)
+                {
+                    Console.WriteLine("Shutting down...");
+                    SystemActions.Shutdown();
+                }
+            }
+        );
+
+        // Ctrl + Alt + Win + Num1-4 → Display switch
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.NUMPAD1,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                SystemActions.SwitchDisplay(1);
+                AudioPlayer.PlayBonkAsync();
+            }
+        ); // Internal
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.NUMPAD2,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                SystemActions.SwitchDisplay(2);
+                AudioPlayer.PlayBonkAsync();
+            }
+        ); // External
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.NUMPAD3,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                SystemActions.SwitchDisplay(3);
+                AudioPlayer.PlayBonkAsync();
+            }
+        ); // Extend
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.NUMPAD4,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                SystemActions.SwitchDisplay(4);
+                AudioPlayer.PlayBonkAsync();
+            }
+        ); // Clone
+
+        // Ctrl + Shift + = or Ctrl + Shift + Add → Increase volume
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP));
+
+        // Ctrl + Shift + - or Ctrl + Shift + Subtract → Decrease volume
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN));
+
+        // ` + F2 → Decrease brightness; ` + F3 → Increase brightness
+        hotkeyManager.RegisterRepeatableHotkey(
+            VirtualKey.F2,
+            Modifiers.BACKTICK,
+            () =>
+            {
+                int level = BrightnessControl.DecreaseBrightness();
+                if (level >= 0)
+                    Console.WriteLine($"Brightness: {level}%");
+            }
+        );
+        hotkeyManager.RegisterRepeatableHotkey(
+            VirtualKey.F3,
+            Modifiers.BACKTICK,
+            () =>
+            {
+                int level = BrightnessControl.IncreaseBrightness();
+                if (level >= 0)
+                    Console.WriteLine($"Brightness: {level}%");
+            }
+        );
+
+        // Ctrl + E (Scroll Lock ON) → Zoom in; Ctrl + Q → Zoom out
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
+            VirtualKey.KEY_E,
+            Modifiers.CTRL,
+            () =>
+            {
+                // Simulate Ctrl+ScrollUp for zoom in
+                MouseSimulator.SendMouseScroll(steps: 3, direction: 1);
+            },
+            () => Modifiers.IsScrollLockOn
+        );
+
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
+            VirtualKey.KEY_Q,
+            Modifiers.CTRL,
+            () =>
+            {
+                // Simulate Ctrl+ScrollDown for zoom out
+                MouseSimulator.SendMouseScroll(steps: -3, direction: 1);
+            },
+            () => Modifiers.IsScrollLockOn
+        );
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 11. Register Hotkeys — File Management (Explorer-Focused)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        // Ctrl + Shift + M → Create new file in Explorer
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_M,
+            Modifiers.CTRL_SHIFT,
+            () =>
+            {
+                ExplorerFileAutomation.CreateNewFile();
+            },
+            ExplorerHotkeys.IsExplorerOrDesktopFocused
+        );
+
+        // Shift + F2 → Copy full path of selected files to clipboard
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.F2,
+            Modifiers.SHIFT,
+            () =>
+            {
+                var paths = ExplorerHotkeys.GetSelectedFilePaths();
+                if (paths.Count > 0)
+                {
+                    string text = string.Join(Environment.NewLine, paths);
+                    KeyboardSimulator.SetClipboardText(text);
+                    Console.WriteLine($"Copied {paths.Count} path(s) to clipboard.");
+                    AudioPlayer.PlaySuccessAsync();
+                }
+            },
+            ExplorerHotkeys.IsExplorerOrDesktopFocused
+        );
+
+        // ` + P → Convert selected PowerPoint files to PDF
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn);
+
+        // ` + O → Convert selected Word files to PDF
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_O, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Word"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn);
+
+        // ` + E → Convert selected Excel files to PDF
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_E, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Excel"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn);
+
+        // Ctrl + Shift + P → Merge selected images into PDF (Normal mode)
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.CTRL_SHIFT, () => ExplorerFileAutomation.ImagesToPdf(), ExplorerHotkeys.IsExplorerOrDesktopFocused);
+
+        // Ctrl + Shift + Alt + P → Merge selected images into PDF (Resize mode)
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_P,
+            Modifiers.CTRL_SHIFT_ALT,
+            () =>
+            {
+                var win = new Macrosharp.UserInterfaces.DynamicWindow.SimpleWindow("Images → PDF (Resize)", labelWidth: 160, inputFieldWidth: 120);
+
+                win.CreateDynamicInputWindow(inputLabels: ["Target Width:", "Width Threshold:", "Min Width:", "Min Height:"], placeholders: ["690", "1200", "100", "100"]);
+
+                // If the user dismissed without input, bail out
+                if (win.userInputs.Count < 4)
+                    return;
+
+                int targetWidth = int.TryParse(win.userInputs[0], out int tw) && tw > 0 ? tw : 690;
+                int widthThreshold = int.TryParse(win.userInputs[1], out int wt) && wt > 0 ? wt : 1200;
+                int minWidth = int.TryParse(win.userInputs[2], out int mw) && mw > 0 ? mw : 100;
+                int minHeight = int.TryParse(win.userInputs[3], out int mh) && mh > 0 ? mh : 100;
+
+                Console.WriteLine($"Images→PDF Resize: targetWidth={targetWidth}, widthThreshold={widthThreshold}, minWidth={minWidth}, minHeight={minHeight}");
+                ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: targetWidth, widthThreshold: widthThreshold, minWidth: minWidth, minHeight: minHeight);
+            },
+            ExplorerHotkeys.IsExplorerOrDesktopFocused
+        );
+
+        // Ctrl + Alt + Win + I → Convert selected images to .ico
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_I, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedImagesToIco(), ExplorerHotkeys.IsExplorerOrDesktopFocused);
+
+        // Ctrl + Alt + Win + M → Convert selected .mp3 files to .wav
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_M, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedMp3ToWav(), ExplorerHotkeys.IsExplorerOrDesktopFocused);
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 12. Startup Banner
+        // ═══════════════════════════════════════════════════════════════════════
+        Console.WriteLine("╔══════════════════════════════════════════════════╗");
+        Console.WriteLine("║           Macrosharp — Ready                    ║");
+        Console.WriteLine("║  Win+Esc        : Quit                          ║");
+        Console.WriteLine("║  Win+?          : Show running notification     ║");
+        Console.WriteLine("║  Win+CapsLock   : Toggle Scroll Lock            ║");
+        Console.WriteLine("║  Ctrl+Alt+T     : Toggle text expansion         ║");
+        Console.WriteLine("║  Ctrl+Alt+Win+P : Pause/resume event handling   ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════╝");
+        Console.WriteLine();
+        AudioPlayer.PlayAchievementAsync(); // startup chime
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 13. Message Loop
+        // ═══════════════════════════════════════════════════════════════════════
         MSG msg;
         while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
         {
@@ -1166,8 +848,25 @@ public class Program
             PInvoke.DispatchMessage(msg);
         }
 
-        Console.WriteLine("Mouse hook demo finished.");
+        // ═══════════════════════════════════════════════════════════════════════
+        // 14. Cleanup
+        // ═══════════════════════════════════════════════════════════════════════
+        trayHost?.Dispose();
+        Console.WriteLine("Application exiting.");
+    }
+
+    // ─── MPC-HC Helper ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Sends a WM_COMMAND to the first MPC-HC window (class "MediaPlayerClassicW").
+    /// MPC-HC internal command IDs: 889 = Play/Pause, 905 = Jump Forward (small), 906 = Jump Backward (small).
+    /// </summary>
+    private static void SendMpcCommand(int commandId)
+    {
+        var handles = WindowFinder.GetHwndByClassName("MediaPlayerClassicW");
+        if (handles.Count > 0)
+        {
+            Messaging.PostMessageToWindow(handles[0], PInvoke.WM_COMMAND, (WPARAM)(nuint)commandId, default);
+        }
     }
 }
-
-//TODO: Update to test Hotkeys configurations.

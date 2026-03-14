@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.DynamicWindow\Macrosharp.UserInterfaces.DynamicWindow.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.ImageEditorWindow\Macrosharp.UserInterfaces.ImageEditorWindow.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.Reminders\Macrosharp.UserInterfaces.Reminders.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.ToastNotifications\Macrosharp.UserInterfaces.ToastNotifications.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.TrayIcon\Macrosharp.UserInterfaces.TrayIcon.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Abstractions\Macrosharp.Win32.Abstractions.csproj" />
