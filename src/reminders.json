@@ -5,6 +5,7 @@
     "LocalTimeOnly": true,
     "MissedPolicy": "skip",
     "StartupGraceMinutes": 0,
+    "GlobalVolumePercent": 80,
     "DefaultChannels": {
       "Toast": true,
       "Popup": true,
@@ -28,6 +29,7 @@
       "Title": "Eye break",
       "Message": "[b]20-20-20 rule:[/b] Look at something [color=#5dade2]20 feet[/color] away for [i]20 seconds[/i].",
       "Enabled": true,
+      "SoundVolumePercent": 60,
       "Channels": {
         "Toast": false,
         "Popup": true,
@@ -36,6 +38,7 @@
       "Popup": {
         "Enabled": true,
         "Position": "bottomRight",
+        "MonitorIndex": 1,
         "DurationSeconds": 20,
         "OpacityPercent": 90,
         "SnoozeMinutes": [
@@ -46,11 +49,11 @@
       },
       "Recurrence": {
         "Kind": "everyInterval",
-        "Interval": "00:20:00",
+        "Interval": "00:15:00",
         "Anchor": "programStart",
         "DaysOfWeek": []
       },
-      "LastTriggeredUtc": "2026-03-14T14:22:14.0615088+00:00",
+      "LastTriggeredUtc": "2026-03-15T18:56:00.371331+00:00",
       "LastTriggerWasMonthEndClamp": false
     },
     {
@@ -80,6 +83,7 @@
         "Anchor": "programStart",
         "DaysOfWeek": []
       },
+      "LastTriggeredUtc": "2026-03-15T18:25:59.8962899+00:00",
       "LastTriggerWasMonthEndClamp": false
     },
     {

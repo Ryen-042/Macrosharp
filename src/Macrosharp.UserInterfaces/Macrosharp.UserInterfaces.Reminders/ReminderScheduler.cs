@@ -11,6 +11,8 @@ public sealed class ReminderScheduler : IDisposable
     private readonly ReminderConfigurationManager _configurationManager;
     private readonly ToastNotificationHost _toastHost;
     private readonly Func<bool> _isSilentMode;
+    private readonly Func<bool> _areNotificationsHidden;
+    private readonly Func<bool> _isReminderSoundMuted;
     private readonly ReminderPopupHost _popupHost;
     private readonly DateTime _programStartLocal;
     private readonly object _gate = new();
@@ -21,11 +23,19 @@ public sealed class ReminderScheduler : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
-    public ReminderScheduler(ReminderConfigurationManager configurationManager, ToastNotificationHost toastHost, Func<bool> isSilentMode)
+    public ReminderScheduler(
+        ReminderConfigurationManager configurationManager,
+        ToastNotificationHost toastHost,
+        Func<bool> isSilentMode,
+        Func<bool>? areNotificationsHidden = null,
+        Func<bool>? isReminderSoundMuted = null
+    )
     {
         _configurationManager = configurationManager;
         _toastHost = toastHost;
         _isSilentMode = isSilentMode;
+        _areNotificationsHidden = areNotificationsHidden ?? (() => false);
+        _isReminderSoundMuted = isReminderSoundMuted ?? (() => false);
         _popupHost = new ReminderPopupHost();
         _programStartLocal = DateTime.Now;
 
@@ -182,53 +192,63 @@ public sealed class ReminderScheduler : IDisposable
         {
             if (channels.Toast)
             {
-                _toastHost.Show(
-                    new ToastNotificationContent
-                    {
-                        Title = reminder.Title,
-                        Body = toastMessage,
-                        Scenario = ToastScenario.Reminder,
-                        Duration = ToastDuration.Long,
-                    }
-                );
+                if (!_areNotificationsHidden())
+                {
+                    _toastHost.Show(
+                        new ToastNotificationContent
+                        {
+                            Title = reminder.Title,
+                            Body = toastMessage,
+                            Scenario = ToastScenario.Reminder,
+                            Duration = ToastDuration.Long,
+                        }
+                    );
+                }
             }
 
             if (channels.Sound)
             {
-                AudioPlayer.PlayKnobAsync();
+                if (!_isReminderSoundMuted())
+                {
+                    var effectiveVolume = reminder.SoundVolumePercent ?? config.Settings.GlobalVolumePercent;
+                    AudioPlayer.PlayNotificationAsync(volumePercent: effectiveVolume);
+                }
             }
 
             if (channels.Popup && popup.Enabled)
             {
-                var popupReminder = new ReminderDefinition
+                if (!_areNotificationsHidden())
                 {
-                    Id = reminder.Id,
-                    Title = reminder.Title,
-                    Message = message,
-                    Enabled = reminder.Enabled,
-                    Channels = reminder.Channels,
-                    Popup = reminder.Popup,
-                    Recurrence = reminder.Recurrence,
-                    LastTriggeredUtc = reminder.LastTriggeredUtc,
-                    LastTriggerWasMonthEndClamp = reminder.LastTriggerWasMonthEndClamp,
-                };
-
-                _popupHost.Show(
-                    popupReminder,
-                    popup,
-                    result =>
+                    var popupReminder = new ReminderDefinition
                     {
-                        if (result.Action != ReminderPopupAction.Snooze)
-                        {
-                            return;
-                        }
+                        Id = reminder.Id,
+                        Title = reminder.Title,
+                        Message = message,
+                        Enabled = reminder.Enabled,
+                        Channels = reminder.Channels,
+                        Popup = reminder.Popup,
+                        Recurrence = reminder.Recurrence,
+                        LastTriggeredUtc = reminder.LastTriggeredUtc,
+                        LastTriggerWasMonthEndClamp = reminder.LastTriggerWasMonthEndClamp,
+                    };
 
-                        lock (_gate)
+                    _popupHost.Show(
+                        popupReminder,
+                        popup,
+                        result =>
                         {
-                            _snoozedUntilById[reminder.Id] = DateTime.Now.AddMinutes(Math.Max(1, result.SnoozeMinutes));
+                            if (result.Action != ReminderPopupAction.Snooze)
+                            {
+                                return;
+                            }
+
+                            lock (_gate)
+                            {
+                                _snoozedUntilById[reminder.Id] = DateTime.Now.AddMinutes(Math.Max(1, result.SnoozeMinutes));
+                            }
                         }
-                    }
-                );
+                    );
+                }
             }
         }
     }

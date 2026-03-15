@@ -49,6 +49,7 @@ public sealed class ReminderSettings
     public bool LocalTimeOnly { get; set; } = true;
     public ReminderMissedPolicy MissedPolicy { get; set; } = ReminderMissedPolicy.Skip;
     public int StartupGraceMinutes { get; set; } = 0;
+    public int GlobalVolumePercent { get; set; } = 100;
     public ReminderChannels DefaultChannels { get; set; } = new();
     public ReminderPopupOptions PopupDefaults { get; set; } = new();
 }
@@ -76,6 +77,7 @@ public sealed class ReminderDefinition
     public string Title { get; set; } = "Reminder";
     public string Message { get; set; } = string.Empty;
     public bool Enabled { get; set; } = true;
+    public int? SoundVolumePercent { get; set; }
     public ReminderChannels? Channels { get; set; }
     public ReminderPopupOptions? Popup { get; set; }
     public ReminderRecurrence Recurrence { get; set; } = new();

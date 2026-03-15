@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
@@ -14,6 +15,7 @@ using Macrosharp.Win32.Abstractions.SystemControl;
 using Macrosharp.Win32.Abstractions.WindowTools;
 using Windows.Win32;
 using Windows.Win32.Foundation;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 using Windows.Win32.UI.WindowsAndMessaging;
 using static Macrosharp.Devices.Keyboard.KeyboardHookManager;
 
@@ -41,9 +43,75 @@ public class Program
 
         var iconPaths = PathLocator.GetIconFilesFromAssets();
         var iconCycler = IconCycler.Create(iconPaths);
+        string mainConfigPath = PathLocator.GetConfigPath("macrosharp.config.json");
+        var mainConfigManager = new MainConfigurationManager(mainConfigPath);
+        var mainConfig = mainConfigManager.LoadOrCreate();
 
-        bool isSilentMode = false;
+        bool notificationsHidden = mainConfig.Tray.NotificationsHidden;
+        bool reminderSoundsMuted = mainConfig.Tray.ReminderSoundsMuted;
+        bool terminalMessagesEnabled = mainConfig.Diagnostics.TerminalMessagesEnabled;
+
         TrayIconHost? trayHost = null;
+        int exitRequested = 0;
+
+        void RequestAppExit(string source)
+        {
+            if (Interlocked.Exchange(ref exitRequested, 1) == 1)
+            {
+                return;
+            }
+
+            mainConfig.Tray.NotificationsHidden = notificationsHidden;
+            mainConfig.Tray.ReminderSoundsMuted = reminderSoundsMuted;
+            mainConfig.Diagnostics.TerminalMessagesEnabled = terminalMessagesEnabled;
+            mainConfigManager.Save(mainConfig);
+            Console.WriteLine($"Exit requested from {source}.");
+            trayHost?.Dispose();
+            // PostQuitMessage only works on the calling thread. Since tray and hotkey callbacks
+            // run on worker threads, target the main thread message loop explicitly.
+            PInvoke.PostThreadMessage(mainThreadId, PInvoke.WM_QUIT, 0, 0);
+        }
+
+        void OnConsoleCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+        {
+            // Always intercept terminal cancel so we can shut down through our normal path.
+            e.Cancel = true;
+
+            if (Volatile.Read(ref exitRequested) == 1)
+            {
+                return;
+            }
+
+            string shortcut = e.SpecialKey == ConsoleSpecialKey.ControlBreak ? "Ctrl+Break" : "Ctrl+C";
+            var result = PInvoke.MessageBox(HWND.Null, $"{shortcut} detected.\n\nDo you want to quit Macrosharp?", "Macrosharp — Confirm Exit", MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST);
+
+            if (result == MESSAGEBOX_RESULT.IDYES)
+            {
+                Console.WriteLine($"{shortcut}: exit confirmed.");
+                RequestAppExit(shortcut);
+                return;
+            }
+
+            Console.WriteLine($"{shortcut}: exit canceled.");
+        }
+
+        Console.CancelKeyPress += OnConsoleCancelKeyPress;
+
+        void OpenInShell(string path, string label)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                Console.WriteLine($"Opened {label}: {path}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to open {label}: {ex.Message}");
+            }
+        }
+
+        string textExpansionConfigPath = PathLocator.GetConfigPath("text-expansions.json");
+        string reminderConfigPath = PathLocator.GetConfigPath("reminders.json");
 
         // ═══════════════════════════════════════════════════════════════════════
         //  2. Toast Notification Host
@@ -51,10 +119,9 @@ public class Program
         using var toastHost = new ToastNotificationHost("Macrosharp", iconCycler.GetNext());
         toastHost.Start();
 
-        string reminderConfigPath = PathLocator.GetConfigPath("reminders.json");
         using var reminderConfigManager = new ReminderConfigurationManager(reminderConfigPath);
         var reminderCrudService = new ReminderCrudService(reminderConfigManager);
-        using var reminderScheduler = new ReminderScheduler(reminderConfigManager, toastHost, () => isSilentMode);
+        using var reminderScheduler = new ReminderScheduler(reminderConfigManager, toastHost, () => false, () => notificationsHidden, () => reminderSoundsMuted);
         reminderConfigManager.LoadConfiguration();
         reminderScheduler.Start();
 
@@ -64,8 +131,7 @@ public class Program
             {
                 case "action=quit":
                     Console.WriteLine("Toast action: Close App.");
-                    trayHost?.Dispose();
-                    Environment.Exit(0);
+                    RequestAppExit("toast notification");
                     break;
                 case "action=open-folder":
                     Console.WriteLine("Toast action: Open Folder.");
@@ -94,7 +160,25 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         //  3. System Tray Icon
         // ═══════════════════════════════════════════════════════════════════════
-        void OpenScriptFolder() => Process.Start(new ProcessStartInfo("explorer.exe", AppContext.BaseDirectory) { UseShellExecute = true });
+        void OpenRunningFolder() => Process.Start(new ProcessStartInfo("explorer.exe", AppContext.BaseDirectory) { UseShellExecute = true });
+        void OpenProjectFolder()
+        {
+            if (!string.IsNullOrWhiteSpace(PathLocator.RootPath) && Directory.Exists(PathLocator.RootPath))
+            {
+                OpenInShell(PathLocator.RootPath, "project folder");
+                return;
+            }
+
+            Console.WriteLine("Project root not detected; opening running folder instead.");
+            OpenRunningFolder();
+        }
+        void OpenMainConfig()
+        {
+            mainConfig = mainConfigManager.LoadOrCreate();
+            OpenInShell(mainConfigManager.ConfigPath, "main config");
+        }
+        void OpenTextExpansionConfig() => OpenInShell(textExpansionConfigPath, "text expansion config");
+        void OpenRemindersConfig() => OpenInShell(reminderConfigPath, "reminders config");
         void SwitchIcon()
         {
             string? next = iconCycler.GetNext();
@@ -116,15 +200,23 @@ public class Program
             Console.Clear();
             Console.WriteLine("Console cleared by tray action.");
         }
-        void ToggleSilentMode()
+
+        string FormatTerminalKeyMessage(KeyboardEvent e)
         {
-            isSilentMode = !isSilentMode;
-            Console.WriteLine($"Silent mode: {(isSilentMode ? "On" : "Off")}");
+            var scanCode = PInvoke.MapVirtualKey((uint)e.KeyCode, MAP_VIRTUAL_KEY_TYPE.MAPVK_VK_TO_VSC);
+            var isCapsLockOn = Modifiers.IsCapsLockOn;
+            var displayName = KeysMapper.GetDisplayName(e.KeyCode, e.IsShiftDown, isCapsLockOn);
+            var asciiCode = KeysMapper.GetAsciiCode(e.KeyCode, e.IsShiftDown, isCapsLockOn);
+            var pressedModifiers = Modifiers.GetModifiersStringFromMask(Modifiers.CurrentModifiers);
+            if (string.IsNullOrWhiteSpace(pressedModifiers))
+                pressedModifiers = "None";
+
+            return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, 4} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
         }
 
         var trayMenu = new List<TrayMenuItem>
         {
-            TrayMenuItem.ActionItem("Open Script Folder", OpenScriptFolder, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.ActionItem("Open Running Folder", OpenRunningFolder, iconPath: iconCycler.GetNext()),
             TrayMenuItem.Submenu(
                 "Show Notification",
                 new List<TrayMenuItem>
@@ -224,6 +316,53 @@ public class Program
                 },
                 iconPath: iconCycler.GetNext()
             ),
+            TrayMenuItem.Submenu(
+                "Notifications & Sounds",
+                new List<TrayMenuItem>
+                {
+                    TrayMenuItem.ActionItem(
+                        () => notificationsHidden ? "Show Notifications" : "Hide Notifications",
+                        () =>
+                        {
+                            notificationsHidden = !notificationsHidden;
+                            // SaveMainConfig(); // Don't save to config immediately since this is more of a "session" setting and prevents accidental persistence of unwanted states. It will still be saved when the user exits via the tray menu or Win+Esc.
+                            Console.WriteLine($"Notifications: {(notificationsHidden ? "Hidden" : "Visible")}");
+                            if (!notificationsHidden)
+                                AudioPlayer.PlayOnAsync();
+                            else
+                                AudioPlayer.PlayOffAsync();
+                        },
+                        iconPath: iconCycler.GetNext()
+                    ),
+                    TrayMenuItem.ActionItem(
+                        () => reminderSoundsMuted ? "Unmute Reminder Sounds" : "Mute Reminder Sounds",
+                        () =>
+                        {
+                            reminderSoundsMuted = !reminderSoundsMuted;
+                            // SaveMainConfig();
+                            Console.WriteLine($"Reminder sounds: {(reminderSoundsMuted ? "Muted" : "Unmuted")}");
+                            if (!reminderSoundsMuted)
+                                AudioPlayer.PlayOnAsync();
+                        },
+                        iconPath: iconCycler.GetNext()
+                    ),
+                    TrayMenuItem.ActionItem(
+                        () => terminalMessagesEnabled ? "Hide Terminal Keystrokes" : "Show Terminal Keystrokes",
+                        () =>
+                        {
+                            terminalMessagesEnabled = !terminalMessagesEnabled;
+                            // SaveMainConfig();
+                            Console.WriteLine($"Terminal keystrokes: {(terminalMessagesEnabled ? "Shown" : "Hidden")}");
+                            if (terminalMessagesEnabled)
+                                AudioPlayer.PlayOnAsync();
+                            else
+                                AudioPlayer.PlayOffAsync();
+                        },
+                        iconPath: iconCycler.GetNext()
+                    ),
+                },
+                iconPath: iconCycler.GetNext()
+            ),
             TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: iconCycler.GetNext()),
             TrayMenuItem.Submenu(
                 "Reload",
@@ -241,23 +380,43 @@ public class Program
                 },
                 iconPath: iconCycler.GetNext()
             ),
+            TrayMenuItem.Submenu(
+                "Configuration",
+                new List<TrayMenuItem>
+                {
+                    TrayMenuItem.ActionItem("Open Main Config", OpenMainConfig, iconPath: iconCycler.GetNext()),
+                    TrayMenuItem.ActionItem("Open Text Expansion Config", OpenTextExpansionConfig, iconPath: iconCycler.GetNext()),
+                    TrayMenuItem.ActionItem("Open Reminders Config", OpenRemindersConfig, iconPath: iconCycler.GetNext()),
+                    TrayMenuItem.ActionItem("Open Project Folder", OpenProjectFolder, iconPath: iconCycler.GetNext()),
+                },
+                iconPath: iconCycler.GetNext()
+            ),
             TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: iconCycler.GetNext()),
-            TrayMenuItem.ActionItem("Toggle Silent Mode", ToggleSilentMode, iconPath: iconCycler.GetNext()),
         };
 
-        trayHost = new TrayIconHost("Macrosharp", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0);
+        trayHost = new TrayIconHost("Macrosharp", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0, quitAction: () => RequestAppExit("tray menu"));
         trayHost.Start();
 
         // ═══════════════════════════════════════════════════════════════════════
         //  4. Text Expansion
         // ═══════════════════════════════════════════════════════════════════════
-        string configPath = PathLocator.GetConfigPath("text-expansions.json");
-        Console.WriteLine($"Text expansion config: {configPath}");
+        Console.WriteLine($"Text expansion config: {textExpansionConfigPath}");
 
         using var keyboardHookManager = new KeyboardHookManager();
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
-        using var textExpansionConfigManager = new TextExpansionConfigurationManager(configPath);
+        using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
+
+        keyboardHookManager.KeyDownHandler += (_, e) =>
+        {
+            if (!terminalMessagesEnabled || e.IsInjected)
+                return;
+
+            if (Modifiers.ModifierKeys.Contains(e.KeyCode))
+                return;
+
+            Console.WriteLine(FormatTerminalKeyMessage(e));
+        };
 
         var config = textExpansionConfigManager.LoadConfiguration();
         textExpansionManager.LoadConfiguration(config);
@@ -438,11 +597,7 @@ public class Program
             {
                 Console.WriteLine("Win+Esc: Terminating application...");
                 AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
-                trayHost?.Dispose();
-                // PostQuitMessage only works on the calling thread. Since hotkey actions run
-                // on a Task.Run thread-pool thread, use PostThreadMessage to target the main
-                // thread's GetMessage loop instead.
-                PInvoke.PostThreadMessage(mainThreadId, PInvoke.WM_QUIT, 0, 0);
+                RequestAppExit("Win+Esc");
             }
         );
 
@@ -851,6 +1006,7 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         // 14. Cleanup
         // ═══════════════════════════════════════════════════════════════════════
+        Console.CancelKeyPress -= OnConsoleCancelKeyPress;
         trayHost?.Dispose();
         Console.WriteLine("Application exiting.");
     }

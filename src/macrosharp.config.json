@@ -1,0 +1,10 @@
+{
+  "Version": 1,
+  "Tray": {
+    "NotificationsHidden": false,
+    "ReminderSoundsMuted": false
+  },
+  "Diagnostics": {
+    "TerminalMessagesEnabled": false
+  }
+}

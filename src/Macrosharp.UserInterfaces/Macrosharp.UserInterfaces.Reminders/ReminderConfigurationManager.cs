@@ -204,6 +204,7 @@ public sealed class ReminderConfigurationManager : IDisposable
     {
         config.Version = Math.Max(config.Version, 1);
         config.Settings ??= new ReminderSettings();
+        config.Settings.GlobalVolumePercent = Math.Clamp(config.Settings.GlobalVolumePercent, 0, 100);
         config.Settings.DefaultChannels ??= new ReminderChannels();
         config.Settings.PopupDefaults ??= new ReminderPopupOptions();
         config.Settings.PopupDefaults.MonitorIndex = config.Settings.PopupDefaults.MonitorIndex is >= 0 ? config.Settings.PopupDefaults.MonitorIndex : null;
@@ -218,6 +219,7 @@ public sealed class ReminderConfigurationManager : IDisposable
 
             reminder.Title = string.IsNullOrWhiteSpace(reminder.Title) ? "Reminder" : reminder.Title;
             reminder.Message ??= string.Empty;
+            reminder.SoundVolumePercent = reminder.SoundVolumePercent.HasValue ? Math.Clamp(reminder.SoundVolumePercent.Value, 0, 100) : null;
             reminder.Recurrence ??= new ReminderRecurrence();
             reminder.Channels ??= new ReminderChannels
             {

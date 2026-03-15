@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Macrosharp.Infrastructure\Macrosharp.Infrastructure.csproj" />
     <ProjectReference Include="..\Macrosharp.UserInterfaces.DynamicWindow\Macrosharp.UserInterfaces.DynamicWindow.csproj" />
+    <ProjectReference Include="..\Macrosharp.UserInterfaces.PopupNotifications\Macrosharp.UserInterfaces.PopupNotifications.csproj" />
     <ProjectReference Include="..\Macrosharp.UserInterfaces.ToastNotifications\Macrosharp.UserInterfaces.ToastNotifications.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
   </ItemGroup>

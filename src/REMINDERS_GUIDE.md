@@ -50,6 +50,7 @@ Recommended: always use camelCase for enum strings in `reminders.json`.
   "localTimeOnly": true,
   "missedPolicy": "skip",
   "startupGraceMinutes": 0,
+  "globalVolumePercent": 100,
   "defaultChannels": {
     "toast": true,
     "popup": true,
@@ -102,6 +103,14 @@ Behavior notes:
 - Default: `0`
 - Used with `missedPolicy = "fireWithinGraceWindow"`.
 
+### 4.4.1 settings.globalVolumePercent
+
+- Type: integer
+- Default: `100`
+- Range: `0..100`
+- Behavior:
+  - Applied when reminder sound channel is enabled and reminder does not override with `soundVolumePercent`.
+
 ### 4.5 settings.defaultChannels
 
 - Type: object
@@ -141,6 +150,7 @@ Fields:
   "title": "Eye break",
   "message": "[b]20-20-20 rule:[/b] ...",
   "enabled": true,
+  "soundVolumePercent": 80,
   "channels": {
     "toast": true,
     "popup": true,
@@ -178,6 +188,13 @@ Fields:
 
 - Type: bool
 - Default: `true`
+
+### 5.4.1 soundVolumePercent
+
+- Type: integer?
+- Optional
+- Range: `0..100`
+- If omitted/null: falls back to `settings.globalVolumePercent`.
 
 ### 5.5 channels
 
