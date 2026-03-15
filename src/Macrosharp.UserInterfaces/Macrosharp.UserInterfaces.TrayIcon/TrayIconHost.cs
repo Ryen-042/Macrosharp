@@ -22,6 +22,7 @@ public sealed class TrayIconHost : IDisposable
     private readonly int defaultClickIndex;
     private readonly int defaultDoubleClickIndex;
     private readonly string className;
+    private readonly Action? quitAction;
 
     private readonly object lifecycleLock = new();
 
@@ -50,13 +51,14 @@ public sealed class TrayIconHost : IDisposable
 
     private ManualResetEventSlim? readySignal;
 
-    public TrayIconHost(string tooltip, string? iconPath, IReadOnlyList<TrayMenuItem> menuItems, int defaultClickIndex = -1, int defaultDoubleClickIndex = -1)
+    public TrayIconHost(string tooltip, string? iconPath, IReadOnlyList<TrayMenuItem> menuItems, int defaultClickIndex = -1, int defaultDoubleClickIndex = -1, Action? quitAction = null)
     {
         this.tooltip = tooltip;
         this.iconPath = iconPath;
         this.menuItems = menuItems;
         this.defaultClickIndex = defaultClickIndex;
         this.defaultDoubleClickIndex = defaultDoubleClickIndex;
+        this.quitAction = quitAction;
         className = $"Macrosharp.TrayIcon.{Guid.NewGuid():N}";
     }
 
@@ -517,7 +519,7 @@ public sealed class TrayIconHost : IDisposable
             AppendMenuSeparator(menuHandle);
         }
 
-        AppendMenuItem(menuHandle, TrayMenuItem.ActionItem("Quit", Stop), bitmaps, ref clickableIndex);
+        AppendMenuItem(menuHandle, TrayMenuItem.ActionItem("Quit", quitAction ?? Stop), bitmaps, ref clickableIndex);
 
         return new MenuBuildResult(menuHandle, bitmaps);
     }
@@ -582,7 +584,8 @@ public sealed class TrayIconHost : IDisposable
     {
         unsafe
         {
-            fixed (char* textPtr = item.Text)
+            string menuText = item.GetText();
+            fixed (char* textPtr = menuText)
             {
                 MENU_ITEM_MASK mask = MENU_ITEM_MASK.MIIM_STRING | MENU_ITEM_MASK.MIIM_FTYPE;
                 if (menuId != 0)
@@ -615,7 +618,7 @@ public sealed class TrayIconHost : IDisposable
                     hSubMenu = subMenu ?? HMENU.Null,
                     hbmpItem = menuBitmap,
                     dwTypeData = textPtr,
-                    cch = (uint)item.Text.Length,
+                    cch = (uint)menuText.Length,
                 };
 
                 using var safeMenuHandle = new SafeMenuHandle(menuHandle);
