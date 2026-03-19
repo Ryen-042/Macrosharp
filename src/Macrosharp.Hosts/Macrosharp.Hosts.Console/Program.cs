@@ -24,6 +24,7 @@ namespace Macrosharp.Hosts.ConsoleHost;
 public class Program
 {
     // ─── Global State ──────────────────────────────────────────────────────────
+    private static HotkeyManager? _hotkeyManager;
     private static bool _paused; // Ctrl+Alt+Win+P toggle
     private static bool _leftMouseHeld,
         _rightMouseHeld,
@@ -64,7 +65,7 @@ public class Program
             mainConfig.Tray.NotificationsHidden = notificationsHidden;
             mainConfig.Tray.ReminderSoundsMuted = reminderSoundsMuted;
             mainConfig.Diagnostics.TerminalMessagesEnabled = terminalMessagesEnabled;
-            mainConfigManager.Save(mainConfig);
+            // mainConfigManager.Save(mainConfig);
             Console.WriteLine($"Exit requested from {source}.");
             trayHost?.Dispose();
             // PostQuitMessage only works on the calling thread. Since tray and hotkey callbacks
@@ -201,6 +202,32 @@ public class Program
             Console.WriteLine("Console cleared by tray action.");
         }
 
+        void ShowHotkeysWindow()
+        {
+            if (_hotkeyManager is null)
+            {
+                Console.WriteLine("Hotkeys are not initialized yet.");
+                return;
+            }
+
+            var rows = _hotkeyManager
+                .GetRegisteredHotkeysSnapshot()
+                .Select(h => (IReadOnlyList<string>)new List<string>
+                {
+                    h.Hotkey.ToString(),
+                    string.IsNullOrWhiteSpace(h.Description) ? "No description" : h.Description,
+                    string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext,
+                })
+                .ToList();
+
+            Macrosharp.UserInterfaces.DynamicWindow.FilterableTableWindow.ShowOrActivate(
+                "Macrosharp Hotkeys",
+                ["Hotkey", "Description", "Source"],
+                rows,
+                filterPlaceholder: "Type to filter hotkeys..."
+            );
+        }
+
         string FormatTerminalKeyMessage(KeyboardEvent e)
         {
             var scanCode = PInvoke.MapVirtualKey((uint)e.KeyCode, MAP_VIRTUAL_KEY_TYPE.MAPVK_VK_TO_VSC);
@@ -211,7 +238,7 @@ public class Program
             if (string.IsNullOrWhiteSpace(pressedModifiers))
                 pressedModifiers = "None";
 
-            return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, 4} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
+            return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, -3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
         }
 
         var trayMenu = new List<TrayMenuItem>
@@ -325,7 +352,7 @@ public class Program
                         () =>
                         {
                             notificationsHidden = !notificationsHidden;
-                            // SaveMainConfig(); // Don't save to config immediately since this is more of a "session" setting and prevents accidental persistence of unwanted states. It will still be saved when the user exits via the tray menu or Win+Esc.
+                            // SaveMainConfig(); // Don't save to config immediately since this is more of a "session" setting and prevents accidental persistence of unwanted states. // ///It will still be saved when the user exits via the tray menu or Win+Esc.
                             Console.WriteLine($"Notifications: {(notificationsHidden ? "Hidden" : "Visible")}");
                             if (!notificationsHidden)
                                 AudioPlayer.PlayOnAsync();
@@ -364,6 +391,7 @@ public class Program
                 iconPath: iconCycler.GetNext()
             ),
             TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: iconCycler.GetNext()),
+            TrayMenuItem.ActionItem("Show Hotkeys", ShowHotkeysWindow, iconPath: iconCycler.GetNext()),
             TrayMenuItem.Submenu(
                 "Reload",
                 new List<TrayMenuItem> { TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: iconCycler.GetNext()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: iconCycler.GetNext()) },
@@ -404,6 +432,7 @@ public class Program
 
         using var keyboardHookManager = new KeyboardHookManager();
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
+        _hotkeyManager = hotkeyManager;
         using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
 
@@ -588,6 +617,10 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         //  8. Register Hotkeys — Application Control
         // ═══════════════════════════════════════════════════════════════════════
+        const string SourceApplicationControl = "Application Control";
+        const string SourceWindowManagement = "Window Management";
+        const string SourceMiscellaneous = "Miscellaneous";
+        const string SourceFileManagement = "File Management";
 
         // Win + Esc → Terminate application
         hotkeyManager.RegisterHotkey(
@@ -598,7 +631,18 @@ public class Program
                 Console.WriteLine("Win+Esc: Terminating application...");
                 AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
                 RequestAppExit("Win+Esc");
-            }
+            },
+            description: "Terminate Macrosharp.",
+            sourceContext: SourceApplicationControl
+        );
+
+        // Ctrl + Win + / → Show all registered hotkeys
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.OEM_2,
+            Modifiers.CTRL_WIN,
+            ShowHotkeysWindow,
+            description: "Open the hotkeys reference window.",
+            sourceContext: SourceApplicationControl
         );
 
         // Win + ? (Shift + / produces '?') → Show "application is running" notification
@@ -609,7 +653,9 @@ public class Program
             {
                 Console.WriteLine("Win+?: Showing 'running' notification.");
                 toastHost.Show(MakeRunningToast());
-            }
+            },
+            description: "Show the running status toast with quick actions.",
+            sourceContext: SourceApplicationControl
         );
 
         // Win + Shift + Delete → Clear console output
@@ -621,7 +667,9 @@ public class Program
                 Console.Clear();
                 Console.WriteLine("Console cleared.");
                 AudioPlayer.PlayUndoAsync();
-            }
+            },
+            description: "Clear console output.",
+            sourceContext: SourceApplicationControl
         );
 
         // Win + Shift + Insert → Toggle terminal output visibility
@@ -636,7 +684,9 @@ public class Program
                     AudioPlayer.PlayOnAsync();
                 else
                     AudioPlayer.PlayOffAsync();
-            }
+            },
+            description: "Toggle console window visibility.",
+            sourceContext: SourceApplicationControl
         );
 
         // Ctrl + Alt + Win + P → Pause/resume all keyboard and mouse event handling
@@ -651,7 +701,9 @@ public class Program
                     AudioPlayer.PlayOffAsync();
                 else
                     AudioPlayer.PlayOnAsync();
-            }
+            },
+            description: "Pause or resume keyboard and mouse automation.",
+            sourceContext: SourceApplicationControl
         );
 
         // Ctrl + Alt + T → Toggle text expansion
@@ -666,7 +718,9 @@ public class Program
                     AudioPlayer.PlayOnAsync();
                 else
                     AudioPlayer.PlayOffAsync();
-            }
+            },
+            description: "Toggle text expansion on or off.",
+            sourceContext: SourceApplicationControl
         );
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -674,12 +728,12 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
 
         // ` + = or ` + Add → Increase opacity
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25), description: "Increase active window opacity.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25), description: "Increase active window opacity.", sourceContext: SourceWindowManagement);
 
         // ` + - or ` + Subtract → Decrease opacity
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25), description: "Decrease active window opacity.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25), description: "Decrease active window opacity.", sourceContext: SourceWindowManagement);
 
         // Ctrl + Win + A → Toggle always-on-top
         hotkeyManager.RegisterHotkey(
@@ -693,26 +747,28 @@ public class Program
                     AudioPlayer.PlayOnAsync();
                 else
                     AudioPlayer.PlayOffAsync();
-            }
+            },
+            description: "Toggle always-on-top for the active window.",
+            sourceContext: SourceWindowManagement
         );
 
         // ` + Arrow Keys → Move active window (medium: 50px)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -50));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 50));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -50));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -50), description: "Move active window up by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 50), description: "Move active window down by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -50), description: "Move active window left by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 50), description: "Move active window right by 50 pixels.", sourceContext: SourceWindowManagement);
 
         // ` + Shift + Arrow Keys → Move active window (small: 10px)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -10));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 10));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -10));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 10));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -10), description: "Move active window up by 10 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 10), description: "Move active window down by 10 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -10), description: "Move active window left by 10 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 10), description: "Move active window right by 10 pixels.", sourceContext: SourceWindowManagement);
 
         // ` + Alt + Arrow Keys → Resize active window (50px)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: -50));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: 50));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: -50));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: 50));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: -50), description: "Decrease active window height by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: 50), description: "Increase active window height by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: -50), description: "Decrease active window width by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: 50), description: "Increase active window width by 50 pixels.", sourceContext: SourceWindowManagement);
 
         // Ctrl + Pause → Suspend active window's process
         hotkeyManager.RegisterHotkey(
@@ -724,7 +780,9 @@ public class Program
                 Console.WriteLine(ok ? "Process suspended." : "Failed to suspend process.");
                 if (ok)
                     AudioPlayer.PlayOffAsync();
-            }
+            },
+            description: "Suspend the process of the active window.",
+            sourceContext: SourceWindowManagement
         );
 
         // Ctrl + Shift + Pause → Resume active window's process
@@ -737,7 +795,9 @@ public class Program
                 Console.WriteLine(ok ? "Process resumed." : "Failed to resume process.");
                 if (ok)
                     AudioPlayer.PlayOnAsync();
-            }
+            },
+            description: "Resume the process of the active window.",
+            sourceContext: SourceWindowManagement
         );
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -757,13 +817,15 @@ public class Program
                 }
                 catch { }
                 Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
-            }
+            },
+            description: "Open the image editor from clipboard content.",
+            sourceContext: SourceMiscellaneous
         );
 
         // ` + W → Seek forward in MPC-HC; ` + S → Seek backward; ` + Space → Play/Pause
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_W, Modifiers.BACKTICK, () => SendMpcCommand(905)); // Jump forward (small)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_S, Modifiers.BACKTICK, () => SendMpcCommand(906)); // Jump backward (small)
-        hotkeyManager.RegisterHotkey(VirtualKey.SPACE, Modifiers.BACKTICK, () => SendMpcCommand(889)); // Play/Pause
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_W, Modifiers.BACKTICK, () => SendMpcCommand(905), description: "Seek media forward in MPC-HC.", sourceContext: SourceMiscellaneous); // Jump forward (small)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_S, Modifiers.BACKTICK, () => SendMpcCommand(906), description: "Seek media backward in MPC-HC.", sourceContext: SourceMiscellaneous); // Jump backward (small)
+        hotkeyManager.RegisterHotkey(VirtualKey.SPACE, Modifiers.BACKTICK, () => SendMpcCommand(889), description: "Toggle MPC-HC play or pause.", sourceContext: SourceMiscellaneous); // Play/Pause
 
         // Win + CapsLock → Toggle Scroll Lock
         hotkeyManager.RegisterHotkey(
@@ -778,7 +840,9 @@ public class Program
                     AudioPlayer.PlayOnAsync();
                 else
                     AudioPlayer.PlayOffAsync();
-            }
+            },
+            description: "Toggle Scroll Lock.",
+            sourceContext: SourceMiscellaneous
         );
 
         // Ctrl + Alt + Win + S → Sleep mode
@@ -794,7 +858,9 @@ public class Program
                 }
                 catch { } // sync so it finishes before sleep
                 SystemActions.Sleep();
-            }
+            },
+            description: "Put the system to sleep.",
+            sourceContext: SourceMiscellaneous
         );
 
         // Ctrl + Alt + Win + Q → Shutdown (with confirmation)
@@ -809,7 +875,9 @@ public class Program
                     Console.WriteLine("Shutting down...");
                     SystemActions.Shutdown();
                 }
-            }
+            },
+            description: "Shut down the system with confirmation.",
+            sourceContext: SourceMiscellaneous
         );
 
         // Ctrl + Alt + Win + Num1-4 → Display switch
@@ -820,7 +888,9 @@ public class Program
             {
                 SystemActions.SwitchDisplay(1);
                 AudioPlayer.PlayBonkAsync();
-            }
+            },
+            description: "Switch display mode to internal screen.",
+            sourceContext: SourceMiscellaneous
         ); // Internal
         hotkeyManager.RegisterHotkey(
             VirtualKey.NUMPAD2,
@@ -829,7 +899,9 @@ public class Program
             {
                 SystemActions.SwitchDisplay(2);
                 AudioPlayer.PlayBonkAsync();
-            }
+            },
+            description: "Switch display mode to external screen.",
+            sourceContext: SourceMiscellaneous
         ); // External
         hotkeyManager.RegisterHotkey(
             VirtualKey.NUMPAD3,
@@ -838,7 +910,9 @@ public class Program
             {
                 SystemActions.SwitchDisplay(3);
                 AudioPlayer.PlayBonkAsync();
-            }
+            },
+            description: "Switch display mode to extend.",
+            sourceContext: SourceMiscellaneous
         ); // Extend
         hotkeyManager.RegisterHotkey(
             VirtualKey.NUMPAD4,
@@ -847,16 +921,18 @@ public class Program
             {
                 SystemActions.SwitchDisplay(4);
                 AudioPlayer.PlayBonkAsync();
-            }
+            },
+            description: "Switch display mode to clone.",
+            sourceContext: SourceMiscellaneous
         ); // Clone
 
         // Ctrl + Shift + = or Ctrl + Shift + Add → Increase volume
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous);
 
         // Ctrl + Shift + - or Ctrl + Shift + Subtract → Decrease volume
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN));
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN));
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous);
 
         // ` + F2 → Decrease brightness; ` + F3 → Increase brightness
         hotkeyManager.RegisterRepeatableHotkey(
@@ -867,7 +943,9 @@ public class Program
                 int level = BrightnessControl.DecreaseBrightness();
                 if (level >= 0)
                     Console.WriteLine($"Brightness: {level}%");
-            }
+            },
+            description: "Decrease screen brightness.",
+            sourceContext: SourceMiscellaneous
         );
         hotkeyManager.RegisterRepeatableHotkey(
             VirtualKey.F3,
@@ -877,7 +955,9 @@ public class Program
                 int level = BrightnessControl.IncreaseBrightness();
                 if (level >= 0)
                     Console.WriteLine($"Brightness: {level}%");
-            }
+            },
+            description: "Increase screen brightness.",
+            sourceContext: SourceMiscellaneous
         );
 
         // Ctrl + E (Scroll Lock ON) → Zoom in; Ctrl + Q → Zoom out
@@ -889,7 +969,9 @@ public class Program
                 // Simulate Ctrl+ScrollUp for zoom in
                 MouseSimulator.SendMouseScroll(steps: 3, direction: 1);
             },
-            () => Modifiers.IsScrollLockOn
+            () => Modifiers.IsScrollLockOn,
+            description: "Zoom in while Scroll Lock is on.",
+            sourceContext: SourceMiscellaneous
         );
 
         hotkeyManager.RegisterConditionalRepeatableHotkey(
@@ -900,7 +982,9 @@ public class Program
                 // Simulate Ctrl+ScrollDown for zoom out
                 MouseSimulator.SendMouseScroll(steps: -3, direction: 1);
             },
-            () => Modifiers.IsScrollLockOn
+            () => Modifiers.IsScrollLockOn,
+            description: "Zoom out while Scroll Lock is on.",
+            sourceContext: SourceMiscellaneous
         );
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -915,7 +999,9 @@ public class Program
             {
                 ExplorerFileAutomation.CreateNewFile();
             },
-            ExplorerHotkeys.IsExplorerOrDesktopFocused
+            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            description: "Create a new file in Explorer or Desktop.",
+            sourceContext: SourceFileManagement
         );
 
         // Shift + F2 → Copy full path of selected files to clipboard
@@ -933,20 +1019,22 @@ public class Program
                     AudioPlayer.PlaySuccessAsync();
                 }
             },
-            ExplorerHotkeys.IsExplorerOrDesktopFocused
+            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            description: "Copy selected file paths to clipboard.",
+            sourceContext: SourceFileManagement
         );
 
         // ` + P → Convert selected PowerPoint files to PDF
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn, description: "Convert selected PowerPoint files to PDF.", sourceContext: SourceFileManagement);
 
         // ` + O → Convert selected Word files to PDF
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_O, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Word"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_O, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Word"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn, description: "Convert selected Word files to PDF.", sourceContext: SourceFileManagement);
 
         // ` + E → Convert selected Excel files to PDF
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_E, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Excel"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_E, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Excel"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn, description: "Convert selected Excel files to PDF.", sourceContext: SourceFileManagement);
 
         // Ctrl + Shift + P → Merge selected images into PDF (Normal mode)
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.CTRL_SHIFT, () => ExplorerFileAutomation.ImagesToPdf(), ExplorerHotkeys.IsExplorerOrDesktopFocused);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.CTRL_SHIFT, () => ExplorerFileAutomation.ImagesToPdf(), ExplorerHotkeys.IsExplorerOrDesktopFocused, description: "Merge selected images into a PDF.", sourceContext: SourceFileManagement);
 
         // Ctrl + Shift + Alt + P → Merge selected images into PDF (Resize mode)
         hotkeyManager.RegisterConditionalHotkey(
@@ -970,14 +1058,16 @@ public class Program
                 Console.WriteLine($"Images→PDF Resize: targetWidth={targetWidth}, widthThreshold={widthThreshold}, minWidth={minWidth}, minHeight={minHeight}");
                 ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: targetWidth, widthThreshold: widthThreshold, minWidth: minWidth, minHeight: minHeight);
             },
-            ExplorerHotkeys.IsExplorerOrDesktopFocused
+            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            description: "Merge selected images into a PDF with custom resize options.",
+            sourceContext: SourceFileManagement
         );
 
         // Ctrl + Alt + Win + I → Convert selected images to .ico
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_I, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedImagesToIco(), ExplorerHotkeys.IsExplorerOrDesktopFocused);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_I, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedImagesToIco(), ExplorerHotkeys.IsExplorerOrDesktopFocused, description: "Convert selected images to ICO files.", sourceContext: SourceFileManagement);
 
         // Ctrl + Alt + Win + M → Convert selected .mp3 files to .wav
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_M, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedMp3ToWav(), ExplorerHotkeys.IsExplorerOrDesktopFocused);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_M, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedMp3ToWav(), ExplorerHotkeys.IsExplorerOrDesktopFocused, description: "Convert selected MP3 files to WAV.", sourceContext: SourceFileManagement);
 
         // ═══════════════════════════════════════════════════════════════════════
         // 12. Startup Banner
@@ -986,6 +1076,7 @@ public class Program
         Console.WriteLine("║           Macrosharp — Ready                    ║");
         Console.WriteLine("║  Win+Esc        : Quit                          ║");
         Console.WriteLine("║  Win+?          : Show running notification     ║");
+        Console.WriteLine("║  Ctrl+Win+/     : Show hotkeys window           ║");
         Console.WriteLine("║  Win+CapsLock   : Toggle Scroll Lock            ║");
         Console.WriteLine("║  Ctrl+Alt+T     : Toggle text expansion         ║");
         Console.WriteLine("║  Ctrl+Alt+Win+P : Pause/resume event handling   ║");

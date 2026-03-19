@@ -15,6 +15,12 @@ public class HotkeyDefinition
 
     // The action configuration for this hotkey.
     public ActionConfig Action { get; set; } = new ActionConfig();
+
+    // Optional description displayed in the hotkeys reference UI.
+    public string? Description { get; set; }
+
+    // Optional source/context label, such as module or feature group.
+    public string? SourceContext { get; set; }
 }
 
 // Represents the action to be performed when a hotkey is pressed.
