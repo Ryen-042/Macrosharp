@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Threading;
 using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Devices.Mouse;
 using Macrosharp.Infrastructure;
+using Macrosharp.UserInterfaces.DynamicWindow;
 using Macrosharp.UserInterfaces.Reminders;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.UserInterfaces.TrayIcon;
@@ -51,9 +53,195 @@ public class Program
         bool notificationsHidden = mainConfig.Tray.NotificationsHidden;
         bool reminderSoundsMuted = mainConfig.Tray.ReminderSoundsMuted;
         bool terminalMessagesEnabled = mainConfig.Diagnostics.TerminalMessagesEnabled;
+        var burstClickStateGate = new object();
+        bool burstClickActive = false;
+        VirtualKey burstClickKey = VirtualKey.KEY_A;
+        int burstClickIntervalMs = KeyboardSimulator.DefaultBurstClickIntervalMs;
+        int burstClickDurationMs = KeyboardSimulator.DefaultBurstClickDurationMs;
+        string? burstClickStopReason = null;
+        CancellationTokenSource? burstClickCancellation = null;
+        Task? burstClickTask = null;
 
         TrayIconHost? trayHost = null;
         int exitRequested = 0;
+
+        bool IsBurstClickActive()
+        {
+            lock (burstClickStateGate)
+            {
+                return burstClickActive;
+            }
+        }
+
+        string SanitizeWindowInput(string? value)
+        {
+            return (value ?? string.Empty).Replace("\0", string.Empty).Trim();
+        }
+
+        bool TryParseBurstInteger(string rawValue, int defaultValue, string fieldName, bool allowZero, out int parsedValue, out string? error)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                parsedValue = defaultValue;
+                error = null;
+                return true;
+            }
+
+            if (!int.TryParse(rawValue, out parsedValue))
+            {
+                error = $"{fieldName} must be a valid integer.";
+                return false;
+            }
+
+            if (allowZero)
+            {
+                if (parsedValue < 0)
+                {
+                    error = $"{fieldName} must be zero or greater.";
+                    return false;
+                }
+            }
+            else if (parsedValue <= 0)
+            {
+                error = $"{fieldName} must be greater than zero.";
+                return false;
+            }
+
+            error = null;
+            return true;
+        }
+
+        void StopBurstClick(string reason, bool notifyWhenInactive = true)
+        {
+            CancellationTokenSource? cancellationToCancel;
+
+            lock (burstClickStateGate)
+            {
+                if (!burstClickActive)
+                {
+                    if (notifyWhenInactive)
+                    {
+                        Console.WriteLine("Burst click is not active.");
+                    }
+                    return;
+                }
+
+                burstClickStopReason = reason;
+                cancellationToCancel = burstClickCancellation;
+            }
+
+            cancellationToCancel?.Cancel();
+        }
+
+        void StartBurstClickFromTray()
+        {
+            if (IsBurstClickActive())
+            {
+                Console.WriteLine("Burst click is already active. Use Stop Burst Click first.");
+                return;
+            }
+
+            var window = new SimpleWindow("Start Burst Click", labelWidth: 200);
+            window.CreateDynamicInputWindow(
+                ["Interval (ms)", "Duration (ms, 0 = infinite)"],
+                [KeyboardSimulator.DefaultBurstClickIntervalMs.ToString(), KeyboardSimulator.DefaultBurstClickDurationMs.ToString()],
+                enableKeyCapture: true
+            );
+
+            if (window.userInputs.Count < 2)
+            {
+                Console.WriteLine("Burst click start canceled.");
+                return;
+            }
+
+            if (window.capturedKeyVK == 0)
+            {
+                Console.WriteLine("Burst click requires a captured key.");
+                return;
+            }
+
+            string intervalText = SanitizeWindowInput(window.userInputs[0]);
+            string durationText = SanitizeWindowInput(window.userInputs[1]);
+
+            if (!TryParseBurstInteger(intervalText, KeyboardSimulator.DefaultBurstClickIntervalMs, "Interval", allowZero: false, out int requestedIntervalMs, out string? parseError))
+            {
+                Console.WriteLine($"Burst click start failed: {parseError}");
+                return;
+            }
+
+            if (!TryParseBurstInteger(durationText, KeyboardSimulator.DefaultBurstClickDurationMs, "Duration", allowZero: true, out int requestedDurationMs, out parseError))
+            {
+                Console.WriteLine($"Burst click start failed: {parseError}");
+                return;
+            }
+
+            VirtualKey requestedKey = (VirtualKey)window.capturedKeyVK;
+            if (!KeyboardSimulator.TryValidateBurstClickSettings(requestedKey, requestedIntervalMs, requestedDurationMs, out string? validationError))
+            {
+                Console.WriteLine($"Burst click start failed: {validationError}");
+                return;
+            }
+
+            CancellationTokenSource localCancellation;
+            lock (burstClickStateGate)
+            {
+                burstClickKey = requestedKey;
+                burstClickIntervalMs = requestedIntervalMs;
+                burstClickDurationMs = requestedDurationMs;
+                burstClickStopReason = null;
+                burstClickCancellation = new CancellationTokenSource();
+                localCancellation = burstClickCancellation;
+                burstClickActive = true;
+            }
+
+            burstClickTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await KeyboardSimulator.SimulateBurstClicksAsync(burstClickKey, burstClickIntervalMs, burstClickDurationMs, localCancellation.Token);
+
+                    if (burstClickDurationMs > 0)
+                    {
+                        Console.WriteLine("Burst click finished after requested duration.");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    string stopReason;
+                    lock (burstClickStateGate)
+                    {
+                        stopReason = burstClickStopReason ?? "cancellation";
+                    }
+                    Console.WriteLine($"Burst click stopped ({stopReason}).");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Burst click failed: {ex.Message}");
+                }
+                finally
+                {
+                    lock (burstClickStateGate)
+                    {
+                        burstClickActive = false;
+                        burstClickStopReason = null;
+
+                        if (ReferenceEquals(burstClickCancellation, localCancellation))
+                        {
+                            burstClickCancellation.Dispose();
+                            burstClickCancellation = null;
+                        }
+
+                        burstClickTask = null;
+                    }
+                }
+            });
+
+            Console.WriteLine(
+                burstClickDurationMs == 0
+                    ? $"Burst click started for key {burstClickKey} every {burstClickIntervalMs}ms. Use tray Stop or press ESC to stop."
+                    : $"Burst click started for key {burstClickKey} every {burstClickIntervalMs}ms for {burstClickDurationMs}ms."
+            );
+        }
 
         void RequestAppExit(string source)
         {
@@ -61,6 +249,8 @@ public class Program
             {
                 return;
             }
+
+            StopBurstClick("application exit", notifyWhenInactive: false);
 
             mainConfig.Tray.NotificationsHidden = notificationsHidden;
             mainConfig.Tray.ReminderSoundsMuted = reminderSoundsMuted;
@@ -390,6 +580,23 @@ public class Program
                 },
                 iconPath: iconCycler.GetNext()
             ),
+            TrayMenuItem.Submenu(
+                "Burst Click",
+                new List<TrayMenuItem>
+                {
+                    TrayMenuItem.ActionItem(
+                        () => IsBurstClickActive() ? "Start Burst Click (active)" : "Start Burst Click",
+                        StartBurstClickFromTray,
+                        iconPath: iconCycler.GetNext()
+                    ),
+                    TrayMenuItem.ActionItem(
+                        () => IsBurstClickActive() ? "Stop Burst Click" : "Stop Burst Click (inactive)",
+                        () => StopBurstClick("tray menu"),
+                        iconPath: iconCycler.GetNext()
+                    ),
+                },
+                iconPath: iconCycler.GetNext()
+            ),
             TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: iconCycler.GetNext()),
             TrayMenuItem.ActionItem("Show Hotkeys", ShowHotkeysWindow, iconPath: iconCycler.GetNext()),
             TrayMenuItem.Submenu(
@@ -445,6 +652,24 @@ public class Program
                 return;
 
             Console.WriteLine(FormatTerminalKeyMessage(e));
+        };
+
+        keyboardHookManager.KeyDownHandler += (_, e) =>
+        {
+            if (e.Handled)
+                return;
+
+            if (e.KeyCode != VirtualKey.ESCAPE)
+                return;
+
+            if (Modifiers.CurrentModifiers != 0)
+                return;
+
+            if (!IsBurstClickActive())
+                return;
+
+            StopBurstClick("ESC key", notifyWhenInactive: false);
+            e.Handled = true;
         };
 
         var config = textExpansionConfigManager.LoadConfiguration();
@@ -622,17 +847,44 @@ public class Program
         const string SourceMiscellaneous = "Miscellaneous";
         const string SourceFileManagement = "File Management";
 
-        // Win + Esc → Terminate application
+        // Win + Esc → Confirm and terminate application
         hotkeyManager.RegisterHotkey(
             VirtualKey.ESCAPE,
             Modifiers.WIN,
             () =>
             {
-                Console.WriteLine("Win+Esc: Terminating application...");
+                var result = PInvoke.MessageBox(
+                    HWND.Null,
+                    "Win+Esc detected.\n\nDo you want to quit Macrosharp?",
+                    "Macrosharp - Confirm Exit",
+                    MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST
+                );
+
+                if (result != MESSAGEBOX_RESULT.IDYES)
+                {
+                    Console.WriteLine("Win+Esc: exit canceled.");
+                    return;
+                }
+
+                Console.WriteLine("Win+Esc: exit confirmed.");
                 AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
                 RequestAppExit("Win+Esc");
             },
-            description: "Terminate Macrosharp.",
+            description: "Prompt to terminate Macrosharp.",
+            sourceContext: SourceApplicationControl
+        );
+
+        // Alt + Win + Esc → Terminate application immediately
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.ESCAPE,
+            Modifiers.ALT_WIN,
+            () =>
+            {
+                Console.WriteLine("Alt+Win+Esc: Terminating application immediately...");
+                AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
+                RequestAppExit("Alt+Win+Esc");
+            },
+            description: "Terminate Macrosharp immediately.",
             sourceContext: SourceApplicationControl
         );
 
@@ -648,7 +900,7 @@ public class Program
         // Win + ? (Shift + / produces '?') → Show "application is running" notification
         hotkeyManager.RegisterHotkey(
             VirtualKey.OEM_2,
-            Modifiers.WIN | Modifiers.SHIFT,
+            Modifiers.SHIFT_WIN,
             () =>
             {
                 Console.WriteLine("Win+?: Showing 'running' notification.");
@@ -661,7 +913,7 @@ public class Program
         // Win + Shift + Delete → Clear console output
         hotkeyManager.RegisterHotkey(
             VirtualKey.DELETE,
-            Modifiers.WIN | Modifiers.SHIFT,
+            Modifiers.SHIFT_WIN,
             () =>
             {
                 Console.Clear();
@@ -675,7 +927,7 @@ public class Program
         // Win + Shift + Insert → Toggle terminal output visibility
         hotkeyManager.RegisterHotkey(
             VirtualKey.INSERT,
-            Modifiers.WIN | Modifiers.SHIFT,
+            Modifiers.SHIFT_WIN,
             () =>
             {
                 bool visible = SystemActions.ToggleConsoleVisibility();
@@ -706,10 +958,29 @@ public class Program
             sourceContext: SourceApplicationControl
         );
 
+        // Ctrl + Alt + Win + B → Toggle burst click (start with prompt, stop if active)
+        hotkeyManager.RegisterHotkey(
+            VirtualKey.KEY_B,
+            Modifiers.CTRL_ALT_WIN,
+            () =>
+            {
+                if (IsBurstClickActive())
+                {
+                    StopBurstClick("hotkey");
+                }
+                else
+                {
+                    StartBurstClickFromTray();
+                }
+            },
+            description: "Toggle burst click (start when inactive, stop when active).",
+            sourceContext: SourceApplicationControl
+        );
+
         // Ctrl + Alt + T → Toggle text expansion
         hotkeyManager.RegisterHotkey(
             VirtualKey.KEY_T,
-            Modifiers.CTRL | Modifiers.ALT,
+            Modifiers.CTRL_ALT,
             () =>
             {
                 textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;

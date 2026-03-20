@@ -28,9 +28,12 @@ double-click discriminated actions.
 - `IconCycler` provides round-robin cycling through available icon paths.
 
 ### Current usage in Program.cs
-Instantiated inside `StartKeyboardSimulator()` with a full menu tree including:
-Open Script Folder, Show Notification (submenu with 9 toast variants), Switch
-Icon, Reload (Hotkeys/Configs submenu), Clear Console Logs, Toggle Silent Mode.
+Instantiated directly in `Main()` with a richer menu tree including:
+Open Running Folder, Show Notification (9 toast variants), Notifications & Sounds
+(show/hide notifications, mute/unmute reminder sounds, terminal keystroke visibility),
+Burst Click (start with key capture, stop on demand),
+Switch Icon, Show Hotkeys, Reload, Reminders (reload/add/edit/delete),
+Configuration (open configs/project folder), and Clear Console Logs.
 
 ---
 
@@ -56,7 +59,7 @@ bars (indeterminate and determinate), and up to 5 action buttons.
   button argument string for dispatch.
 
 ### Current usage in Program.cs
-Created in `StartKeyboardSimulator()`. The `Activated` handler dispatches
+Created in `Main()`. The `Activated` handler dispatches
 `action=quit`, `action=open-folder`, `action=snooze`. The tray menu "Show
 Notification" submenu exercises all notification types including the
 "With Action Buttons" variant.
@@ -95,7 +98,7 @@ masks (`CTRL_SHIFT`, `CTRL_ALT_WIN`, etc.). Tracks lock key states
 | Item | Detail |
 |------|--------|
 | **Class** | `HotkeyManager` |
-| **Status** | ✅ Fully implemented (needs extension for conditional hotkeys) |
+| **Status** | ✅ Fully implemented |
 
 ### What it does
 Registry of key+modifier combinations mapped to `Action` callbacks. When the
@@ -104,19 +107,21 @@ registered `Hotkey`, the action is invoked and the key event is suppressed.
 
 ### How it works
 - `RegisterHotkey()` stores `Hotkey → Action` in a dictionary.
+- `RegisterConditionalHotkey()` supports guard predicates (`Func<bool>`) so
+  hotkeys can pass through when conditions are not met.
+- `RegisterRepeatableHotkey()` and `RegisterConditionalRepeatableHotkey()`
+  support hold-to-repeat scenarios.
 - `OnKeyDown` ignores modifier keys, creates a `Hotkey` from the event, looks
-  it up, calls the action, sets `e.Handled = true`, and marks it as
-  `_activeHotkey` to prevent repeat-fire while held.
+  it up, evaluates optional conditions, suppresses matched keys (`e.Handled = true`),
+  and either fires once (`_activeHotkey` guarded) or on repeats (repeatable mode).
 - `OnKeyUp` clears `_activeHotkey` when the main key is released.
 - Supports generic typed overloads up to 5 bound arguments.
+- `GetRegisteredHotkeysSnapshot()` exposes metadata for UI display (description,
+  source context, conditional/repeatable flags).
 
 ### Design note
-The manager does **not** currently support:
-- **Guard conditions** — needed for Scroll-Lock-dependent and Explorer-focused
-  hotkeys that should only fire in specific contexts.
-- **Repeat-fire** — needed for scroll/cursor-movement hotkeys where holding the key should trigger repeatedly.
-
-These will be added as part of the hotkey spec implementation.
+Hotkey execution is dispatched via `Task.Run` to keep the low-level keyboard
+hook callback responsive and avoid hook timeout/removal.
 
 ---
 
@@ -170,9 +175,12 @@ combinations.
   currently held (mirrors keyboard `Modifiers` pattern).
 
 ### Current usage in Program.cs
-`StartMouseHook()` demonstrates middle click, chord clicks (Left+Right),
-XButton actions, scroll+Right for zoom, Ctrl+Scroll for volume, and
-double-click detection.
+`Main()` starts the global mouse hook and integrates mouse behavior through:
+- Scroll-Lock keyboard-as-mouse controls (scroll, cursor move, click/hold).
+- Conditional/repeatable hotkeys that trigger mouse-wheel zoom behavior.
+
+The demo-style `MouseBindingManager` examples remain available in older
+test flows but are no longer the primary runtime path.
 
 ---
 
@@ -194,7 +202,9 @@ double-click detection.
 | `TypeUnicodeText(text)` | Type arbitrary Unicode via `KEYEVENTF_UNICODE` |
 | `PasteText(text)` | Clipboard paste (saves/restores clipboard) |
 | `MoveCursorLeft(count)` | Move text cursor left |
-| `SimulateBurstClicks()` | Interactive burst click tool |
+| `SimulateBurstClicksAsync(key, intervalMs, durationMs, token)` | Cancellation-aware burst loop with defaults (100ms interval, 0ms duration = infinite) |
+| `TryValidateBurstClickSettings(...)` | Validates key, interval, and duration inputs for burst mode |
+| `SimulateBurstClicks()` | Console helper that prompts and forwards to async burst loop |
 
 ---
 
@@ -337,49 +347,45 @@ the main flow.
 
 | Item | Detail |
 |------|--------|
-| **Status** | ⚠️ Demo/test collection — needs refactoring |
+| **Status** | ✅ Unified runtime entry point (still monolithic) |
 
 ### Current structure
-The file contains multiple isolated demo methods:
-1. `Main()` — calls `StartKeyboardSimulator()` and `StartMouseHook()`, plus
-   many commented-out demo blocks.
-2. `StartKeyboardHook()` — basic keyboard hook demo (Ctrl+Alt+Z, Shift+A, F1–F3).
-3. `StartMouseSimulator()` — mouse action demos (F1–F8).
-4. `StartKeyboardSimulator()` — **most complete**: tray icon, toast
-   notifications, text expansion, demo hotkeys (1–4, Z/X/C). This is the
-   de facto "main" method.
-5. `StartTextExpansion()` — standalone text expansion demo.
-6. `StartMouseHook()` — mouse hook binding demo.
+The current `Program.cs` is organized as a single primary runtime pipeline in
+`Main()`:
+1. Early initialization (AUMID/tray config/state).
+2. Toast host and reminders scheduler setup.
+3. Tray icon host and dynamic menu actions.
+4. Keyboard hook + hotkey manager + text expansion wiring.
+5. Mouse hook startup and Scroll-Lock keyboard-as-mouse handling.
+6. Hotkey registration by domain:
+  - Application Control
+  - Window Management
+  - Miscellaneous (system/media/device controls)
+  - File Management (Explorer-focused actions)
+7. Startup banner, Win32 message loop, and deterministic cleanup.
 
-### What's missing
-- **No hotkeys from the spec are registered.** All registrations are demo/test
-  bindings (keys 1–4, Z/X/C, Escape, Ctrl+Alt+T).
-- No Scroll-Lock-dependent keyboard/mouse control.
-- No Explorer-focused file management hotkeys.
-- No window management hotkeys (opacity, always-on-top, move, resize).
-- No system control hotkeys (sleep, shutdown, display switch, volume, brightness).
-- No MPC-HC media control.
-- No process suspend/resume.
-- No pause/resume all event handling.
-- No console visibility toggle.
+### Coverage summary
+- Spec-style hotkey set is now actively registered.
+- Scroll-Lock-dependent controls are implemented.
+- Explorer-focused file-management hotkeys are implemented.
+- Window-management hotkeys (opacity, always-on-top, move, resize) are implemented.
+- System-control hotkeys (sleep, shutdown, display switch, volume, brightness) are implemented.
+- MPC-HC control hotkeys are implemented.
+- Process suspend/resume, pause/resume event handling, and console visibility toggle are implemented.
 
 ---
 
-## 16. Missing Functionality (Not Yet Implemented Anywhere)
+## 16. Previously Missing Features — Current Status
 
-| Feature | Required by | Notes |
-|---------|-------------|-------|
-| Process suspend/resume | Ctrl+Pause / Ctrl+Shift+Pause | Need `NtSuspendProcess`/`NtResumeProcess` from ntdll.dll |
-| System sleep | Ctrl+Alt+Win+S | Need `SetSuspendState` from PowrProf.dll |
-| System shutdown | Ctrl+Alt+Win+Q | Need `ExitWindowsEx` from user32.dll |
-| Display/monitor switch | Ctrl+Alt+Win+Num1-4 | Use `displayswitch.exe` with `/internal`, `/external`, `/extend`, `/clone` |
-| Screen brightness | Backtick+F2/F3 | WMI `WmiMonitorBrightness` or dxva2 monitor APIs |
-| System volume | Ctrl+Shift+=/- | Simulate `VK_VOLUME_UP`/`VK_VOLUME_DOWN` |
-| MPC-HC media control | Backtick+W/S/Space | `WM_COMMAND` to "MediaPlayerClassicW" window |
-| Copy full path of selected files | Shift+F2 | `ExplorerShellManager.GetSelectedItems()` + clipboard |
-| Image-to-ICO conversion | Ctrl+Alt+Win+I | System.Drawing resize + ICO format save |
-| MP3-to-WAV conversion | Ctrl+Alt+Win+M | `GenericFileConverter` with ffmpeg |
-| Console visibility toggle | Win+Shift+Insert | `GetConsoleWindow()` + `ShowWindow()` |
-| Pause/resume all event handling | Ctrl+Alt+Win+P | Global flag to skip hook processing |
-| Toggle Scroll Lock | Win+CapsLock | Simulate Scroll Lock key press |
-| Conditional hotkey guard | Multiple | HotkeyManager needs `Func<bool>? condition` support |
+All items from the previous "not yet implemented" list are now implemented in
+the current codebase, including:
+- Process suspend/resume (`NtSuspendProcess` / `NtResumeProcess`).
+- System sleep, shutdown, display switching, volume, and brightness controls.
+- MPC-HC media commands.
+- Explorer file-path copy, image→ICO conversion, and MP3→WAV conversion.
+- Console visibility toggle, global pause/resume handling, Scroll Lock toggle.
+- Conditional and repeatable hotkey support in `HotkeyManager`.
+
+### Operational prerequisites
+- MP3→WAV conversion expects `ffmpeg` to be available on `PATH`.
+- Brightness control depends on WMI monitor APIs and supported hardware.

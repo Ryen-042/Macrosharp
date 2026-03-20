@@ -208,9 +208,11 @@ public static class Modifiers
     public const int CTRL_ALT = CTRL | ALT;
     // public const int CTRL_FN = CTRL | FN;
     public const int CTRL_WIN = CTRL | WIN;
+    public const int ALT_WIN = ALT | WIN;
     public const int CTRL_BACKTICK = CTRL | BACKTICK;
     // public const int LCTRL_RCTRL = LCTRL | RCTRL;
     public const int SHIFT_ALT = SHIFT | ALT;
+    public const int SHIFT_WIN = SHIFT | WIN;
     // public const int SHIFT_FN = SHIFT | FN;
     public const int SHIFT_BACKTICK = SHIFT | BACKTICK;
     // public const int LSHIFT_RSHIFT = LSHIFT | RSHIFT;

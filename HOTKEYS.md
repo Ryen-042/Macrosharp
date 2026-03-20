@@ -23,11 +23,14 @@
 
 | Hotkey | Description | Preconditions | Status | Notes |
 |--------|-------------|---------------|--------|-------|
-| Win + Esc | Terminate application | None | ✅ | `Environment.Exit(0)` pattern exists in toast handler; `trayHost?.Dispose()` + `PostQuitMessage(0)` in Escape handler |
+| Win + Esc | Confirm and terminate application | None | ✅ | Shows a confirmation message box before exiting. |
+| Alt + Win + Esc | Terminate application immediately | None | ✅ | Exits without showing a confirmation dialog. |
+| Esc | Stop active burst click | Burst click is currently running | ✅ | Stops the burst click loop immediately. ESC is only suppressed while burst click is active. |
 | Win + ? | Show "application is running" notification | None | ✅ | Toast infrastructure fully implemented. Use "With Action Buttons" content from tray menu |
 | Win + Shift + Delete | Clear console output | None | ✅ | `Console.Clear()` exists in tray menu action |
 | Win + Shift + Insert | Toggle terminal output visibility | None | ✅ | `SystemActions.ToggleConsoleVisibility()`; plays On/Off sound |
 | Ctrl + Alt + Win + P | Pause/resume all keyboard and mouse event handling | None | ✅ | `_paused` flag checked at top of every hook handler; plays On/Off sound |
+| Ctrl + Alt + Win + B | Toggle burst click (start/stop) | None | ✅ | Starts burst click with key/duration/interval prompt when inactive; stops active burst immediately when running. |
 
 ### 1.2 Window Management
 

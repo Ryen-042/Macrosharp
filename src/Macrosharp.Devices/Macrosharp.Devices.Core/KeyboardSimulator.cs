@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Macrosharp.Devices.Core;
 using Windows.Win32;
@@ -11,6 +12,8 @@ public static partial class KeyboardSimulator
 {
     // Manual P/Invoke for GlobalAlloc since CsWin32's version has signature issues
     private const uint GMEM_MOVEABLE = 0x0002;
+    public const int DefaultBurstClickIntervalMs = 100;
+    public const int DefaultBurstClickDurationMs = 0;
 
     [LibraryImport("kernel32.dll", EntryPoint = "GlobalAlloc", SetLastError = true)]
     private static partial nint GlobalAllocManual(uint uFlags, nuint dwBytes);
@@ -429,54 +432,123 @@ public static partial class KeyboardSimulator
     }
 
     /// <summary>
-    /// Simulates burst clicks by capturing a key and a delay from the user,
-    /// then simulating the key press in a loop.
-    /// NOTE: For this console application context, key capture is simulated via console input.
-    /// A real GUI application would use UI elements for key and delay input.
+    /// Validates burst click settings.
+    /// </summary>
+    /// <param name="keyToSimulate">The key to press in each burst tick.</param>
+    /// <param name="intervalMs">Delay between key presses in milliseconds. Must be greater than zero.</param>
+    /// <param name="durationMs">Total burst duration in milliseconds. Zero means run until canceled.</param>
+    /// <param name="errorMessage">Validation error message when validation fails.</param>
+    /// <returns>True when all values are valid; otherwise false.</returns>
+    public static bool TryValidateBurstClickSettings(VirtualKey keyToSimulate, int intervalMs, int durationMs, out string? errorMessage)
+    {
+        if (!Enum.IsDefined(keyToSimulate))
+        {
+            errorMessage = "Invalid key selected for burst clicking.";
+            return false;
+        }
+
+        if (intervalMs <= 0)
+        {
+            errorMessage = "Interval must be a positive integer in milliseconds.";
+            return false;
+        }
+
+        if (durationMs < 0)
+        {
+            errorMessage = "Duration must be zero (infinite) or a positive integer in milliseconds.";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Simulates repeated key presses for a fixed duration or until canceled.
+    /// </summary>
+    /// <param name="keyToSimulate">The key to press in each burst tick.</param>
+    /// <param name="intervalMs">Delay between key presses in milliseconds. Defaults to 100ms.</param>
+    /// <param name="durationMs">Total burst duration in milliseconds. Zero means run until canceled.</param>
+    /// <param name="cancellationToken">Cancellation token used to stop the burst loop immediately.</param>
+    public static async Task SimulateBurstClicksAsync(
+        VirtualKey keyToSimulate,
+        int intervalMs = DefaultBurstClickIntervalMs,
+        int durationMs = DefaultBurstClickDurationMs,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!TryValidateBurstClickSettings(keyToSimulate, intervalMs, durationMs, out string? errorMessage))
+        {
+            throw new ArgumentException(errorMessage);
+        }
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            SimulateKeyPress(keyToSimulate, delayMilliseconds: 0);
+
+            if (durationMs > 0)
+            {
+                int remainingMs = durationMs - (int)stopwatch.ElapsedMilliseconds;
+                if (remainingMs <= 0)
+                {
+                    break;
+                }
+
+                int delayMs = Math.Min(intervalMs, remainingMs);
+                await Task.Delay(delayMs, cancellationToken);
+            }
+            else
+            {
+                await Task.Delay(intervalMs, cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Console helper to start burst clicking with user-provided values.
     /// </summary>
     public static void SimulateBurstClicks()
     {
         Console.WriteLine("\n--- Burst Click Simulator ---");
-        Console.WriteLine("Enter the VirtualKey code for the key to simulate (e.g., 65 for 'KEY_A', 32 for 'VK_SPACE'):");
+        Console.WriteLine("Enter the VirtualKey code for the key to simulate (for example: KEY_A or SPACE):");
         string? keyInput = Console.ReadLine();
-        VirtualKey keyToSimulate;
 
-        if (!Enum.TryParse(keyInput, true, out keyToSimulate))
+        if (!Enum.TryParse(keyInput, true, out VirtualKey keyToSimulate))
         {
-            Console.WriteLine("Invalid key entered. Please use a valid VirtualKey enum name (e.g., 65 for 'KEY_A', 32 for 'VK_SPACE').");
+            Console.WriteLine("Invalid key entered. Please enter a valid VirtualKey enum name.");
             return;
         }
 
-        Console.WriteLine("Enter the delay between presses in milliseconds (e.g., 50, 100):");
+        Console.WriteLine($"Enter the delay between presses in milliseconds (default {DefaultBurstClickIntervalMs}):");
         string? delayInput = Console.ReadLine();
-        int delayMs;
+        int intervalMs = string.IsNullOrWhiteSpace(delayInput) ? DefaultBurstClickIntervalMs : int.TryParse(delayInput, out int parsedDelay) ? parsedDelay : -1;
 
-        if (!int.TryParse(delayInput, out delayMs) || delayMs < 0)
+        Console.WriteLine($"Enter burst duration in milliseconds (default {DefaultBurstClickDurationMs}, zero means infinite until Ctrl+C):");
+        string? durationInput = Console.ReadLine();
+        int durationMs = string.IsNullOrWhiteSpace(durationInput) ? DefaultBurstClickDurationMs : int.TryParse(durationInput, out int parsedDuration) ? parsedDuration : -1;
+
+        if (!TryValidateBurstClickSettings(keyToSimulate, intervalMs, durationMs, out string? errorMessage))
         {
-            Console.WriteLine("Invalid delay entered. Please enter a non-negative integer.");
+            Console.WriteLine(errorMessage);
             return;
         }
 
-        Console.WriteLine("Enter the number of times to press the key (e.g., 10, 50):");
-        string? timesInput = Console.ReadLine();
-        int times;
+        Console.WriteLine(
+            durationMs == 0
+                ? $"Starting burst click for {keyToSimulate} every {intervalMs}ms. Press Ctrl+C to stop."
+                : $"Starting burst click for {keyToSimulate} every {intervalMs}ms for {durationMs}ms."
+        );
 
-        if (!int.TryParse(timesInput, out times) || times <= 0)
+        try
         {
-            Console.WriteLine("Invalid number of times. Please enter a positive integer.");
-            return;
+            SimulateBurstClicksAsync(keyToSimulate, intervalMs, durationMs).GetAwaiter().GetResult();
         }
-
-        Console.WriteLine($"Simulating {times} presses of {keyToSimulate} with {delayMs}ms delay. Press Ctrl+C to stop prematurely.");
-
-        for (int i = 0; i < times; i++)
+        catch (OperationCanceledException)
         {
-            SimulateKeyPress(keyToSimulate);
-
-            if (delayMs > 0)
-            {
-                Thread.Sleep(delayMs);
-            }
+            Console.WriteLine("Burst click simulation canceled.");
+            return;
         }
 
         Console.WriteLine("Burst click simulation finished.");
