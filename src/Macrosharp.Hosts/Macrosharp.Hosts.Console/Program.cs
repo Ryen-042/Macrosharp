@@ -83,6 +83,17 @@ public class Program
             }
         }
 
+        void OnPathLocatorIssue(string message, bool isLongRunningOperation)
+        {
+            if (isLongRunningOperation)
+            {
+                ShowOneTimeWarningDialog("Macrosharp - Operation Warning", message);
+                return;
+            }
+
+            Console.WriteLine($"[WARN] [PathLocator] {message}");
+        }
+
         bool IsBurstClickActive()
         {
             lock (burstClickStateGate)
@@ -659,6 +670,7 @@ public class Program
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
         _hotkeyManager = hotkeyManager;
 
+        PathLocator.IssueNotifier = OnPathLocatorIssue;
         AudioPlayer.RepeatedFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Audio Warning", message);
         HotkeyManager.RepeatedActionFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Hotkey Warning", message);
 
