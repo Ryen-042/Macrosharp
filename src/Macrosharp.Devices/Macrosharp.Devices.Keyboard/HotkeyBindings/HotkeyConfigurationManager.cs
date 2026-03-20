@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Macrosharp.Infrastructure;
 using Windows.Win32; // For PInvoke.MessageBox
 using Windows.Win32.Foundation; // For HWND
 using Windows.Win32.UI.WindowsAndMessaging; // For MESSAGEBOX_STYLE
@@ -9,14 +10,10 @@ namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 public class HotkeyConfigurationManager : IDisposable
 {
     private readonly string _configFilePath;
-    private readonly bool _watchForChanges;
-    private FileSystemWatcher? _watcher;
+    private readonly DebouncedFileWatcher _configWatcher;
     private List<HotkeyDefinition> _currentDefinitions;
     private readonly object _fileLock = new object(); // To prevent concurrent file access issues
     private int _backupCounter = 0; // Counter for backup files
-    private readonly object _reloadGate = new();
-    private CancellationTokenSource? _reloadCts;
-    private static readonly TimeSpan ReloadDebounceTime = TimeSpan.FromMilliseconds(300);
 
     // Event raised when the configuration file changes and is reloaded.
     public event EventHandler<List<HotkeyDefinition>>? ConfigurationChanged;
@@ -28,88 +25,8 @@ public class HotkeyConfigurationManager : IDisposable
     public HotkeyConfigurationManager(string configFilePath, bool watchForChanges = false)
     {
         _configFilePath = configFilePath;
-        _watchForChanges = watchForChanges;
         _currentDefinitions = new List<HotkeyDefinition>();
-        InitializeWatcher();
-    }
-
-    // Sets up the FileSystemWatcher to monitor the configuration file.
-    private void InitializeWatcher()
-    {
-        if (!_watchForChanges)
-        {
-            Console.WriteLine($"Config watching disabled for: {_configFilePath}");
-            return;
-        }
-
-        string? directory = Path.GetDirectoryName(_configFilePath);
-        if (string.IsNullOrEmpty(directory))
-        {
-            directory = AppContext.BaseDirectory; // Fallback to application base directory
-        }
-        string fileName = Path.GetFileName(_configFilePath);
-
-        _watcher = new FileSystemWatcher(directory)
-        {
-            Filter = fileName,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
-            EnableRaisingEvents = true,
-        };
-
-        _watcher.Changed += OnConfigFileChanged;
-        _watcher.Created += OnConfigFileChanged;
-        _watcher.Deleted += OnConfigFileChanged;
-        _watcher.Renamed += OnConfigFileRenamed;
-
-        Console.WriteLine($"Watching for changes to: {_configFilePath}");
-    }
-
-    // Handler for file change events.
-    private void OnConfigFileChanged(object sender, FileSystemEventArgs e)
-    {
-        Console.WriteLine($"Configuration file {e.ChangeType}: {e.FullPath}");
-        ScheduleReload("file change");
-    }
-
-    // Handler for file rename events.
-    private void OnConfigFileRenamed(object sender, RenamedEventArgs e)
-    {
-        Console.WriteLine($"Configuration file Renamed: {e.OldFullPath} to {e.FullPath}");
-        // If the file was renamed to our target path, load it.
-        if (e.FullPath.Equals(_configFilePath, StringComparison.OrdinalIgnoreCase))
-        {
-            ScheduleReload("file rename");
-        }
-    }
-
-    private void ScheduleReload(string reason)
-    {
-        CancellationTokenSource cts;
-
-        lock (_reloadGate)
-        {
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
-            _reloadCts = new CancellationTokenSource();
-            cts = _reloadCts;
-        }
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(ReloadDebounceTime, cts.Token).ConfigureAwait(false);
-                LoadConfiguration();
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when multiple watcher events coalesce.
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WARN] [HotkeyConfigurationManager] Deferred reload failed after {reason}: {ex.Message}");
-            }
-        });
+        _configWatcher = new DebouncedFileWatcher(_configFilePath, () => _ = LoadConfiguration(), watchForChanges, nameof(HotkeyConfigurationManager));
     }
 
     /// <summary>
@@ -283,14 +200,7 @@ public class HotkeyConfigurationManager : IDisposable
     /// </summary>
     public void Dispose()
     {
-        lock (_reloadGate)
-        {
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
-            _reloadCts = null;
-        }
-
-        _watcher?.Dispose();
+        _configWatcher.Dispose();
         Console.WriteLine("HotkeyConfigurationManager disposed.");
     }
 }

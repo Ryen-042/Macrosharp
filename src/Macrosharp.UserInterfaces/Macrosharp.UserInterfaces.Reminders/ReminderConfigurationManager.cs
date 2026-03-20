@@ -1,12 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Macrosharp.Infrastructure;
 
 namespace Macrosharp.UserInterfaces.Reminders;
 
 public sealed class ReminderConfigurationManager : IDisposable
 {
-    private static readonly TimeSpan ReloadDebounceTime = TimeSpan.FromMilliseconds(500);
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -16,11 +15,8 @@ public sealed class ReminderConfigurationManager : IDisposable
     };
 
     private readonly string _configPath;
-    private readonly bool _watchForChanges;
+    private readonly DebouncedFileWatcher _configWatcher;
     private readonly object _gate = new();
-    private readonly object _reloadGate = new();
-    private FileSystemWatcher? _watcher;
-    private CancellationTokenSource? _reloadCts;
     private int _backupCounter;
 
     public ReminderConfiguration CurrentConfiguration { get; private set; } = new();
@@ -30,8 +26,7 @@ public sealed class ReminderConfigurationManager : IDisposable
     public ReminderConfigurationManager(string configPath, bool watchForChanges = false)
     {
         _configPath = configPath;
-        _watchForChanges = watchForChanges;
-        InitializeWatcher();
+        _configWatcher = new DebouncedFileWatcher(_configPath, () => _ = LoadConfiguration(), watchForChanges, nameof(ReminderConfigurationManager), TimeSpan.FromMilliseconds(500));
     }
 
     public ReminderConfiguration LoadConfiguration()
@@ -96,80 +91,6 @@ public sealed class ReminderConfigurationManager : IDisposable
 
         var json = JsonSerializer.Serialize(configuration, JsonOptions);
         File.WriteAllText(_configPath, json);
-    }
-
-    private void InitializeWatcher()
-    {
-        if (!_watchForChanges)
-        {
-            Console.WriteLine($"Reminder: Config watching disabled for: {_configPath}");
-            return;
-        }
-
-        var directory = Path.GetDirectoryName(_configPath);
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            directory = AppContext.BaseDirectory;
-        }
-
-        var fileName = Path.GetFileName(_configPath);
-
-        _watcher = new FileSystemWatcher(directory)
-        {
-            Filter = fileName,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
-            EnableRaisingEvents = true,
-        };
-
-        _watcher.Changed += OnConfigChanged;
-        _watcher.Created += OnConfigChanged;
-        _watcher.Deleted += OnConfigChanged;
-        _watcher.Renamed += OnConfigRenamed;
-    }
-
-    private void OnConfigChanged(object sender, FileSystemEventArgs e)
-    {
-        ScheduleReload("file change");
-    }
-
-    private void OnConfigRenamed(object sender, RenamedEventArgs e)
-    {
-        if (!e.FullPath.Equals(_configPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        ScheduleReload("file rename");
-    }
-
-    private void ScheduleReload(string reason)
-    {
-        CancellationTokenSource cts;
-
-        lock (_reloadGate)
-        {
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
-            _reloadCts = new CancellationTokenSource();
-            cts = _reloadCts;
-        }
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(ReloadDebounceTime, cts.Token).ConfigureAwait(false);
-                LoadConfiguration();
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when watcher events are coalesced.
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WARN] [ReminderConfigurationManager] Deferred reload failed after {reason}: {ex.Message}");
-            }
-        });
     }
 
     private void HandleInvalidConfig(string? content, string message)
@@ -282,13 +203,6 @@ public sealed class ReminderConfigurationManager : IDisposable
 
     public void Dispose()
     {
-        lock (_reloadGate)
-        {
-            _reloadCts?.Cancel();
-            _reloadCts?.Dispose();
-            _reloadCts = null;
-        }
-
-        _watcher?.Dispose();
+        _configWatcher.Dispose();
     }
 }
