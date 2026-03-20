@@ -63,7 +63,7 @@ Timeline: 2026-03-26 to 2026-04-04
 Goal: Remove high-risk reliability issues before structural refactors.
 
 Tasks:
-1. Rename KayboardHook artifacts to KeyboardHook consistently.
+1. Rename KeyboardHook artifacts consistently.
    - Description: Rename file/class references and verify all project references compile cleanly.
    - Clarification checkpoint: Confirm whether namespace changes are allowed or filename-only correction is preferred.
    - Target completion: 2026-03-27.
