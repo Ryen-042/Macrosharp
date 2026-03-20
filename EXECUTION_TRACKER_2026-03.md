@@ -17,7 +17,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase | Window | Status | Start Date | Target End | Actual End | Progress % | Notes |
 |------|--------|--------|------------|------------|------------|------------|-------|
 | Phase 0 - Planning Baseline And Governance | 2026-03-23 to 2026-03-25 | Done | 2026-03-20 | 2026-03-25 | 2026-03-20 | 100 | Completed ahead of schedule during kickoff |
-| Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | In Progress | 2026-03-20 | 2026-04-04 |  | 80 | P1-1 through P1-4 completed ahead of schedule; P1-5 pending |
+| Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | Done | 2026-03-20 | 2026-04-04 | 2026-03-20 | 100 | Completed ahead of schedule with reliability warning format standardization |
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | In Progress | 2026-03-20 | 2026-04-16 |  | 20 | Shared debounced file watcher introduced and integrated into hotkey, text expansion, and reminder managers |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | Not Started |  | 2026-05-01 |  | 0 |  |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | Not Started |  | 2026-05-08 |  | 0 |  |
@@ -27,7 +27,7 @@ Branch: roadmap/implementation-phased-mar2026
 
 | Milestone | Target Date | Status | Actual Date | Notes |
 |----------|-------------|--------|-------------|-------|
-| Milestone A - Safety Baseline | 2026-04-04 | Not Started |  |  |
+| Milestone A - Safety Baseline | 2026-04-04 | Done | 2026-03-20 | Completed ahead of schedule |
 | Milestone B - Config Unification | 2026-04-16 | Not Started |  |  |
 | Milestone C - Input Performance | 2026-05-01 | Not Started |  |  |
 | Milestone D - Scheduler Optimization | 2026-05-08 | Not Started |  |  |
@@ -53,7 +53,7 @@ Goal: Remove high-risk reliability issues before structural refactors.
 | P1-2 | Replace empty catch blocks with explicit handling |  | Done | 2026-03-29 | 2026-03-20 | 2026-03-20 | P1-1 | No | None | Structured catches, logging, and one-time repeated-failure notifications added |
 | P1-3 | Add strict path validation in PathLocator methods |  | Done | 2026-03-31 | 2026-03-20 | 2026-03-20 | P1-1 | No | None | Added safe fallback path resolution, warning logs, and long-running operation notifications |
 | P1-4 | Remove blocking watcher waits in config reload path |  | Done | 2026-04-02 | 2026-03-20 | 2026-03-20 | P1-1 | No | None | Non-blocking debounce implemented; config watchers made optional and defaulted off via main config toggles |
-| P1-5 | Standardize reliability error message format |  | Not Started | 2026-04-04 |  |  | P1-2, P1-3, P1-4 |  |  |  |
+| P1-5 | Standardize reliability error message format |  | Done | 2026-04-04 | 2026-03-20 | 2026-03-20 | P1-2, P1-3, P1-4 | No | None | Normalized warning output format across Program, AudioPlayer, HotkeyManager, PathLocator, and ExplorerFileAutomation |
 
 ## Phase 2 Tracker
 
@@ -146,7 +146,7 @@ Template to complete before closing each phase.
 
 ### Week Of 2026-03-30
 
-- Completed: P1-1 through P1-4 implementation tasks (including config watcher default-off toggles and non-blocking debounce behavior).
+- Completed: Phase 1 tasks P1-1 through P1-5, including reliability warning message standardization.
 - In progress: P2-1 shared configuration lifecycle kickoff with DebouncedFileWatcher adoption across hotkey, text expansion, and reminder managers.
 - Blockers: None.
 - Clarifications requested: None.

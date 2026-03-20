@@ -17,6 +17,12 @@ public static class ExplorerFileAutomation
 {
     private static readonly StaThreadRunner Sta = new();
 
+    private static void Warn(string operation, string details, Exception? ex = null)
+    {
+        string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
+        Console.WriteLine($"[WARN] [ExplorerFileAutomation] Operation='{operation}' Details='{details}'.{suffix}");
+    }
+
     public enum ImagesToPdfMode
     {
         Normal = 1,
@@ -57,7 +63,7 @@ public static class ExplorerFileAutomation
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WARN] [ExplorerFileAutomation] CreateNewFile failed. Error='{ex.Message}'.");
+            Warn(nameof(CreateNewFile), "Failed to create a file in the active folder", ex);
             NotifyLongRunningFailure("Create new file", "Unable to create a file in the active folder", ex);
             return 0;
         }
@@ -119,7 +125,7 @@ public static class ExplorerFileAutomation
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WARN] [ExplorerFileAutomation] OfficeFilesToPdf failed for {officeApplication}. Error='{ex.Message}'.");
+            Warn(nameof(OfficeFilesToPdf), $"Failed for OfficeApplication='{officeApplication}'", ex);
             NotifyLongRunningFailure($"{officeApplication} to PDF conversion", "The conversion did not complete", ex);
             AudioPlayer.PlayFailure();
             return;
@@ -183,7 +189,7 @@ public static class ExplorerFileAutomation
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARN] [ExplorerFileAutomation] Generic converter failed for '{filePath}'. Error='{ex.Message}'.");
+                Warn(nameof(GenericFileConverter), $"Failed while converting File='{filePath}'", ex);
                 NotifyLongRunningFailure("File conversion", $"Failed while converting '{Path.GetFileName(filePath)}'", ex);
             }
         }
@@ -310,7 +316,7 @@ public static class ExplorerFileAutomation
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WARN] [ExplorerFileAutomation] ImagesToPdf failed. Error='{ex.Message}'.");
+            Warn(nameof(ImagesToPdf), "The PDF generation did not complete", ex);
             NotifyLongRunningFailure("Images to PDF", "The PDF generation did not complete", ex);
             AudioPlayer.PlayFailure();
         }

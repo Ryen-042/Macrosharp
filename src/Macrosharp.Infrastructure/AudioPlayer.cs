@@ -14,6 +14,12 @@ public static class AudioPlayer
     /// </summary>
     public static Action<string>? RepeatedFailureNotifier { get; set; }
 
+    private static void Warn(string operation, string details, Exception? ex = null)
+    {
+        string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
+        Console.WriteLine($"[WARN] [AudioPlayer] Operation='{operation}' Details='{details}'.{suffix}");
+    }
+
     public static void PlayAudio(string fileName, bool async = false, int volumePercent = 100)
     {
         if (async)
@@ -149,7 +155,7 @@ public static class AudioPlayer
 
     private static void HandlePlaybackFailure(string operation, string fullPath, Exception ex, string summary)
     {
-        Console.WriteLine($"[WARN] [AudioPlayer] {summary} during '{operation}'. Path='{fullPath}'. Error='{ex.Message}'.");
+        Warn(operation, $"{summary}. Path='{fullPath}'", ex);
 
         string key = BuildFailureKey(operation, fullPath);
         bool shouldNotify = false;
@@ -182,12 +188,12 @@ public static class AudioPlayer
             }
             catch (Exception notifierEx)
             {
-                Console.WriteLine($"[WARN] [AudioPlayer] Failed to deliver repeated-failure notification. Error='{notifierEx.Message}'.");
+                Warn(operation, "Failed to deliver repeated-failure notification", notifierEx);
             }
         }
         else
         {
-            Console.WriteLine($"[WARN] [AudioPlayer] {notification}");
+            Warn(operation, notification);
         }
     }
 

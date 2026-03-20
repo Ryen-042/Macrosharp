@@ -79,6 +79,12 @@ public class HotkeyManager : IDisposable
     /// </summary>
     public static Action<string>? RepeatedActionFailureNotifier { get; set; }
 
+    private static void Warn(string operation, string details, Exception? ex = null)
+    {
+        string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
+        Console.WriteLine($"[WARN] [HotkeyManager] Operation='{operation}' Details='{details}'.{suffix}");
+    }
+
     /// <summary>Initializes a new instance of the <see cref="HotkeyManager"/> class.</summary>
     /// <param name="keyboardHookManager">An instance of the keyboard hook manager to subscribe to.</param>
     public HotkeyManager(KeyboardHookManager keyboardHookManager)
@@ -335,7 +341,7 @@ public class HotkeyManager : IDisposable
                             shouldNotify = failureCount == RepeatedActionFailureThreshold;
                         }
 
-                        Console.WriteLine($"[WARN] [HotkeyManager] Hotkey '{hotkey}' action failed (attempt {failureCount}). Error='{ex.Message}'.");
+                        Warn("ExecuteHotkeyAction", $"Hotkey='{hotkey}' attempt={failureCount}", ex);
 
                         if (!shouldNotify)
                             return;
@@ -350,12 +356,12 @@ public class HotkeyManager : IDisposable
                             }
                             catch (Exception notifierEx)
                             {
-                                Console.WriteLine($"[WARN] [HotkeyManager] Failed to deliver repeated-failure notification. Error='{notifierEx.Message}'.");
+                                Warn("NotifyRepeatedActionFailure", "Failed to deliver repeated-failure notification", notifierEx);
                             }
                         }
                         else
                         {
-                            Console.WriteLine($"[WARN] [HotkeyManager] {notification}");
+                            Warn("NotifyRepeatedActionFailure", notification);
                         }
                     }
                 });

@@ -67,6 +67,12 @@ public class Program
         TrayIconHost? trayHost = null;
         int exitRequested = 0;
 
+        void Warn(string component, string operation, string details, Exception? ex = null)
+        {
+            string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
+            Console.WriteLine($"[WARN] [{component}] Operation='{operation}' Details='{details}'.{suffix}");
+        }
+
         void ShowOneTimeWarningDialog(string title, string message)
         {
             try
@@ -80,8 +86,8 @@ public class Program
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARN] [Program] Failed to show warning dialog '{title}'. Error='{ex.Message}'.");
-                Console.WriteLine($"[WARN] [Program] {message}");
+                Warn("Program", "ShowOneTimeWarningDialog", $"Title='{title}'", ex);
+                Warn("Program", "ShowOneTimeWarningDialog", message);
             }
         }
 
@@ -93,7 +99,7 @@ public class Program
                 return;
             }
 
-            Console.WriteLine($"[WARN] [PathLocator] {message}");
+            Warn("PathLocator", "NotifyIssue", message);
         }
 
         bool IsBurstClickActive()
@@ -1124,7 +1130,7 @@ public class Program
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[WARN] [Program] Failed to play image-editor launch sound. Error='{ex.Message}'.");
+                    Warn("Program", "PlayImageEditorLaunchSound", "Failed to play image-editor launch sound", ex);
                 }
                 Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
             },
@@ -1168,7 +1174,7 @@ public class Program
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[WARN] [Program] Failed to play sleep sound. Error='{ex.Message}'.");
+                    Warn("Program", "PlaySleepSound", "Failed to play sleep sound", ex);
                 } // sync so it finishes before sleep
                 SystemActions.Sleep();
             },

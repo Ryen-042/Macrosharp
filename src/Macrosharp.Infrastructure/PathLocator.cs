@@ -8,6 +8,12 @@ public static class PathLocator
 
     public static readonly string RootPath = GetRootPath();
 
+    private static void Warn(string operation, string details, Exception? ex = null)
+    {
+        string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
+        Console.WriteLine($"[WARN] [PathLocator] Operation='{operation}' Details='{details}'.{suffix}");
+    }
+
     private static string GetRootPath()
     {
         var currentPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -26,7 +32,7 @@ public static class PathLocator
 
     public static void NotifyIssue(string message, bool isLongRunningOperation)
     {
-        Console.WriteLine($"[WARN] [PathLocator] {message}");
+        Warn("NotifyIssue", message);
 
         if (IssueNotifier is null)
         {
@@ -39,7 +45,7 @@ public static class PathLocator
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[WARN] [PathLocator] Failed to dispatch issue notification. Error='{ex.Message}'.");
+            Warn("NotifyIssue", "Failed to dispatch issue notification", ex);
         }
     }
 
