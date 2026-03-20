@@ -53,6 +53,8 @@ public class Program
         bool notificationsHidden = mainConfig.Tray.NotificationsHidden;
         bool reminderSoundsMuted = mainConfig.Tray.ReminderSoundsMuted;
         bool terminalMessagesEnabled = mainConfig.Diagnostics.TerminalMessagesEnabled;
+        bool watchRemindersConfig = mainConfig.FileWatching.RemindersConfig;
+        bool watchTextExpansionsConfig = mainConfig.FileWatching.TextExpansionsConfig;
         var burstClickStateGate = new object();
         bool burstClickActive = false;
         VirtualKey burstClickKey = VirtualKey.KEY_A;
@@ -339,7 +341,7 @@ public class Program
         using var toastHost = new ToastNotificationHost("Macrosharp", iconCycler.GetNext());
         toastHost.Start();
 
-        using var reminderConfigManager = new ReminderConfigurationManager(reminderConfigPath);
+        using var reminderConfigManager = new ReminderConfigurationManager(reminderConfigPath, watchForChanges: watchRemindersConfig);
         var reminderCrudService = new ReminderCrudService(reminderConfigManager);
         using var reminderScheduler = new ReminderScheduler(reminderConfigManager, toastHost, () => false, () => notificationsHidden, () => reminderSoundsMuted);
         reminderConfigManager.LoadConfiguration();
@@ -674,7 +676,7 @@ public class Program
         AudioPlayer.RepeatedFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Audio Warning", message);
         HotkeyManager.RepeatedActionFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Hotkey Warning", message);
 
-        using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath);
+        using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath, watchForChanges: watchTextExpansionsConfig);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
 
         keyboardHookManager.KeyDownHandler += (_, e) =>

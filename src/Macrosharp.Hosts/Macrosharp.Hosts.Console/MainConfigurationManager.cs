@@ -8,6 +8,7 @@ public sealed class MainConfiguration
     public int Version { get; set; } = 1;
     public MainTraySettings Tray { get; set; } = new();
     public MainDiagnosticsSettings Diagnostics { get; set; } = new();
+    public MainFileWatchingSettings FileWatching { get; set; } = new();
 }
 
 public sealed class MainTraySettings
@@ -19,6 +20,14 @@ public sealed class MainTraySettings
 public sealed class MainDiagnosticsSettings
 {
     public bool TerminalMessagesEnabled { get; set; }
+}
+
+public sealed class MainFileWatchingSettings
+{
+    public bool MainConfig { get; set; }
+    public bool HotkeysConfig { get; set; }
+    public bool TextExpansionsConfig { get; set; }
+    public bool RemindersConfig { get; set; }
 }
 
 public sealed class MainConfigurationManager
@@ -96,6 +105,13 @@ public sealed class MainConfigurationManager
             {
                 TerminalMessagesEnabled = false,
             },
+            FileWatching = new MainFileWatchingSettings
+            {
+                MainConfig = false,
+                HotkeysConfig = false,
+                TextExpansionsConfig = false,
+                RemindersConfig = false,
+            },
         };
     }
 
@@ -104,5 +120,6 @@ public sealed class MainConfigurationManager
         configuration.Version = Math.Max(1, configuration.Version);
         configuration.Tray ??= new MainTraySettings();
         configuration.Diagnostics ??= new MainDiagnosticsSettings();
+        configuration.FileWatching ??= new MainFileWatchingSettings();
     }
 }

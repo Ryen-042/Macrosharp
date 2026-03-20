@@ -12,11 +12,13 @@ namespace Macrosharp.Devices.Keyboard.TextExpansion;
 public class TextExpansionConfigurationManager : IDisposable
 {
     private readonly string _configFilePath;
+    private readonly bool _watchForChanges;
     private FileSystemWatcher? _watcher;
     private TextExpansionConfiguration _currentConfiguration;
     private readonly object _fileLock = new();
     private int _backupCounter = 0;
-    private DateTime _lastReloadTime = DateTime.MinValue;
+    private readonly object _reloadGate = new();
+    private CancellationTokenSource? _reloadCts;
     private static readonly TimeSpan ReloadDebounceTime = TimeSpan.FromMilliseconds(500);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -37,9 +39,10 @@ public class TextExpansionConfigurationManager : IDisposable
     /// Initializes a new instance of the <see cref="TextExpansionConfigurationManager"/> class.
     /// </summary>
     /// <param name="configFilePath">The full path to the text expansion configuration JSON file.</param>
-    public TextExpansionConfigurationManager(string configFilePath)
+    public TextExpansionConfigurationManager(string configFilePath, bool watchForChanges = false)
     {
         _configFilePath = configFilePath;
+        _watchForChanges = watchForChanges;
         _currentConfiguration = new TextExpansionConfiguration();
         InitializeWatcher();
     }
@@ -47,6 +50,12 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Sets up the FileSystemWatcher to monitor the configuration file.</summary>
     private void InitializeWatcher()
     {
+        if (!_watchForChanges)
+        {
+            Console.WriteLine($"TextExpansion: Config watching disabled for: {_configFilePath}");
+            return;
+        }
+
         string? directory = Path.GetDirectoryName(_configFilePath);
         if (string.IsNullOrEmpty(directory))
         {
@@ -73,14 +82,8 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Handler for file change events.</summary>
     private void OnConfigFileChanged(object sender, FileSystemEventArgs e)
     {
-        // Debounce rapid file change events
-        if (DateTime.Now - _lastReloadTime < ReloadDebounceTime)
-            return;
-
         Console.WriteLine($"TextExpansion: Configuration file {e.ChangeType}: {e.FullPath}");
-
-        // Add a small delay to ensure the file is not locked
-        Task.Delay(200).ContinueWith(_ => LoadConfiguration());
+        ScheduleReload("file change");
     }
 
     /// <summary>Handler for file rename events.</summary>
@@ -90,8 +93,38 @@ public class TextExpansionConfigurationManager : IDisposable
 
         if (e.FullPath.Equals(_configFilePath, StringComparison.OrdinalIgnoreCase))
         {
-            Task.Delay(200).ContinueWith(_ => LoadConfiguration());
+            ScheduleReload("file rename");
         }
+    }
+
+    private void ScheduleReload(string reason)
+    {
+        CancellationTokenSource cts;
+
+        lock (_reloadGate)
+        {
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            _reloadCts = new CancellationTokenSource();
+            cts = _reloadCts;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(ReloadDebounceTime, cts.Token).ConfigureAwait(false);
+                LoadConfiguration();
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when watcher events arrive in bursts.
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] [TextExpansionConfigurationManager] Deferred reload failed after {reason}: {ex.Message}");
+            }
+        });
     }
 
     /// <summary>
@@ -103,8 +136,6 @@ public class TextExpansionConfigurationManager : IDisposable
     {
         lock (_fileLock)
         {
-            _lastReloadTime = DateTime.Now;
-
             if (!File.Exists(_configFilePath))
             {
                 Console.WriteLine($"TextExpansion: Configuration file not found: {_configFilePath}. Creating default.");
@@ -339,6 +370,13 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Disposes of the configuration manager.</summary>
     public void Dispose()
     {
+        lock (_reloadGate)
+        {
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            _reloadCts = null;
+        }
+
         _watcher?.Dispose();
         Console.WriteLine("TextExpansionConfigurationManager disposed.");
     }

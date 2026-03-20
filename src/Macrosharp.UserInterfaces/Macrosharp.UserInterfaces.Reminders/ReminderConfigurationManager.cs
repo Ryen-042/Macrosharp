@@ -16,18 +16,21 @@ public sealed class ReminderConfigurationManager : IDisposable
     };
 
     private readonly string _configPath;
+    private readonly bool _watchForChanges;
     private readonly object _gate = new();
+    private readonly object _reloadGate = new();
     private FileSystemWatcher? _watcher;
-    private DateTime _lastReloadTime = DateTime.MinValue;
+    private CancellationTokenSource? _reloadCts;
     private int _backupCounter;
 
     public ReminderConfiguration CurrentConfiguration { get; private set; } = new();
 
     public event EventHandler<ReminderConfiguration>? ConfigurationChanged;
 
-    public ReminderConfigurationManager(string configPath)
+    public ReminderConfigurationManager(string configPath, bool watchForChanges = false)
     {
         _configPath = configPath;
+        _watchForChanges = watchForChanges;
         InitializeWatcher();
     }
 
@@ -35,8 +38,6 @@ public sealed class ReminderConfigurationManager : IDisposable
     {
         lock (_gate)
         {
-            _lastReloadTime = DateTime.Now;
-
             if (!File.Exists(_configPath))
             {
                 CurrentConfiguration = CreateDefaultConfiguration();
@@ -99,6 +100,12 @@ public sealed class ReminderConfigurationManager : IDisposable
 
     private void InitializeWatcher()
     {
+        if (!_watchForChanges)
+        {
+            Console.WriteLine($"Reminder: Config watching disabled for: {_configPath}");
+            return;
+        }
+
         var directory = Path.GetDirectoryName(_configPath);
         if (string.IsNullOrWhiteSpace(directory))
         {
@@ -122,12 +129,7 @@ public sealed class ReminderConfigurationManager : IDisposable
 
     private void OnConfigChanged(object sender, FileSystemEventArgs e)
     {
-        if (DateTime.Now - _lastReloadTime < ReloadDebounceTime)
-        {
-            return;
-        }
-
-        Task.Delay(200).ContinueWith(_ => LoadConfiguration());
+        ScheduleReload("file change");
     }
 
     private void OnConfigRenamed(object sender, RenamedEventArgs e)
@@ -137,7 +139,37 @@ public sealed class ReminderConfigurationManager : IDisposable
             return;
         }
 
-        Task.Delay(200).ContinueWith(_ => LoadConfiguration());
+        ScheduleReload("file rename");
+    }
+
+    private void ScheduleReload(string reason)
+    {
+        CancellationTokenSource cts;
+
+        lock (_reloadGate)
+        {
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            _reloadCts = new CancellationTokenSource();
+            cts = _reloadCts;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(ReloadDebounceTime, cts.Token).ConfigureAwait(false);
+                LoadConfiguration();
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when watcher events are coalesced.
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] [ReminderConfigurationManager] Deferred reload failed after {reason}: {ex.Message}");
+            }
+        });
     }
 
     private void HandleInvalidConfig(string? content, string message)
@@ -250,6 +282,13 @@ public sealed class ReminderConfigurationManager : IDisposable
 
     public void Dispose()
     {
+        lock (_reloadGate)
+        {
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            _reloadCts = null;
+        }
+
         _watcher?.Dispose();
     }
 }
