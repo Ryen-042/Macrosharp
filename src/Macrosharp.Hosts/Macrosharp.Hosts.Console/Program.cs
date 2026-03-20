@@ -65,6 +65,24 @@ public class Program
         TrayIconHost? trayHost = null;
         int exitRequested = 0;
 
+        void ShowOneTimeWarningDialog(string title, string message)
+        {
+            try
+            {
+                PInvoke.MessageBox(
+                    HWND.Null,
+                    message,
+                    title,
+                    MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_OK | MESSAGEBOX_STYLE.MB_TOPMOST
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] [Program] Failed to show warning dialog '{title}'. Error='{ex.Message}'.");
+                Console.WriteLine($"[WARN] [Program] {message}");
+            }
+        }
+
         bool IsBurstClickActive()
         {
             lock (burstClickStateGate)
@@ -640,6 +658,10 @@ public class Program
         using var keyboardHookManager = new KeyboardHookManager();
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
         _hotkeyManager = hotkeyManager;
+
+        AudioPlayer.RepeatedFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Audio Warning", message);
+        HotkeyManager.RepeatedActionFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Hotkey Warning", message);
+
         using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
 
@@ -1086,7 +1108,10 @@ public class Program
                 {
                     AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Proximity Notification.wav", async: true);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARN] [Program] Failed to play image-editor launch sound. Error='{ex.Message}'.");
+                }
                 Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
             },
             description: "Open the image editor from clipboard content.",
@@ -1127,7 +1152,10 @@ public class Program
                 {
                     AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Logoff Sound.wav");
                 }
-                catch { } // sync so it finishes before sleep
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARN] [Program] Failed to play sleep sound. Error='{ex.Message}'.");
+                } // sync so it finishes before sleep
                 SystemActions.Sleep();
             },
             description: "Put the system to sleep.",

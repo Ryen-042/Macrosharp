@@ -17,7 +17,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase | Window | Status | Start Date | Target End | Actual End | Progress % | Notes |
 |------|--------|--------|------------|------------|------------|------------|-------|
 | Phase 0 - Planning Baseline And Governance | 2026-03-23 to 2026-03-25 | Done | 2026-03-20 | 2026-03-25 | 2026-03-20 | 100 | Completed ahead of schedule during kickoff |
-| Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | In Progress | 2026-03-20 | 2026-04-04 |  | 20 | P1-1 completed ahead of schedule |
+| Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | In Progress | 2026-03-20 | 2026-04-04 |  | 60 | P1-1 and P1-2 completed ahead of schedule |
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Not Started |  | 2026-04-16 |  | 0 |  |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | Not Started |  | 2026-05-01 |  | 0 |  |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | Not Started |  | 2026-05-08 |  | 0 |  |
@@ -50,7 +50,7 @@ Goal: Remove high-risk reliability issues before structural refactors.
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P1-1 | Rename KeyboardHook artifacts consistently |  | Done | 2026-03-27 | 2026-03-20 | 2026-03-20 | P0-3 | No | None | Renamed file and updated documentation references |
-| P1-2 | Replace empty catch blocks with explicit handling |  | Not Started | 2026-03-29 |  |  | P1-1 |  |  |  |
+| P1-2 | Replace empty catch blocks with explicit handling |  | Done | 2026-03-29 | 2026-03-20 | 2026-03-20 | P1-1 | No | None | Structured catches, logging, and one-time repeated-failure notifications added |
 | P1-3 | Add strict path validation in PathLocator methods |  | Not Started | 2026-03-31 |  |  | P1-1 |  |  |  |
 | P1-4 | Remove blocking watcher waits in config reload path |  | Not Started | 2026-04-02 |  |  | P1-1 |  |  |  |
 | P1-5 | Standardize reliability error message format |  | Not Started | 2026-04-04 |  |  | P1-2, P1-3, P1-4 |  |  |  |

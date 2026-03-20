@@ -5,6 +5,15 @@ namespace Macrosharp.Infrastructure;
 
 public static class AudioPlayer
 {
+    private const int RepeatedFailureThreshold = 3;
+    private static readonly object FailureGate = new();
+    private static readonly Dictionary<string, int> FailureCounts = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Optional callback invoked once when repeated audio failures reach the escalation threshold for a sound key.
+    /// </summary>
+    public static Action<string>? RepeatedFailureNotifier { get; set; }
+
     public static void PlayAudio(string fileName, bool async = false, int volumePercent = 100)
     {
         if (async)
@@ -107,110 +116,156 @@ public static class AudioPlayer
         return output;
     }
 
-    public static void PlayStartAsync(bool shouldPlayAsync = true)
+    private static void PlayPreset(string soundFileName, bool shouldPlayAsync, int volumePercent, string operation)
     {
+        string fullPath = PathLocator.GetSfxPath(soundFileName);
+
         try
         {
-            PlayAudio(PathLocator.GetSfxPath("connection-sound.wav"), async: shouldPlayAsync, volumePercent: 100);
+            PlayAudio(fullPath, async: shouldPlayAsync, volumePercent: volumePercent);
+            ResetFailureCount(operation);
         }
-        catch { }
+        catch (FileNotFoundException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio file not found");
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio directory not found");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio file access denied");
+        }
+        catch (InvalidOperationException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio playback operation failed");
+        }
+        catch (Exception ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Unexpected audio playback failure");
+        }
+    }
+
+    private static void HandlePlaybackFailure(string operation, string fullPath, Exception ex, string summary)
+    {
+        Console.WriteLine($"[WARN] [AudioPlayer] {summary} during '{operation}'. Path='{fullPath}'. Error='{ex.Message}'.");
+
+        string key = BuildFailureKey(operation, fullPath);
+        bool shouldNotify = false;
+        int failureCount;
+
+        lock (FailureGate)
+        {
+            FailureCounts.TryGetValue(key, out failureCount);
+            failureCount++;
+            FailureCounts[key] = failureCount;
+
+            if (failureCount == RepeatedFailureThreshold)
+            {
+                shouldNotify = true;
+            }
+        }
+
+        if (!shouldNotify)
+        {
+            return;
+        }
+
+        string notification = $"Macrosharp detected repeated audio failures for '{operation}'.\n\nPath: {fullPath}\nLast error: {ex.Message}";
+
+        if (RepeatedFailureNotifier is not null)
+        {
+            try
+            {
+                RepeatedFailureNotifier(notification);
+            }
+            catch (Exception notifierEx)
+            {
+                Console.WriteLine($"[WARN] [AudioPlayer] Failed to deliver repeated-failure notification. Error='{notifierEx.Message}'.");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[WARN] [AudioPlayer] {notification}");
+        }
+    }
+
+    private static void ResetFailureCount(string operation)
+    {
+        lock (FailureGate)
+        {
+            var matchingKeys = FailureCounts.Keys.Where(k => k.StartsWith(operation + "|", StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (var key in matchingKeys)
+            {
+                FailureCounts.Remove(key);
+            }
+        }
+    }
+
+    private static string BuildFailureKey(string operation, string fullPath)
+    {
+        return $"{operation}|{fullPath}";
+    }
+
+    public static void PlayStartAsync(bool shouldPlayAsync = true)
+    {
+        PlayPreset("connection-sound.wav", shouldPlayAsync, 100, nameof(PlayStartAsync));
     }
 
     public static void PlaySuccessAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("coins-497.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("coins-497.wav", shouldPlayAsync, 100, nameof(PlaySuccessAsync));
     }
 
     public static void PlayFailure(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("wrong.swf.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("wrong.swf.wav", shouldPlayAsync, 100, nameof(PlayFailure));
     }
 
     /// <summary>Plays the "off / disable / suppress" feedback sound (no-trespassing-368.wav).</summary>
     public static void PlayOffAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("no-trespassing-368.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("no-trespassing-368.wav", shouldPlayAsync, 100, nameof(PlayOffAsync));
     }
 
     /// <summary>Plays the "on / enable / resume" feedback sound (pedantic-490.wav).</summary>
     public static void PlayOnAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("pedantic-490.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("pedantic-490.wav", shouldPlayAsync, 100, nameof(PlayOnAsync));
     }
 
     /// <summary>Plays the knob click sound (knob-458.wav), used for text-expansion confirmations.</summary>
     public static void PlayKnobAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("knob-458.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("knob-458.wav", shouldPlayAsync, 100, nameof(PlayKnobAsync));
     }
 
     /// <summary>Plays the undo sound (undo.wav).</summary>
     public static void PlayUndoAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("undo.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("undo.wav", shouldPlayAsync, 100, nameof(PlayUndoAsync));
     }
 
     /// <summary>Plays the crack-the-whip sound (crack_the_whip.wav), used for application termination.</summary>
     public static void PlayCrackTheWhipAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("crack_the_whip.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("crack_the_whip.wav", shouldPlayAsync, 100, nameof(PlayCrackTheWhipAsync));
     }
 
     /// <summary>Plays the bonk sound (bonk sound.wav), used for display-switch hotkeys.</summary>
     public static void PlayBonkAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("bonk sound.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("bonk sound.wav", shouldPlayAsync, 100, nameof(PlayBonkAsync));
     }
 
     public static void PlayAchievementAsync(bool shouldPlayAsync = true)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("achievement.wav"), async: shouldPlayAsync, volumePercent: 100);
-        }
-        catch { }
+        PlayPreset("achievement.wav", shouldPlayAsync, 100, nameof(PlayAchievementAsync));
     }
 
     public static void PlayNotificationAsync(bool shouldPlayAsync = true, int volumePercent = 100)
     {
-        try
-        {
-            PlayAudio(PathLocator.GetSfxPath("notification.wav"), async: shouldPlayAsync, volumePercent: volumePercent);
-        }
-        catch { }
+        PlayPreset("notification.wav", shouldPlayAsync, volumePercent, nameof(PlayNotificationAsync));
     }
 }
-
-// TODO: add error handling/logging for audio playback failures.

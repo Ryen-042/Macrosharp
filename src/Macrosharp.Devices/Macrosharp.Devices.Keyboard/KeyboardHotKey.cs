@@ -70,6 +70,15 @@ public class HotkeyManager : IDisposable
     // To prevent a hotkey from firing repeatedly while held down.
     private Hotkey? _activeHotkey = null;
 
+    private const int RepeatedActionFailureThreshold = 3;
+    private static readonly object ActionFailureGate = new();
+    private static readonly Dictionary<Hotkey, int> ActionFailureCounts = new();
+
+    /// <summary>
+    /// Optional callback invoked once when a hotkey action reaches repeated failure threshold.
+    /// </summary>
+    public static Action<string>? RepeatedActionFailureNotifier { get; set; }
+
     /// <summary>Initializes a new instance of the <see cref="HotkeyManager"/> class.</summary>
     /// <param name="keyboardHookManager">An instance of the keyboard hook manager to subscribe to.</param>
     public HotkeyManager(KeyboardHookManager keyboardHookManager)
@@ -307,10 +316,47 @@ public class HotkeyManager : IDisposable
                     try
                     {
                         entry.Action.Invoke();
+
+                        lock (ActionFailureGate)
+                        {
+                            ActionFailureCounts.Remove(hotkey);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Hotkey '{hotkey}' action error: {ex.Message}");
+                        bool shouldNotify;
+                        int failureCount;
+
+                        lock (ActionFailureGate)
+                        {
+                            ActionFailureCounts.TryGetValue(hotkey, out failureCount);
+                            failureCount++;
+                            ActionFailureCounts[hotkey] = failureCount;
+                            shouldNotify = failureCount == RepeatedActionFailureThreshold;
+                        }
+
+                        Console.WriteLine($"[WARN] [HotkeyManager] Hotkey '{hotkey}' action failed (attempt {failureCount}). Error='{ex.Message}'.");
+
+                        if (!shouldNotify)
+                            return;
+
+                        string notification = $"Macrosharp detected repeated failures for hotkey '{hotkey}'.\n\nDescription: {entry.Description ?? "No description"}\nLast error: {ex.Message}";
+
+                        if (RepeatedActionFailureNotifier is not null)
+                        {
+                            try
+                            {
+                                RepeatedActionFailureNotifier(notification);
+                            }
+                            catch (Exception notifierEx)
+                            {
+                                Console.WriteLine($"[WARN] [HotkeyManager] Failed to deliver repeated-failure notification. Error='{notifierEx.Message}'.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[WARN] [HotkeyManager] {notification}");
+                        }
                     }
                 });
             }
