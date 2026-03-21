@@ -164,6 +164,22 @@ public class TextExpansionBuffer
         }
     }
 
+    /// <summary>
+    /// Gets a character by offset from the end of the buffer.
+    /// Offset 0 returns the last character, offset 1 returns the character before last.
+    /// </summary>
+    public char? CharFromEnd(int offset)
+    {
+        if (offset < 0)
+            return null;
+
+        lock (_lock)
+        {
+            int index = _buffer.Length - 1 - offset;
+            return index >= 0 ? _buffer[index] : null;
+        }
+    }
+
     /// <summary>Updates the tracked foreground window. Call this to force a window context update.</summary>
     public void UpdateForegroundWindow()
     {

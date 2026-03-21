@@ -7,11 +7,17 @@ namespace Macrosharp.Devices.Keyboard.TextExpansion;
 /// </summary>
 public class TextExpansionManager : IDisposable
 {
+    private readonly record struct IndexedRule(TextExpansionRule Rule, int Order);
+
     private readonly KeyboardHookManager _keyboardHookManager;
     private readonly TextExpansionBuffer _buffer;
     private readonly PlaceholderProcessor _placeholderProcessor;
 
     private List<TextExpansionRule> _rules;
+    private Dictionary<char, List<IndexedRule>> _immediateInsensitiveIndex;
+    private Dictionary<char, List<IndexedRule>> _immediateSensitiveIndex;
+    private Dictionary<char, List<IndexedRule>> _delimiterInsensitiveIndex;
+    private Dictionary<char, List<IndexedRule>> _delimiterSensitiveIndex;
     private TextExpansionSettings _settings;
     private HashSet<char> _delimiters;
 
@@ -52,6 +58,10 @@ public class TextExpansionManager : IDisposable
         _buffer = new TextExpansionBuffer();
         _placeholderProcessor = new PlaceholderProcessor();
         _rules = new List<TextExpansionRule>();
+        _immediateInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _immediateSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
         _settings = new TextExpansionSettings();
         _delimiters = new HashSet<char>(_settings.Delimiters.Select(d => d.Length > 0 ? d[0] : ' '));
         _maxTriggerLength = 0;
@@ -70,6 +80,7 @@ public class TextExpansionManager : IDisposable
             _rules = configuration.Rules.Where(r => r.Enabled).ToList();
             _settings = configuration.Settings;
             _isEnabled = _settings.Enabled;
+            RebuildRuleIndex();
 
             // Update delimiters set
             _delimiters = new HashSet<char>(_settings.Delimiters.Select(d => d.Length > 0 ? d[0] : ' '));
@@ -210,11 +221,16 @@ public class TextExpansionManager : IDisposable
     /// <summary>Finds a matching rule for the current buffer state.</summary>
     private TextExpansionRule? FindMatchingRule(TriggerMode mode)
     {
-        foreach (var rule in _rules)
+        char? terminalChar = mode == TriggerMode.Immediate ? _buffer.LastChar : _buffer.CharFromEnd(1);
+        if (terminalChar is null)
         {
-            if (rule.Mode != mode)
-                continue;
+            return null;
+        }
 
+        var orderedCandidates = GetOrderedCandidates(mode, terminalChar.Value);
+        foreach (var indexed in orderedCandidates)
+        {
+            var rule = indexed.Rule;
             bool matches = mode == TriggerMode.Immediate ? _buffer.EndsWithTrigger(rule.Trigger, rule.CaseSensitive) : _buffer.EndsWithTriggerBeforeLastChar(rule.Trigger, rule.CaseSensitive);
 
             if (matches)
@@ -222,6 +238,77 @@ public class TextExpansionManager : IDisposable
         }
 
         return null;
+    }
+
+    private List<IndexedRule> GetOrderedCandidates(TriggerMode mode, char terminalChar)
+    {
+        var sensitiveIndex = mode == TriggerMode.Immediate ? _immediateSensitiveIndex : _delimiterSensitiveIndex;
+        var insensitiveIndex = mode == TriggerMode.Immediate ? _immediateInsensitiveIndex : _delimiterInsensitiveIndex;
+
+        sensitiveIndex.TryGetValue(terminalChar, out var sensitiveCandidates);
+        insensitiveIndex.TryGetValue(char.ToLowerInvariant(terminalChar), out var insensitiveCandidates);
+
+        if (sensitiveCandidates is null && insensitiveCandidates is null)
+        {
+            return new List<IndexedRule>();
+        }
+
+        if (sensitiveCandidates is null)
+        {
+            return insensitiveCandidates!;
+        }
+
+        if (insensitiveCandidates is null)
+        {
+            return sensitiveCandidates;
+        }
+
+        var merged = new List<IndexedRule>(sensitiveCandidates.Count + insensitiveCandidates.Count);
+        merged.AddRange(sensitiveCandidates);
+        merged.AddRange(insensitiveCandidates);
+        merged.Sort((a, b) => a.Order.CompareTo(b.Order));
+        return merged;
+    }
+
+    private void RebuildRuleIndex()
+    {
+        _immediateInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _immediateSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+
+        for (int i = 0; i < _rules.Count; i++)
+        {
+            var rule = _rules[i];
+            if (string.IsNullOrEmpty(rule.Trigger))
+            {
+                continue;
+            }
+
+            char terminalChar = rule.Trigger[^1];
+            var indexedRule = new IndexedRule(rule, i);
+            bool isImmediate = rule.Mode == TriggerMode.Immediate;
+
+            if (rule.CaseSensitive)
+            {
+                AddToIndex(isImmediate ? _immediateSensitiveIndex : _delimiterSensitiveIndex, terminalChar, indexedRule);
+            }
+            else
+            {
+                AddToIndex(isImmediate ? _immediateInsensitiveIndex : _delimiterInsensitiveIndex, char.ToLowerInvariant(terminalChar), indexedRule);
+            }
+        }
+    }
+
+    private static void AddToIndex(Dictionary<char, List<IndexedRule>> index, char key, IndexedRule rule)
+    {
+        if (!index.TryGetValue(key, out var list))
+        {
+            list = new List<IndexedRule>();
+            index[key] = list;
+        }
+
+        list.Add(rule);
     }
 
     /// <summary>Performs the text expansion.</summary>

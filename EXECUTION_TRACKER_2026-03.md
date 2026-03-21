@@ -19,7 +19,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 0 - Planning Baseline And Governance | 2026-03-23 to 2026-03-25 | Done | 2026-03-20 | 2026-03-25 | 2026-03-20 | 100 | Completed ahead of schedule during kickoff |
 | Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | Done | 2026-03-20 | 2026-04-04 | 2026-03-20 | 100 | Completed ahead of schedule with reliability warning format standardization |
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
-| Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | Not Started |  | 2026-05-01 |  | 0 |  |
+| Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 20 | P3-1 completed with indexed text-expansion lookup by mode and terminal character |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | Not Started |  | 2026-05-08 |  | 0 |  |
 | Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | Not Started |  | 2026-05-22 |  | 0 |  |
 
@@ -73,7 +73,7 @@ Goal: Improve keyboard-driven responsiveness and reduce unbounded async fan-out.
 
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
-| P3-1 | Optimize text expansion rule lookup path |  | Not Started | 2026-04-21 |  |  | P2-5 |  |  |  |
+| P3-1 | Optimize text expansion rule lookup path |  | Done | 2026-04-21 | 2026-03-21 | 2026-03-21 | P2-5 | No | None | Replaced full linear scans with indexed candidate lookup while preserving trigger match semantics |
 | P3-2 | Harden expansion concurrency gate |  | Not Started | 2026-04-22 |  |  | P3-1 |  |  |  |
 | P3-3 | Introduce bounded hotkey action dispatch model |  | Not Started | 2026-04-26 |  |  | P3-2 |  |  |  |
 | P3-4 | Apply dispatch policies to high-frequency actions |  | Not Started | 2026-04-28 |  |  | P3-3 |  |  |  |
@@ -110,6 +110,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 | 2026-03-21 | P2-3 | Invalid hotkeys config behavior during lifecycle unification | Revert to last known good; fallback to default empty | User | Revert to last known good | Preserves active hotkeys when edited config is invalid |
 | 2026-03-21 | P2-4 | Backup naming and retention policy for text-expansion/reminder managers | Keep incremental naming with unlimited retention; cap retention (for example last 10) | User | Keep incremental naming and unlimited retention | Preserves current behavior and avoids migration side effects |
 | 2026-03-21 | P2-5 | Corruption recovery feedback policy across managers | UI feedback everywhere; mixed approach with targeted dialogs and console diagnostics | User | Mixed approach | Keeps behavior stable while preserving user-facing alerts where already implemented |
+| 2026-03-21 | P3-1 | Text-expansion lookup strategy for scaling | Indexed lookup by mode/terminal character; trie-based lookup | User | Indexed lookup by mode/terminal character | Improves performance with lower complexity and minimal behavior risk |
 
 ## Blocker Log
 
@@ -123,6 +124,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 | 2026-03-21 | P2-3 | Keep last-known-good recovery for invalid hotkeys config | Maintain runtime continuity and avoid accidental hotkey loss due to malformed edits | Invalid file still requires manual correction; fallback defaults not automatically applied | User |
 | 2026-03-21 | P2-4 | Keep incremental .bak naming and unlimited backup retention | Maintain compatibility and reduce risk during lifecycle unification | Backup files may accumulate over time | User |
 | 2026-03-21 | P2-5 | Use mixed corruption-recovery feedback policy | Avoid intrusive UI in all paths while preserving visibility for critical managers | Feedback consistency is not absolute across managers | User |
+| 2026-03-21 | P3-1 | Use indexed lookup instead of trie for text expansion | Favor simpler, lower-risk optimization while improving lookup efficiency | May require future trie migration if rule volume grows substantially | User |
 
 ## Manual Verification Summary (Per Phase)
 
@@ -163,12 +165,12 @@ Template to complete before closing each phase.
 
 ### Week Of 2026-03-30
 
-- Completed: Phase 1 tasks P1-1 through P1-5 and full Phase 2 tasks P2-1 through P2-5.
-- In progress: Phase 3 readiness handoff.
+- Completed: Phase 1 tasks P1-1 through P1-5, full Phase 2 tasks P2-1 through P2-5, and Phase 3 task P3-1.
+- In progress: Phase 3 task P3-2 concurrency hardening.
 - Blockers: None.
 - Clarifications requested: None.
-- Timeline impact: Strongly positive (Milestone B achieved ahead of schedule).
-- Plan updates applied: Closed Phase 2 and Milestone B, with final verification evidence in PHASE2_VERIFICATION_LOG_2026-03-21.md.
+- Timeline impact: Strongly positive (Milestone B achieved early and Phase 3 started ahead of window).
+- Plan updates applied: Started Phase 3 and recorded P3-1 strategy decision plus completion status.
 
 ### Week Of 2026-04-06
 
