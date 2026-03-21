@@ -961,138 +961,143 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         //  8. Register Hotkeys — Application Control
         // ═══════════════════════════════════════════════════════════════════════
-        ApplicationControlHotkeyRegistry.Register(
-            hotkeyManager,
-            SourceApplicationControl,
-            onConfirmExit: () =>
-            {
-                var result = PInvoke.MessageBox(
-                    HWND.Null,
-                    "Win+Esc detected.\n\nDo you want to quit Macrosharp?",
-                    "Macrosharp - Confirm Exit",
-                    MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST
-                );
-
-                if (result != MESSAGEBOX_RESULT.IDYES)
+        void SetupHotkeyRegistrations()
+        {
+            ApplicationControlHotkeyRegistry.Register(
+                hotkeyManager,
+                SourceApplicationControl,
+                onConfirmExit: () =>
                 {
-                    Console.WriteLine("Win+Esc: exit canceled.");
-                    return;
-                }
+                    var result = PInvoke.MessageBox(
+                        HWND.Null,
+                        "Win+Esc detected.\n\nDo you want to quit Macrosharp?",
+                        "Macrosharp - Confirm Exit",
+                        MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST
+                    );
 
-                Console.WriteLine("Win+Esc: exit confirmed.");
-                AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
-                RequestAppExit("Win+Esc");
-            },
-            onImmediateExit: () =>
-            {
-                Console.WriteLine("Alt+Win+Esc: Terminating application immediately...");
-                AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
-                RequestAppExit("Alt+Win+Esc");
-            },
-            onShowHotkeys: ShowHotkeysWindow,
-            onShowRunningToast: () =>
-            {
-                Console.WriteLine("Win+?: Showing 'running' notification.");
-                toastHost.Show(MakeRunningToast());
-            },
-            onClearConsole: () =>
-            {
-                Console.Clear();
-                Console.WriteLine("Console cleared.");
-                AudioPlayer.PlayUndoAsync();
-            },
-            onToggleConsoleVisibility: () =>
-            {
-                bool visible = SystemActions.ToggleConsoleVisibility();
-                Console.WriteLine($"Console visibility: {(visible ? "Shown" : "Hidden")}");
-                if (visible)
-                    AudioPlayer.PlayOnAsync();
-                else
-                    AudioPlayer.PlayOffAsync();
-            },
-            onTogglePauseResume: () =>
-            {
-                _paused = !_paused;
-                Console.WriteLine($"Event handling: {(_paused ? "PAUSED" : "RESUMED")}");
-                if (_paused)
-                    AudioPlayer.PlayOffAsync();
-                else
-                    AudioPlayer.PlayOnAsync();
-            },
-            onToggleBurstClick: () =>
-            {
-                if (IsBurstClickActive())
+                    if (result != MESSAGEBOX_RESULT.IDYES)
+                    {
+                        Console.WriteLine("Win+Esc: exit canceled.");
+                        return;
+                    }
+
+                    Console.WriteLine("Win+Esc: exit confirmed.");
+                    AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
+                    RequestAppExit("Win+Esc");
+                },
+                onImmediateExit: () =>
                 {
-                    StopBurstClick("hotkey");
-                }
-                else
+                    Console.WriteLine("Alt+Win+Esc: Terminating application immediately...");
+                    AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
+                    RequestAppExit("Alt+Win+Esc");
+                },
+                onShowHotkeys: ShowHotkeysWindow,
+                onShowRunningToast: () =>
                 {
-                    StartBurstClickFromTray();
-                }
-            },
-            onToggleTextExpansion: () =>
-            {
-                textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
-                Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
-                if (textExpansionManager.IsEnabled)
-                    AudioPlayer.PlayOnAsync();
-                else
-                    AudioPlayer.PlayOffAsync();
-            }
-        );
-
-        // ═══════════════════════════════════════════════════════════════════════
-        //  9. Register Hotkeys — Window Management
-        // ═══════════════════════════════════════════════════════════════════════
-        WindowManagementHotkeyRegistry.Register(hotkeyManager, SourceWindowManagement);
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // 10. Register Hotkeys — Miscellaneous
-        // ═══════════════════════════════════════════════════════════════════════
-
-        MiscellaneousHotkeyRegistry.Register(
-            hotkeyManager,
-            SourceMiscellaneous,
-            () =>
-            {
-                Console.WriteLine("Opening image editor...");
-                try
+                    Console.WriteLine("Win+?: Showing 'running' notification.");
+                    toastHost.Show(MakeRunningToast());
+                },
+                onClearConsole: () =>
                 {
-                    AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Proximity Notification.wav", async: true);
-                }
-                catch (Exception ex)
+                    Console.Clear();
+                    Console.WriteLine("Console cleared.");
+                    AudioPlayer.PlayUndoAsync();
+                },
+                onToggleConsoleVisibility: () =>
                 {
-                    Warn("Program", "PlayImageEditorLaunchSound", "Failed to play image-editor launch sound", ex);
+                    bool visible = SystemActions.ToggleConsoleVisibility();
+                    Console.WriteLine($"Console visibility: {(visible ? "Shown" : "Hidden")}");
+                    if (visible)
+                        AudioPlayer.PlayOnAsync();
+                    else
+                        AudioPlayer.PlayOffAsync();
+                },
+                onTogglePauseResume: () =>
+                {
+                    _paused = !_paused;
+                    Console.WriteLine($"Event handling: {(_paused ? "PAUSED" : "RESUMED")}");
+                    if (_paused)
+                        AudioPlayer.PlayOffAsync();
+                    else
+                        AudioPlayer.PlayOnAsync();
+                },
+                onToggleBurstClick: () =>
+                {
+                    if (IsBurstClickActive())
+                    {
+                        StopBurstClick("hotkey");
+                    }
+                    else
+                    {
+                        StartBurstClickFromTray();
+                    }
+                },
+                onToggleTextExpansion: () =>
+                {
+                    textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
+                    Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
+                    if (textExpansionManager.IsEnabled)
+                        AudioPlayer.PlayOnAsync();
+                    else
+                        AudioPlayer.PlayOffAsync();
                 }
-                Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
-            }
-        );
+            );
 
-        MediaAndDisplayHotkeyRegistry.Register(
-            hotkeyManager,
-            SourceMiscellaneous,
-            SendMpcCommand,
-            RepeatThrottleMediaSeekMs,
-            RepeatThrottleVolumeMs,
-            RepeatThrottleBrightnessMs,
-            RepeatThrottleZoomMs
-        );
+            // ═══════════════════════════════════════════════════════════════════════
+            //  9. Register Hotkeys — Window Management
+            // ═══════════════════════════════════════════════════════════════════════
+            WindowManagementHotkeyRegistry.Register(hotkeyManager, SourceWindowManagement);
 
-        PowerAndDisplayHotkeyRegistry.Register(
-            hotkeyManager,
-            SourceMiscellaneous,
-            () =>
-            {
-                var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
-                return result == MESSAGEBOX_RESULT.IDYES;
-            },
-            (component, operation, details, ex) => Warn(component, operation, details, ex)
-        );
+            // ═══════════════════════════════════════════════════════════════════════
+            // 10. Register Hotkeys — Miscellaneous
+            // ═══════════════════════════════════════════════════════════════════════
 
-        // ═══════════════════════════════════════════════════════════════════════
-        // 11. Register Hotkeys — File Management (Explorer-Focused)
-        // ═══════════════════════════════════════════════════════════════════════
-        FileManagementHotkeyRegistry.Register(hotkeyManager, SourceFileManagement);
+            MiscellaneousHotkeyRegistry.Register(
+                hotkeyManager,
+                SourceMiscellaneous,
+                () =>
+                {
+                    Console.WriteLine("Opening image editor...");
+                    try
+                    {
+                        AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Proximity Notification.wav", async: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        Warn("Program", "PlayImageEditorLaunchSound", "Failed to play image-editor launch sound", ex);
+                    }
+                    Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
+                }
+            );
+
+            MediaAndDisplayHotkeyRegistry.Register(
+                hotkeyManager,
+                SourceMiscellaneous,
+                SendMpcCommand,
+                RepeatThrottleMediaSeekMs,
+                RepeatThrottleVolumeMs,
+                RepeatThrottleBrightnessMs,
+                RepeatThrottleZoomMs
+            );
+
+            PowerAndDisplayHotkeyRegistry.Register(
+                hotkeyManager,
+                SourceMiscellaneous,
+                () =>
+                {
+                    var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
+                    return result == MESSAGEBOX_RESULT.IDYES;
+                },
+                (component, operation, details, ex) => Warn(component, operation, details, ex)
+            );
+
+            // ═══════════════════════════════════════════════════════════════════════
+            // 11. Register Hotkeys — File Management (Explorer-Focused)
+            // ═══════════════════════════════════════════════════════════════════════
+            FileManagementHotkeyRegistry.Register(hotkeyManager, SourceFileManagement);
+        }
+
+        SetupHotkeyRegistrations();
 
         // ═══════════════════════════════════════════════════════════════════════
         // 12. Startup Banner
