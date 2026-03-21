@@ -21,7 +21,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
-| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 95 | P5-2 completed with Main reduced to setup/orchestration flow; P5-3 completed with runtime hotkey reference window polish (sorted rows and visible item count) |
+| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 98 | P5-2 through P5-4 completed: Program orchestration refactor, runtime hotkey reference window polish, and architecture/operations documentation updates |
 
 ## Milestones
 
@@ -98,7 +98,7 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 | P5-1 | Extract hotkey registrations into grouped registry modules |  | Done | 2026-05-12 | 2026-03-21 | 2026-03-21 | P4-3 | No | None | Moved MainConfigurationManager and hotkey registries for application-control, window-management, miscellaneous, file-management, media/display, and power/display actions into Macrosharp.Hosts.Shared; Program now delegates all hotkey groups to shared registries with host-specific callbacks where needed |
 | P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | Done | 2026-05-14 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Completed by extracting setup helpers for config watching, tray menu construction, text-expansion wiring, keyboard/mouse handlers, hotkey registration wiring, runtime notifier setup, cleanup, and burst-click controller, leaving Main focused on bootstrap and lifecycle orchestration |
 | P5-3 | Implement runtime hotkey reference window |  | Done | 2026-05-17 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Runtime hotkey reference window is available via tray action and Ctrl+Win+/, with filterable table UX, deterministic source/hotkey sorting, and live item count in the title |
-| P5-4 | Update architecture and operations documentation |  | Not Started | 2026-05-20 |  |  | P5-2, P5-3 |  |  |  |
+| P5-4 | Update architecture and operations documentation |  | Done | 2026-05-20 | 2026-03-21 | 2026-03-21 | P5-2, P5-3 | No | None | Updated README and FEATURES to reflect host-shared architecture, setup-method orchestration in Program, and runtime hotkey reference behavior (tray/hotkey access, sorting, and item count visibility) |
 | P5-5 | Final manual validation and release readiness review |  | Not Started | 2026-05-22 |  |  | P5-4 |  |  |  |
 
 ## Clarification Log

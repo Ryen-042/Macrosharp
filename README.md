@@ -46,9 +46,16 @@ Macrosharp is a Windows automation toolkit focused on native Win32 integrations 
 - src/Macrosharp.UserInterfaces
 	- UI components: TrayIcon, ImageEditorWindow, DynamicWindow
 - src/Macrosharp.Hosts
-	- Console host and demo entry points
+	- Console host entry point and lifecycle orchestration
+	- Shared host runtime modules in `Macrosharp.Hosts.Shared` (main config manager and grouped hotkey registration modules)
 - src/assets
 	- Icons and media resources
+
+## Runtime Hotkey Reference
+
+- Open at runtime with `Ctrl + Win + /` or tray menu action `Show Hotkeys`.
+- Display uses a filterable table with hotkeys sorted by source and key.
+- Window title includes a live item count to make scope visible at a glance.
 
 ## Build
 

@@ -347,22 +347,28 @@ the main flow.
 
 | Item | Detail |
 |------|--------|
-| **Status** | ✅ Unified runtime entry point (still monolithic) |
+| **Status** | ✅ Unified runtime entry point with setup-method orchestration |
 
 ### Current structure
-The current `Program.cs` is organized as a single primary runtime pipeline in
-`Main()`:
+The current `Program.cs` is organized as a primary runtime pipeline in
+`Main()` with focused setup methods for each subsystem:
 1. Early initialization (AUMID/tray config/state).
-2. Toast host and reminders scheduler setup.
-3. Tray icon host and dynamic menu actions.
-4. Keyboard hook + hotkey manager + text expansion wiring.
-5. Mouse hook startup and Scroll-Lock keyboard-as-mouse handling.
-6. Hotkey registration by domain:
+2. Main configuration and watcher setup.
+3. Toast host and reminders scheduler setup.
+4. Tray icon host and dynamic menu actions (`BuildTrayMenu`).
+5. Keyboard hook + hotkey manager + text expansion wiring (`SetupTextExpansion`, keyboard handler setup methods).
+6. Mouse hook startup and Scroll-Lock keyboard-as-mouse handling (`SetupScrollLockMouseHandler`).
+7. Hotkey registration by domain (`SetupHotkeyRegistrations`):
   - Application Control
   - Window Management
   - Miscellaneous (system/media/device controls)
   - File Management (Explorer-focused actions)
-7. Startup banner, Win32 message loop, and deterministic cleanup.
+8. Startup banner, Win32 message loop, and deterministic cleanup.
+
+### Runtime hotkey reference
+- Exposed via tray action `Show Hotkeys` and hotkey `Ctrl+Win+/`.
+- Backed by `GetRegisteredHotkeysSnapshot()` from `HotkeyManager`.
+- Uses a filterable table with deterministic source/key ordering and item count in title.
 
 ### Coverage summary
 - Spec-style hotkey set is now actively registered.
