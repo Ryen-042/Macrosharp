@@ -114,37 +114,42 @@ public class Program
             Warn("PathLocator", "NotifyIssue", message);
         }
 
-        if (watchMainConfig)
+        void SetupMainConfigurationWatching()
         {
-            mainConfigManager.EnableWatching();
-        }
-
-        mainConfigManager.ConfigurationChanged += (_, updated) =>
-        {
-            bool previousWatchMainConfig = watchMainConfig;
-            bool previousWatchRemindersConfig = watchRemindersConfig;
-            bool previousWatchTextExpansionsConfig = watchTextExpansionsConfig;
-
-            mainConfig = updated;
-            notificationsHidden = updated.Tray.NotificationsHidden;
-            reminderSoundsMuted = updated.Tray.ReminderSoundsMuted;
-            terminalMessagesEnabled = updated.Diagnostics.TerminalMessagesEnabled;
-            watchMainConfig = updated.FileWatching.MainConfig;
-            watchRemindersConfig = updated.FileWatching.RemindersConfig;
-            watchTextExpansionsConfig = updated.FileWatching.TextExpansionsConfig;
-
-            if (watchMainConfig && !previousWatchMainConfig)
+            if (watchMainConfig)
             {
                 mainConfigManager.EnableWatching();
             }
 
-            if (previousWatchRemindersConfig != watchRemindersConfig || previousWatchTextExpansionsConfig != watchTextExpansionsConfig)
+            mainConfigManager.ConfigurationChanged += (_, updated) =>
             {
-                Console.WriteLine("[INFO] [Program] Main config watcher toggles for reminders/text-expansions changed. Restart is required to apply manager watcher changes.");
-            }
+                bool previousWatchMainConfig = watchMainConfig;
+                bool previousWatchRemindersConfig = watchRemindersConfig;
+                bool previousWatchTextExpansionsConfig = watchTextExpansionsConfig;
 
-            Console.WriteLine("[INFO] [Program] Main configuration reloaded.");
-        };
+                mainConfig = updated;
+                notificationsHidden = updated.Tray.NotificationsHidden;
+                reminderSoundsMuted = updated.Tray.ReminderSoundsMuted;
+                terminalMessagesEnabled = updated.Diagnostics.TerminalMessagesEnabled;
+                watchMainConfig = updated.FileWatching.MainConfig;
+                watchRemindersConfig = updated.FileWatching.RemindersConfig;
+                watchTextExpansionsConfig = updated.FileWatching.TextExpansionsConfig;
+
+                if (watchMainConfig && !previousWatchMainConfig)
+                {
+                    mainConfigManager.EnableWatching();
+                }
+
+                if (previousWatchRemindersConfig != watchRemindersConfig || previousWatchTextExpansionsConfig != watchTextExpansionsConfig)
+                {
+                    Console.WriteLine("[INFO] [Program] Main config watcher toggles for reminders/text-expansions changed. Restart is required to apply manager watcher changes.");
+                }
+
+                Console.WriteLine("[INFO] [Program] Main configuration reloaded.");
+            };
+        }
+
+        SetupMainConfigurationWatching();
 
         bool IsBurstClickActive()
         {
