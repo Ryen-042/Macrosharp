@@ -732,9 +732,14 @@ public class Program
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
         _hotkeyManager = hotkeyManager;
 
-        PathLocator.IssueNotifier = OnPathLocatorIssue;
-        AudioPlayer.RepeatedFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Audio Warning", message);
-        HotkeyManager.RepeatedActionFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Hotkey Warning", message);
+        void SetupRuntimeNotifiers()
+        {
+            PathLocator.IssueNotifier = OnPathLocatorIssue;
+            AudioPlayer.RepeatedFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Audio Warning", message);
+            HotkeyManager.RepeatedActionFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Hotkey Warning", message);
+        }
+
+        SetupRuntimeNotifiers();
 
         using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath, watchForChanges: watchTextExpansionsConfig);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
@@ -1113,9 +1118,14 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         // 14. Cleanup
         // ═══════════════════════════════════════════════════════════════════════
-        Console.CancelKeyPress -= OnConsoleCancelKeyPress;
-        trayHost?.Dispose();
-        Console.WriteLine("Application exiting.");
+        void CleanupAndExit()
+        {
+            Console.CancelKeyPress -= OnConsoleCancelKeyPress;
+            trayHost?.Dispose();
+            Console.WriteLine("Application exiting.");
+        }
+
+        CleanupAndExit();
     }
 
     // ─── MPC-HC Helper ─────────────────────────────────────────────────────────
