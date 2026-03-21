@@ -65,7 +65,7 @@ Goal: Remove duplicate config manager logic and centralize lifecycle behavior.
 | P2-2 | Integrate Main configuration manager into shared lifecycle |  | Done | 2026-04-09 | 2026-03-21 | 2026-03-21 | P2-1 | No | None | MainConfigurationManager now supports shared debounced watching, reload event callbacks, and disposal lifecycle |
 | P2-3 | Integrate Hotkey configuration manager into shared lifecycle |  | Done | 2026-04-11 | 2026-03-21 | 2026-03-21 | P2-1 | No | None | Added lifecycle parity methods and normalization while preserving last-known-good recovery semantics |
 | P2-4 | Integrate Text Expansion and Reminder managers |  | Done | 2026-04-14 | 2026-03-21 | 2026-03-21 | P2-2, P2-3 | No | None | Added lifecycle parity APIs, normalization, and aligned recovery messaging while keeping incremental backup naming |
-| P2-5 | Execute manual regression verification for config flows |  | In Progress | 2026-04-16 | 2026-03-21 |  | P2-4 | No | None | Verification matrix expanded in MANUAL_VERIFICATION_CHECKLIST_2026-03.md; awaiting run-through results |
+| P2-5 | Execute manual regression verification for config flows |  | In Progress | 2026-04-16 | 2026-03-21 |  | P2-4 | No | None | Startup/build/default-toggle checks passed and logged in PHASE2_VERIFICATION_LOG_2026-03-21.md; per-config corruption/reload manual walkthrough still pending |
 
 ## Phase 3 Tracker
 
@@ -157,7 +157,7 @@ Template to complete before closing each phase.
 - Blockers: None.
 - Clarifications requested: None.
 - Timeline impact: Positive (Phase 2 kickoff started early while preserving a clean build state).
-- Plan updates applied: Marked P2-4 complete and captured backup retention decision for text-expansion/reminder lifecycle parity.
+- Plan updates applied: Marked P2-4 complete, captured backup retention and mixed-feedback decisions, and added Phase 2 verification log with startup/build/default-toggle evidence.
 
 ### Week Of 2026-04-06
 
