@@ -21,7 +21,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
-| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 10 | P5-1 started with first hotkey registration module extraction for window-management actions |
+| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 20 | P5-1 progressed by moving shared host orchestration pieces into Macrosharp.Hosts.Shared (window-management hotkey registry and main configuration manager) |
 
 ## Milestones
 
@@ -95,7 +95,7 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
-| P5-1 | Extract hotkey registrations into grouped registry modules |  | In Progress | 2026-05-12 | 2026-03-21 |  | P4-3 | No | None | Extracted window-management registrations from Program into HotkeyRegistrations/WindowManagementHotkeyRegistry.cs and wired Program call site |
+| P5-1 | Extract hotkey registrations into grouped registry modules |  | In Progress | 2026-05-12 | 2026-03-21 |  | P4-3 | No | None | Moved window-management registry and MainConfigurationManager from Console host into reusable Macrosharp.Hosts.Shared project and rewired Program to shared namespaces |
 | P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | Not Started | 2026-05-14 |  |  | P5-1 |  |  |  |
 | P5-3 | Implement runtime hotkey reference window |  | Not Started | 2026-05-17 |  |  | P5-1 |  |  |  |
 | P5-4 | Update architecture and operations documentation |  | Not Started | 2026-05-20 |  |  | P5-2, P5-3 |  |  |  |
@@ -182,7 +182,7 @@ Template to complete before closing each phase.
 - Blockers: None.
 - Clarifications requested: None.
 - Timeline impact: Strongly positive (Milestone B achieved early and Phase 3 started ahead of window).
-- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), scheduler cadence updates for P4-1/P4-2, and started P5-1 with first extracted hotkey registry module.
+- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), scheduler cadence updates for P4-1/P4-2, and progressed P5-1 by moving host-shared orchestration code into Macrosharp.Hosts.Shared.
 
 ### Week Of 2026-04-06
 

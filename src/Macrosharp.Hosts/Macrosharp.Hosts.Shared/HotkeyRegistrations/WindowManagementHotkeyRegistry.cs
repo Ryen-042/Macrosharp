@@ -4,9 +4,9 @@ using Macrosharp.Infrastructure;
 using Macrosharp.Win32.Abstractions.SystemControl;
 using Macrosharp.Win32.Abstractions.WindowTools;
 
-namespace Macrosharp.Hosts.ConsoleHost.HotkeyRegistrations;
+namespace Macrosharp.Hosts.Shared.HotkeyRegistrations;
 
-internal static class WindowManagementHotkeyRegistry
+public static class WindowManagementHotkeyRegistry
 {
     public static void Register(HotkeyManager hotkeyManager, string sourceContext)
     {

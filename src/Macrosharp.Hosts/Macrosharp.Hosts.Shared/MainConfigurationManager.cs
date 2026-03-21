@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Macrosharp.Infrastructure;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Hosts.Shared;
 
 public sealed class MainConfiguration
 {

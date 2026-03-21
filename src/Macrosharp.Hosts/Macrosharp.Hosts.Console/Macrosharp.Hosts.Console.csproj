@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Macrosharp.Hosts.Shared\Macrosharp.Hosts.Shared.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.DynamicWindow\Macrosharp.UserInterfaces.DynamicWindow.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.ImageEditorWindow\Macrosharp.UserInterfaces.ImageEditorWindow.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.Reminders\Macrosharp.UserInterfaces.Reminders.csproj" />
