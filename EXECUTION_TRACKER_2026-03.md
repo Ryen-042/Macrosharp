@@ -20,7 +20,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | Done | 2026-03-20 | 2026-04-04 | 2026-03-20 | 100 | Completed ahead of schedule with reliability warning format standardization |
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
-| Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 33 | P4-1 completed early: reminder loop now waits until next due reminder instead of fixed 1-second polling |
+| Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
 | Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | Not Started |  | 2026-05-22 |  | 0 |  |
 
 ## Milestones
@@ -86,7 +86,7 @@ Goal: Improve reminder scheduler efficiency by reducing unnecessary wakeups.
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P4-1 | Refactor reminder loop to next-due scheduling model |  | Done | 2026-05-04 | 2026-03-21 | 2026-03-21 | P3-5 | No | None | Replaced fixed polling with next-due delay scheduling and wake signals for config/snooze changes |
-| P4-2 | Refresh schedule on snooze and config changes |  | Not Started | 2026-05-06 |  |  | P4-1 |  |  |  |
+| P4-2 | Refresh schedule on snooze and config changes |  | Done | 2026-05-06 | 2026-03-21 | 2026-03-21 | P4-1 | No | None | Snooze callbacks and schedule rebuilds now signal immediate scheduler wake; config-change path rebuilds schedule and wakes loop |
 | P4-3 | Verify reminder behavior parity manually |  | Not Started | 2026-05-08 |  |  | P4-2 |  |  |  |
 
 ## Phase 5 Tracker
@@ -115,6 +115,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 | 2026-03-21 | P3-3 | Default and override behavior for bounded hotkey dispatch model | Fixed single policy defaults; custom per-hotkey dispatch model | User | Repeatable actions configurable per hotkey (immediate/throttled/coalesced) with default immediate; destructive actions always serialized | Balances responsiveness by default with optional control for high-frequency and resource-sensitive actions |
 | 2026-03-21 | P3-4 | Policy selection for high-frequency repeatable hotkeys | Keep default immediate everywhere; map targeted repeatable actions to throttled/coalesced | User | Map high-frequency repeatable actions: coalesced for window adjustments, throttled for media/volume/brightness/zoom | Reduces unbounded fan-out on held keys while preserving responsiveness for discrete actions |
 | 2026-03-21 | P4-1 | Reminder scheduler cadence model | Keep fixed 1-second polling loop; switch to next-due wake-up model | User | Switch to next-due wake-up model with explicit wake signals on schedule mutations | Reduces unnecessary wakeups and CPU churn while preserving reminder delivery behavior |
+| 2026-03-21 | P4-2 | Schedule refresh timing for snooze/config mutations | Continue relying on periodic polling; wake scheduler immediately when schedule changes | User | Wake scheduler immediately on snooze and config-driven schedule rebuild events | Improves reminder timing responsiveness without increasing idle CPU usage |
 
 ## Blocker Log
 
@@ -133,6 +134,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 | 2026-03-21 | P3-3 | Use per-hotkey repeatable dispatch policies with default immediate and always-serialized destructive actions | Preserve intuitive responsiveness while supporting throttled/coalesced overrides and strict safety for destructive actions | Additional dispatch configuration surface increases implementation complexity | User |
 | 2026-03-21 | P3-4 | Apply explicit dispatch policy overrides to high-frequency repeatable hotkeys | Realize bounded dispatch model gains in concrete hotkey paths most likely to fan out under held-key repeats | Requires tuning throttle intervals based on manual responsiveness testing | User |
 | 2026-03-21 | P4-1 | Use next-due scheduling for reminder loop and wake on schedule changes | Improve scheduler efficiency by replacing periodic polling with event-driven wake plus due-time delay | Requires careful wake signaling to avoid missed updates | User |
+| 2026-03-21 | P4-2 | Signal scheduler wake on snooze/config schedule changes | Ensure schedule mutations are applied promptly instead of waiting for a periodic loop tick | Additional synchronization paths must remain race-safe | User |
 
 ## Manual Verification Summary (Per Phase)
 
@@ -174,11 +176,11 @@ Template to complete before closing each phase.
 ### Week Of 2026-03-30
 
 - Completed: Phase 1 tasks P1-1 through P1-5, full Phase 2 tasks P2-1 through P2-5, and Phase 3 tasks P3-1 through P3-4.
-- In progress: Phase 3 task P3-5 responsiveness validation under heavy manual scenarios, and Phase 4 task P4-1 scheduler cadence refactor.
+- In progress: Phase 3 task P3-5 responsiveness validation under heavy manual scenarios, and Phase 4 task P4-3 reminder behavior parity validation.
 - Blockers: None.
 - Clarifications requested: None.
 - Timeline impact: Strongly positive (Milestone B achieved early and Phase 3 started ahead of window).
-- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), and next-due reminder scheduler refactor (P4-1).
+- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), and scheduler cadence updates for P4-1/P4-2.
 
 ### Week Of 2026-04-06
 
