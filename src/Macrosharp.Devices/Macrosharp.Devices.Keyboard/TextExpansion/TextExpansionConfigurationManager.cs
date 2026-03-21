@@ -174,6 +174,7 @@ public class TextExpansionConfigurationManager : IDisposable
                 BackspaceDelayMs = 2,
                 PasteDelayMs = 30,
                 Enabled = true,
+                MaxQueuedExpansions = 0,
             },
         };
     }
@@ -258,6 +259,7 @@ public class TextExpansionConfigurationManager : IDisposable
         config.Settings.BufferSize = Math.Clamp(config.Settings.BufferSize, 8, 512);
         config.Settings.BackspaceDelayMs = Math.Clamp(config.Settings.BackspaceDelayMs, 0, 200);
         config.Settings.PasteDelayMs = Math.Clamp(config.Settings.PasteDelayMs, 0, 500);
+        config.Settings.MaxQueuedExpansions = Math.Clamp(config.Settings.MaxQueuedExpansions, 0, 50);
 
         foreach (var rule in config.Rules)
         {
