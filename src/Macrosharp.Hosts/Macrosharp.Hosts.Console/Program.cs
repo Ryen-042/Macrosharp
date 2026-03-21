@@ -822,130 +822,135 @@ public class Program
         //  These hotkeys use a raw KeyDownHandler for two reasons:
         //  1. They must check IsScrollLockOn and pass through when OFF.
         //  2. They should repeat-fire when held (no _activeHotkey suppression).
-        keyboardHookManager.KeyDownHandler += (_, e) =>
+        void SetupScrollLockMouseHandler()
         {
-            if (e.Handled || _paused)
-                return;
-            if (!Modifiers.IsScrollLockOn)
-                return;
-            // Skip keys that have modifier combos handled by HotkeyManager
-            // (Ctrl+Q/E for zoom are registered there with the ScrollLock guard)
-            if (Modifiers.HasModifier(Modifiers.CTRL) || Modifiers.HasModifier(Modifiers.WIN))
-                return;
-            if (Modifiers.ModifierKeys.Contains(e.KeyCode))
-                return;
-
-            bool isAlt = Modifiers.HasModifier(Modifiers.ALT);
-            bool isShift = Modifiers.HasModifier(Modifiers.SHIFT);
-            bool isBacktick = Modifiers.HasModifier(Modifiers.BACKTICK);
-
-            switch (e.KeyCode)
+            keyboardHookManager.KeyDownHandler += (_, e) =>
             {
-                // ── Scroll ──
-                case VirtualKey.KEY_W when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? 8 : 3, direction: 1));
-                    e.Handled = true;
+                if (e.Handled || _paused)
                     return;
-                case VirtualKey.KEY_S when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? -8 : -3, direction: 1));
-                    e.Handled = true;
+                if (!Modifiers.IsScrollLockOn)
                     return;
-                case VirtualKey.KEY_A when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? -8 : -3, direction: 0));
-                    e.Handled = true;
+                // Skip keys that have modifier combos handled by HotkeyManager
+                // (Ctrl+Q/E for zoom are registered there with the ScrollLock guard)
+                if (Modifiers.HasModifier(Modifiers.CTRL) || Modifiers.HasModifier(Modifiers.WIN))
                     return;
-                case VirtualKey.KEY_D when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? 8 : 3, direction: 0));
-                    e.Handled = true;
+                if (Modifiers.ModifierKeys.Contains(e.KeyCode))
                     return;
 
-                // ── Mouse Clicks ──
-                case VirtualKey.KEY_Q when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton));
-                    e.Handled = true;
-                    return;
-                case VirtualKey.KEY_E when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton));
-                    e.Handled = true;
-                    return;
-                case VirtualKey.KEY_2 when !isBacktick:
-                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton));
-                    e.Handled = true;
-                    return;
+                bool isAlt = Modifiers.HasModifier(Modifiers.ALT);
+                bool isShift = Modifiers.HasModifier(Modifiers.SHIFT);
+                bool isBacktick = Modifiers.HasModifier(Modifiers.BACKTICK);
 
-                // ── Mouse Hold Toggles (Backtick + Q/E/2) ──
-                case VirtualKey.KEY_Q when isBacktick:
+                switch (e.KeyCode)
                 {
-                    _leftMouseHeld = !_leftMouseHeld;
-                    var op = _leftMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
-                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton, op: op));
-                    e.Handled = true;
-                    return;
-                }
-                case VirtualKey.KEY_E when isBacktick:
-                {
-                    _rightMouseHeld = !_rightMouseHeld;
-                    var op = _rightMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
-                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton, op: op));
-                    e.Handled = true;
-                    return;
-                }
-                case VirtualKey.KEY_2 when isBacktick:
-                {
-                    _middleMouseHeld = !_middleMouseHeld;
-                    var op = _middleMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
-                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton, op: op));
-                    e.Handled = true;
-                    return;
-                }
+                    // ── Scroll ──
+                    case VirtualKey.KEY_W when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? 8 : 3, direction: 1));
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.KEY_S when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? -8 : -3, direction: 1));
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.KEY_A when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? -8 : -3, direction: 0));
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.KEY_D when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseScroll(steps: isAlt ? 8 : 3, direction: 0));
+                        e.Handled = true;
+                        return;
 
-                // ── Cursor Movement: ; ' / . ──
-                case VirtualKey.OEM_1: // ;
-                    Task.Run(() =>
-                        MouseSimulator.MoveCursor(
-                            dx: isAlt ? 80
-                                : isShift ? 3
-                                : 20,
-                            dy: 0
-                        )
-                    );
-                    e.Handled = true;
-                    return;
-                case VirtualKey.OEM_7: // '
-                    Task.Run(() =>
-                        MouseSimulator.MoveCursor(
-                            dx: 0,
-                            dy: isAlt ? 80
-                                : isShift ? 3
-                                : 20
-                        )
-                    );
-                    e.Handled = true;
-                    return;
-                case VirtualKey.OEM_2: // /
-                    Task.Run(() =>
-                        MouseSimulator.MoveCursor(
-                            dx: isAlt ? -80
-                                : isShift ? -3
-                                : -20,
-                            dy: 0
-                        )
-                    );
-                    e.Handled = true;
-                    return;
-                case VirtualKey.OEM_PERIOD: // .
-                    Task.Run(() =>
-                        MouseSimulator.MoveCursor(
-                            dx: 0,
-                            dy: isAlt ? -80
-                                : isShift ? -3
-                                : -20
-                        )
-                    );
-                    e.Handled = true;
-                    return;
-            }
-        };
+                    // ── Mouse Clicks ──
+                    case VirtualKey.KEY_Q when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton));
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.KEY_E when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton));
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.KEY_2 when !isBacktick:
+                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton));
+                        e.Handled = true;
+                        return;
+
+                    // ── Mouse Hold Toggles (Backtick + Q/E/2) ──
+                    case VirtualKey.KEY_Q when isBacktick:
+                    {
+                        _leftMouseHeld = !_leftMouseHeld;
+                        var op = _leftMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton, op: op));
+                        e.Handled = true;
+                        return;
+                    }
+                    case VirtualKey.KEY_E when isBacktick:
+                    {
+                        _rightMouseHeld = !_rightMouseHeld;
+                        var op = _rightMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton, op: op));
+                        e.Handled = true;
+                        return;
+                    }
+                    case VirtualKey.KEY_2 when isBacktick:
+                    {
+                        _middleMouseHeld = !_middleMouseHeld;
+                        var op = _middleMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton, op: op));
+                        e.Handled = true;
+                        return;
+                    }
+
+                    // ── Cursor Movement: ; ' / . ──
+                    case VirtualKey.OEM_1: // ;
+                        Task.Run(() =>
+                            MouseSimulator.MoveCursor(
+                                dx: isAlt ? 80
+                                    : isShift ? 3
+                                    : 20,
+                                dy: 0
+                            )
+                        );
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.OEM_7: // '
+                        Task.Run(() =>
+                            MouseSimulator.MoveCursor(
+                                dx: 0,
+                                dy: isAlt ? 80
+                                    : isShift ? 3
+                                    : 20
+                            )
+                        );
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.OEM_2: // /
+                        Task.Run(() =>
+                            MouseSimulator.MoveCursor(
+                                dx: isAlt ? -80
+                                    : isShift ? -3
+                                    : -20,
+                                dy: 0
+                            )
+                        );
+                        e.Handled = true;
+                        return;
+                    case VirtualKey.OEM_PERIOD: // .
+                        Task.Run(() =>
+                            MouseSimulator.MoveCursor(
+                                dx: 0,
+                                dy: isAlt ? -80
+                                    : isShift ? -3
+                                    : -20
+                            )
+                        );
+                        e.Handled = true;
+                        return;
+                }
+            };
+        }
+
+        SetupScrollLockMouseHandler();
 
         // ═══════════════════════════════════════════════════════════════════════
         //  7. Start Hooks
