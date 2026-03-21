@@ -1,10 +1,10 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.DynamicWindow;
 using Macrosharp.Win32.Abstractions.Explorer;
 
-namespace Macrosharp.Hosts.Shared.HotkeyRegistrations;
+namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class FileManagementHotkeyRegistry
 {
@@ -130,3 +130,4 @@ public static class FileManagementHotkeyRegistry
         );
     }
 }
+

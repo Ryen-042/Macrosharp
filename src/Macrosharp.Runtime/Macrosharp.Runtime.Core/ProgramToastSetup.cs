@@ -1,8 +1,8 @@
-using Macrosharp.UserInterfaces.ToastNotifications;
+﻿using Macrosharp.UserInterfaces.ToastNotifications;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramToastSetup
+public static class ProgramToastSetup
 {
     public static void AttachActivatedHandler(ToastNotificationHost toastHost, Action<string> requestAppExit)
     {
@@ -40,3 +40,5 @@ internal static class ProgramToastSetup
         };
     }
 }
+
+

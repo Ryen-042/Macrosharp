@@ -1,10 +1,10 @@
-using Windows.Win32;
+﻿using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramMessageLoop
+public static class ProgramMessageLoop
 {
     public static void Run()
     {
@@ -16,3 +16,5 @@ internal static class ProgramMessageLoop
         }
     }
 }
+
+

@@ -1,12 +1,12 @@
-using Macrosharp.Devices.Keyboard;
+﻿using Macrosharp.Devices.Keyboard;
 using Macrosharp.Infrastructure;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramRuntimeNotifiers
+public static class ProgramRuntimeNotifiers
 {
     public static void Warn(string component, string operation, string details, Exception? ex = null)
     {
@@ -45,3 +45,5 @@ internal static class ProgramRuntimeNotifiers
         Warn("PathLocator", "NotifyIssue", message);
     }
 }
+
+

@@ -1,8 +1,8 @@
-using Macrosharp.Hosts.Shared;
+﻿using Macrosharp.Runtime.Configuration;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal sealed class ProgramRuntimeState
+public sealed class ProgramRuntimeState
 {
     public ProgramRuntimeState(MainConfiguration configuration)
     {
@@ -41,3 +41,6 @@ internal sealed class ProgramRuntimeState
         CurrentMainConfig.Diagnostics.TerminalMessagesEnabled = TerminalMessagesEnabled;
     }
 }
+
+
+

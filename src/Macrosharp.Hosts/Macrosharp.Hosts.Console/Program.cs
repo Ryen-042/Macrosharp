@@ -1,12 +1,13 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Linq;
 using System.Reflection.Emit;
 using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Devices.Mouse;
-using Macrosharp.Hosts.Shared;
+using Macrosharp.Runtime.Configuration;
 using Macrosharp.Infrastructure;
+using Macrosharp.Runtime.Core;
 using Macrosharp.UserInterfaces.Reminders;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.UserInterfaces.TrayIcon;
@@ -194,3 +195,4 @@ public class Program
         CleanupAndExit();
     }
 }
+

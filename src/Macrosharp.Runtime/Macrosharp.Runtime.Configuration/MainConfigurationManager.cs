@@ -1,8 +1,8 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Macrosharp.Infrastructure;
 
-namespace Macrosharp.Hosts.Shared;
+namespace Macrosharp.Runtime.Configuration;
 
 public sealed class MainConfiguration
 {
@@ -162,3 +162,4 @@ public sealed class MainConfigurationManager : IDisposable
         _configWatcher = null;
     }
 }
+

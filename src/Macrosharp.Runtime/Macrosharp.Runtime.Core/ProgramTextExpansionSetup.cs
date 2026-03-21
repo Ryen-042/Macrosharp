@@ -1,10 +1,10 @@
-using Macrosharp.Devices.Keyboard;
+﻿using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Infrastructure;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramTextExpansionSetup
+public static class ProgramTextExpansionSetup
 {
     public static TextExpansionConfiguration Configure(TextExpansionConfigurationManager configManager, TextExpansionManager textExpansionManager)
     {
@@ -19,7 +19,7 @@ internal static class ProgramTextExpansionSetup
 
         textExpansionManager.ExpansionOccurred += (_, e) =>
         {
-            Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
+            Console.WriteLine($"Expanded '{e.Rule.Trigger}' -> '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
             AudioPlayer.PlayKnobAsync();
         };
 
@@ -43,3 +43,6 @@ internal static class ProgramTextExpansionSetup
         Console.WriteLine();
     }
 }
+
+
+

@@ -1,9 +1,9 @@
-using Macrosharp.Devices.Keyboard;
+﻿using Macrosharp.Devices.Keyboard;
 using Macrosharp.UserInterfaces.DynamicWindow;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class RuntimeHotkeyReferenceWindow
+public static class RuntimeHotkeyReferenceWindow
 {
     public static void Show(HotkeyManager? hotkeyManager)
     {
@@ -23,3 +23,5 @@ internal static class RuntimeHotkeyReferenceWindow
         FilterableTableWindow.ShowOrActivate($"Macrosharp Hotkeys ({rows.Count})", ["Hotkey", "Description", "Source"], rows, filterPlaceholder: "Type to filter hotkeys...");
     }
 }
+
+

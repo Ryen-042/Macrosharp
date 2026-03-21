@@ -1,11 +1,12 @@
+﻿using Macrosharp.Runtime.Core;
 using Macrosharp.UserInterfaces.TrayIcon;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal sealed class ProgramExitCoordinator
+public sealed class ProgramExitCoordinator
 {
     private readonly uint _mainThreadId;
     private readonly BurstClickCoordinator _burstClickCoordinator;
@@ -61,3 +62,6 @@ internal sealed class ProgramExitCoordinator
         PInvoke.PostThreadMessage(_mainThreadId, PInvoke.WM_QUIT, 0, 0);
     }
 }
+
+
+

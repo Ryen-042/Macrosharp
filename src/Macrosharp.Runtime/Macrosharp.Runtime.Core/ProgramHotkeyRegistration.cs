@@ -1,6 +1,6 @@
-using Macrosharp.Devices.Keyboard;
+﻿using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
-using Macrosharp.Hosts.Shared.HotkeyRegistrations;
+using Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.Win32.Abstractions.SystemControl;
@@ -8,11 +8,11 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramHotkeyRegistration
+public static class ProgramHotkeyRegistration
 {
-    internal sealed class Dependencies
+    public sealed class Dependencies
     {
         public required HotkeyManager HotkeyManager { get; init; }
         public required string SourceApplicationControl { get; init; }
@@ -172,3 +172,6 @@ internal static class ProgramHotkeyRegistration
         FileManagementHotkeyRegistry.Register(dependencies.HotkeyManager, dependencies.SourceFileManagement);
     }
 }
+
+
+

@@ -1,7 +1,7 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 
-namespace Macrosharp.Hosts.Shared.HotkeyRegistrations;
+namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class ApplicationControlHotkeyRegistry
 {
@@ -38,3 +38,4 @@ public static class ApplicationControlHotkeyRegistry
         hotkeyManager.RegisterHotkey(VirtualKey.KEY_T, Modifiers.CTRL_ALT, onToggleTextExpansion, description: "Toggle text expansion on or off.", sourceContext: sourceContext);
     }
 }
+

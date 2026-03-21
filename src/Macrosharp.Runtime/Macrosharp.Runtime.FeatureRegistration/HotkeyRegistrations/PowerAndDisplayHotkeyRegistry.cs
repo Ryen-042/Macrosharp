@@ -1,9 +1,9 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Infrastructure;
 using Macrosharp.Win32.Abstractions.SystemControl;
 
-namespace Macrosharp.Hosts.Shared.HotkeyRegistrations;
+namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class PowerAndDisplayHotkeyRegistry
 {
@@ -78,3 +78,4 @@ public static class PowerAndDisplayHotkeyRegistry
         AudioPlayer.PlayBonkAsync();
     }
 }
+

@@ -1,10 +1,10 @@
-using Macrosharp.Win32.Abstractions.WindowTools;
+﻿using Macrosharp.Win32.Abstractions.WindowTools;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramMpcCommands
+public static class ProgramMpcCommands
 {
     public static void Send(int commandId)
     {
@@ -15,3 +15,5 @@ internal static class ProgramMpcCommands
         }
     }
 }
+
+

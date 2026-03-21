@@ -1,14 +1,14 @@
-using Macrosharp.Hosts.Shared;
+﻿using Macrosharp.Runtime.Configuration;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.Reminders;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.UserInterfaces.TrayIcon;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramTrayMenuFactory
+public static class ProgramTrayMenuFactory
 {
-    internal sealed class Dependencies
+    public sealed class Dependencies
     {
         public required IconCycler IconCycler { get; init; }
         public required IReadOnlyList<string> IconPaths { get; init; }
@@ -298,3 +298,6 @@ internal static class ProgramTrayMenuFactory
         ];
     }
 }
+
+
+

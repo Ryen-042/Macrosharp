@@ -1,8 +1,8 @@
-using Macrosharp.Hosts.Shared;
+﻿using Macrosharp.Runtime.Configuration;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal static class ProgramMainConfigurationSetup
+public static class ProgramMainConfigurationSetup
 {
     public static void Configure(MainConfigurationManager mainConfigurationManager, ProgramRuntimeState runtimeState)
     {
@@ -33,3 +33,6 @@ internal static class ProgramMainConfigurationSetup
         };
     }
 }
+
+
+

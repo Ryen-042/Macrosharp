@@ -1,22 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'"></PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'"></PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="ErrorOr" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Macrosharp.Runtime\Macrosharp.Runtime.Core\Macrosharp.Runtime.Core.csproj" />
-    <ProjectReference Include="..\..\Macrosharp.Runtime\Macrosharp.Runtime.Configuration\Macrosharp.Runtime.Configuration.csproj" />
+    <ProjectReference Include="..\Macrosharp.Runtime.Configuration\Macrosharp.Runtime.Configuration.csproj" />
+    <ProjectReference Include="..\Macrosharp.Runtime.FeatureRegistration\Macrosharp.Runtime.FeatureRegistration.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.DynamicWindow\Macrosharp.UserInterfaces.DynamicWindow.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.ImageEditorWindow\Macrosharp.UserInterfaces.ImageEditorWindow.csproj" />
     <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.Reminders\Macrosharp.UserInterfaces.Reminders.csproj" />

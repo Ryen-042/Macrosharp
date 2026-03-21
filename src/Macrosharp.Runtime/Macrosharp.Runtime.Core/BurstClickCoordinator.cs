@@ -1,10 +1,10 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 using Macrosharp.UserInterfaces.DynamicWindow;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 
-namespace Macrosharp.Hosts.ConsoleHost;
+namespace Macrosharp.Runtime.Core;
 
-internal sealed class BurstClickCoordinator
+public sealed class BurstClickCoordinator
 {
     private readonly object _stateGate = new();
     private bool _isActive;
@@ -190,3 +190,5 @@ internal sealed class BurstClickCoordinator
         return true;
     }
 }
+
+

@@ -1,8 +1,8 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Win32.Abstractions.SystemControl;
 
-namespace Macrosharp.Hosts.Shared.HotkeyRegistrations;
+namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class MediaAndDisplayHotkeyRegistry
 {
@@ -122,3 +122,4 @@ public static class MediaAndDisplayHotkeyRegistry
         );
     }
 }
+
