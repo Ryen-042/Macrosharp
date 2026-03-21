@@ -501,6 +501,8 @@ public class Program
 
             var rows = _hotkeyManager
                 .GetRegisteredHotkeysSnapshot()
+                .OrderBy(h => string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(h => h.Hotkey.ToString(), StringComparer.OrdinalIgnoreCase)
                 .Select(h => (IReadOnlyList<string>)new List<string>
                 {
                     h.Hotkey.ToString(),
@@ -510,7 +512,7 @@ public class Program
                 .ToList();
 
             Macrosharp.UserInterfaces.DynamicWindow.FilterableTableWindow.ShowOrActivate(
-                "Macrosharp Hotkeys",
+                $"Macrosharp Hotkeys ({rows.Count})",
                 ["Hotkey", "Description", "Source"],
                 rows,
                 filterPlaceholder: "Type to filter hotkeys..."
