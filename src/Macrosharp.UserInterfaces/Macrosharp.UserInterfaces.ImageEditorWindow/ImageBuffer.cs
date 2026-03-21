@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ImageEditorWindow;
+﻿namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 
 /// <summary>
 /// A 2D pixel buffer stored as a 1D array of ARGB pixels.

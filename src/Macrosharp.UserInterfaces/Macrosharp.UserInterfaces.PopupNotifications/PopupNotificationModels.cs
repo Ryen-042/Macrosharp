@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.PopupNotifications;
+﻿namespace Macrosharp.UserInterfaces.PopupNotifications;
 
 public enum PopupNotificationPosition
 {

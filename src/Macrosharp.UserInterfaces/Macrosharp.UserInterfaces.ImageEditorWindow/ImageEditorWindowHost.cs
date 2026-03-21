@@ -1,4 +1,4 @@
-using Windows.Win32;
+﻿using Windows.Win32;
 using Windows.Win32.UI.HiDpi;
 
 namespace Macrosharp.UserInterfaces.ImageEditorWindow;

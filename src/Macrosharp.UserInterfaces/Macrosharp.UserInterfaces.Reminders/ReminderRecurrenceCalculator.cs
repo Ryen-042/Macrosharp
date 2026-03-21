@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.Reminders;
+﻿namespace Macrosharp.UserInterfaces.Reminders;
 
 public static class ReminderRecurrenceCalculator
 {

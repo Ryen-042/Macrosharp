@@ -1,4 +1,4 @@
-using Macrosharp.UserInterfaces.DynamicWindow;
+﻿using Macrosharp.UserInterfaces.DynamicWindow;
 
 namespace Macrosharp.UserInterfaces.Reminders;
 

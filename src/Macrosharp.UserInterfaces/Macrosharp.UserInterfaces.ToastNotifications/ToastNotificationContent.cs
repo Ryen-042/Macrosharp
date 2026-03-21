@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ToastNotifications;
+﻿namespace Macrosharp.UserInterfaces.ToastNotifications;
 
 /// <summary>
 /// Immutable data model representing a toast notification payload.

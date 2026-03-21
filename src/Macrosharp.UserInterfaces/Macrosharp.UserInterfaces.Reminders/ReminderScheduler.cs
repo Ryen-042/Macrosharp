@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.ToastNotifications;
 

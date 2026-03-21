@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Windows.Win32;
 
 namespace Macrosharp.Devices.Keyboard.TextExpansion;

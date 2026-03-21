@@ -1,4 +1,4 @@
-namespace Macrosharp.Devices.Keyboard.TextExpansion;
+﻿namespace Macrosharp.Devices.Keyboard.TextExpansion;
 
 /// <summary>Specifies when a text expansion trigger should activate.</summary>
 public enum TriggerMode

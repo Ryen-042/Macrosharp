@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ToastNotifications;
+﻿namespace Macrosharp.UserInterfaces.ToastNotifications;
 
 /// <summary>
 /// Controls how long a toast notification remains visible on screen.

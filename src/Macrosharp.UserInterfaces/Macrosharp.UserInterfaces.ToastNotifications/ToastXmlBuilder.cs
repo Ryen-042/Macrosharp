@@ -1,4 +1,4 @@
-using Windows.Data.Xml.Dom;
+﻿using Windows.Data.Xml.Dom;
 
 namespace Macrosharp.UserInterfaces.ToastNotifications;
 

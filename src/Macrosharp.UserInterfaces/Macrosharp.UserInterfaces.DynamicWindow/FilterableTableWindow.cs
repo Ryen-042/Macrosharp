@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Macrosharp.Devices.Core;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;

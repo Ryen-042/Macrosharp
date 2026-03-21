@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using WindowsNotifications = Windows.UI.Notifications;
 
 namespace Macrosharp.UserInterfaces.ToastNotifications;

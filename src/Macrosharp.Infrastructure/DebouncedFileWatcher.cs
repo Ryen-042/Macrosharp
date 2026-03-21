@@ -1,4 +1,4 @@
-namespace Macrosharp.Infrastructure;
+﻿namespace Macrosharp.Infrastructure;
 
 /// <summary>
 /// Watches a single file and invokes a reload action after a debounce delay.

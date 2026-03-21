@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Macrosharp.Infrastructure;
 using Windows.Win32; // For PInvoke.MessageBox
 using Windows.Win32.Foundation; // For HWND
