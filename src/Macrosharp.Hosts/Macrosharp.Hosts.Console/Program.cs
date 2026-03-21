@@ -739,34 +739,43 @@ public class Program
         using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath, watchForChanges: watchTextExpansionsConfig);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
 
-        keyboardHookManager.KeyDownHandler += (_, e) =>
+        void SetupTerminalKeyLoggingHandler()
         {
-            if (!terminalMessagesEnabled || e.IsInjected)
-                return;
+            keyboardHookManager.KeyDownHandler += (_, e) =>
+            {
+                if (!terminalMessagesEnabled || e.IsInjected)
+                    return;
 
-            if (Modifiers.ModifierKeys.Contains(e.KeyCode))
-                return;
+                if (Modifiers.ModifierKeys.Contains(e.KeyCode))
+                    return;
 
-            Console.WriteLine(FormatTerminalKeyMessage(e));
-        };
+                Console.WriteLine(FormatTerminalKeyMessage(e));
+            };
+        }
 
-        keyboardHookManager.KeyDownHandler += (_, e) =>
+        void SetupBurstClickEscapeStopHandler()
         {
-            if (e.Handled)
-                return;
+            keyboardHookManager.KeyDownHandler += (_, e) =>
+            {
+                if (e.Handled)
+                    return;
 
-            if (e.KeyCode != VirtualKey.ESCAPE)
-                return;
+                if (e.KeyCode != VirtualKey.ESCAPE)
+                    return;
 
-            if (Modifiers.CurrentModifiers != 0)
-                return;
+                if (Modifiers.CurrentModifiers != 0)
+                    return;
 
-            if (!IsBurstClickActive())
-                return;
+                if (!IsBurstClickActive())
+                    return;
 
-            StopBurstClick("ESC key", notifyWhenInactive: false);
-            e.Handled = true;
-        };
+                StopBurstClick("ESC key", notifyWhenInactive: false);
+                e.Handled = true;
+            };
+        }
+
+        SetupTerminalKeyLoggingHandler();
+        SetupBurstClickEscapeStopHandler();
 
         TextExpansionConfiguration SetupTextExpansion()
         {
