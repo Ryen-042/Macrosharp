@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Macrosharp.Infrastructure;
 
 namespace Macrosharp.Hosts.ConsoleHost;
 
@@ -30,7 +31,7 @@ public sealed class MainFileWatchingSettings
     public bool RemindersConfig { get; set; }
 }
 
-public sealed class MainConfigurationManager
+public sealed class MainConfigurationManager : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -40,37 +41,51 @@ public sealed class MainConfigurationManager
     };
 
     private readonly string _configPath;
+    private readonly object _gate = new();
+    private DebouncedFileWatcher? _configWatcher;
 
-    public MainConfigurationManager(string configPath)
+    public event EventHandler<MainConfiguration>? ConfigurationChanged;
+
+    public MainConfiguration CurrentConfiguration { get; private set; } = new();
+
+    public MainConfigurationManager(string configPath, bool watchForChanges = false)
     {
         _configPath = configPath;
+
+        if (watchForChanges)
+        {
+            EnableWatching();
+        }
     }
 
     public string ConfigPath => _configPath;
 
     public MainConfiguration LoadOrCreate()
     {
-        if (!File.Exists(_configPath))
+        lock (_gate)
         {
-            var defaults = CreateDefaultConfiguration();
-            Save(defaults);
-            return defaults;
-        }
+            if (!File.Exists(_configPath))
+            {
+                var defaults = CreateDefaultConfiguration();
+                Save(defaults);
+                return defaults;
+            }
 
-        try
-        {
-            var json = File.ReadAllText(_configPath);
-            var config = JsonSerializer.Deserialize<MainConfiguration>(json, JsonOptions) ?? CreateDefaultConfiguration();
-            Normalize(config);
-            Save(config);
-            return config;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Main config load failed: {ex.Message}. Reverting to defaults.");
-            var defaults = CreateDefaultConfiguration();
-            Save(defaults);
-            return defaults;
+            try
+            {
+                var json = File.ReadAllText(_configPath);
+                var config = JsonSerializer.Deserialize<MainConfiguration>(json, JsonOptions) ?? CreateDefaultConfiguration();
+                Normalize(config);
+                Save(config);
+                return config;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Main config load failed: {ex.Message}. Reverting to defaults.");
+                var defaults = CreateDefaultConfiguration();
+                Save(defaults);
+                return defaults;
+            }
         }
     }
 
@@ -80,6 +95,24 @@ public sealed class MainConfigurationManager
         EnsureDirectory();
         var json = JsonSerializer.Serialize(configuration, JsonOptions);
         File.WriteAllText(_configPath, json);
+
+        CurrentConfiguration = configuration;
+        ConfigurationChanged?.Invoke(this, CurrentConfiguration);
+    }
+
+    public void ReloadNow()
+    {
+        _ = LoadOrCreate();
+    }
+
+    public void EnableWatching()
+    {
+        if (_configWatcher is not null)
+        {
+            return;
+        }
+
+        _configWatcher = new DebouncedFileWatcher(_configPath, ReloadNow, enabled: true, nameof(MainConfigurationManager), TimeSpan.FromMilliseconds(500));
     }
 
     private void EnsureDirectory()
@@ -121,5 +154,11 @@ public sealed class MainConfigurationManager
         configuration.Tray ??= new MainTraySettings();
         configuration.Diagnostics ??= new MainDiagnosticsSettings();
         configuration.FileWatching ??= new MainFileWatchingSettings();
+    }
+
+    public void Dispose()
+    {
+        _configWatcher?.Dispose();
+        _configWatcher = null;
     }
 }
