@@ -928,11 +928,10 @@ public class Program
         const int RepeatThrottleBrightnessMs = 125;
         const int RepeatThrottleZoomMs = 60;
 
-        // Win + Esc → Confirm and terminate application
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.ESCAPE,
-            Modifiers.WIN,
-            () =>
+        ApplicationControlHotkeyRegistry.Register(
+            hotkeyManager,
+            SourceApplicationControl,
+            onConfirmExit: () =>
             {
                 var result = PInvoke.MessageBox(
                     HWND.Null,
@@ -951,65 +950,25 @@ public class Program
                 AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
                 RequestAppExit("Win+Esc");
             },
-            description: "Prompt to terminate Macrosharp.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Alt + Win + Esc → Terminate application immediately
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.ESCAPE,
-            Modifiers.ALT_WIN,
-            () =>
+            onImmediateExit: () =>
             {
                 Console.WriteLine("Alt+Win+Esc: Terminating application immediately...");
                 AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
                 RequestAppExit("Alt+Win+Esc");
             },
-            description: "Terminate Macrosharp immediately.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Ctrl + Win + / → Show all registered hotkeys
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.OEM_2,
-            Modifiers.CTRL_WIN,
-            ShowHotkeysWindow,
-            description: "Open the hotkeys reference window.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Win + ? (Shift + / produces '?') → Show "application is running" notification
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.OEM_2,
-            Modifiers.SHIFT_WIN,
-            () =>
+            onShowHotkeys: ShowHotkeysWindow,
+            onShowRunningToast: () =>
             {
                 Console.WriteLine("Win+?: Showing 'running' notification.");
                 toastHost.Show(MakeRunningToast());
             },
-            description: "Show the running status toast with quick actions.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Win + Shift + Delete → Clear console output
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.DELETE,
-            Modifiers.SHIFT_WIN,
-            () =>
+            onClearConsole: () =>
             {
                 Console.Clear();
                 Console.WriteLine("Console cleared.");
                 AudioPlayer.PlayUndoAsync();
             },
-            description: "Clear console output.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Win + Shift + Insert → Toggle terminal output visibility
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.INSERT,
-            Modifiers.SHIFT_WIN,
-            () =>
+            onToggleConsoleVisibility: () =>
             {
                 bool visible = SystemActions.ToggleConsoleVisibility();
                 Console.WriteLine($"Console visibility: {(visible ? "Shown" : "Hidden")}");
@@ -1018,15 +977,7 @@ public class Program
                 else
                     AudioPlayer.PlayOffAsync();
             },
-            description: "Toggle console window visibility.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Ctrl + Alt + Win + P → Pause/resume all keyboard and mouse event handling
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_P,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
+            onTogglePauseResume: () =>
             {
                 _paused = !_paused;
                 Console.WriteLine($"Event handling: {(_paused ? "PAUSED" : "RESUMED")}");
@@ -1035,15 +986,7 @@ public class Program
                 else
                     AudioPlayer.PlayOnAsync();
             },
-            description: "Pause or resume keyboard and mouse automation.",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Ctrl + Alt + Win + B → Toggle burst click (start with prompt, stop if active)
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_B,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
+            onToggleBurstClick: () =>
             {
                 if (IsBurstClickActive())
                 {
@@ -1054,15 +997,7 @@ public class Program
                     StartBurstClickFromTray();
                 }
             },
-            description: "Toggle burst click (start when inactive, stop when active).",
-            sourceContext: SourceApplicationControl
-        );
-
-        // Ctrl + Alt + T → Toggle text expansion
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_T,
-            Modifiers.CTRL_ALT,
-            () =>
+            onToggleTextExpansion: () =>
             {
                 textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
                 Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
@@ -1070,9 +1005,7 @@ public class Program
                     AudioPlayer.PlayOnAsync();
                 else
                     AudioPlayer.PlayOffAsync();
-            },
-            description: "Toggle text expansion on or off.",
-            sourceContext: SourceApplicationControl
+            }
         );
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1084,10 +1017,9 @@ public class Program
         // 10. Register Hotkeys — Miscellaneous
         // ═══════════════════════════════════════════════════════════════════════
 
-        // ` + \ → Open image processing window
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.OEM_5,
-            Modifiers.BACKTICK,
+        MiscellaneousHotkeyRegistry.Register(
+            hotkeyManager,
+            SourceMiscellaneous,
             () =>
             {
                 Console.WriteLine("Opening image editor...");
@@ -1100,9 +1032,7 @@ public class Program
                     Warn("Program", "PlayImageEditorLaunchSound", "Failed to play image-editor launch sound", ex);
                 }
                 Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
-            },
-            description: "Open the image editor from clipboard content.",
-            sourceContext: SourceMiscellaneous
+            }
         );
 
         MediaAndDisplayHotkeyRegistry.Register(
