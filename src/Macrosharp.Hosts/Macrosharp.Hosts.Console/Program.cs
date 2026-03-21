@@ -768,24 +768,33 @@ public class Program
             e.Handled = true;
         };
 
-        var config = textExpansionConfigManager.LoadConfiguration();
-        textExpansionManager.LoadConfiguration(config);
+        TextExpansionConfiguration SetupTextExpansion()
+        {
+            var loadedConfig = textExpansionConfigManager.LoadConfiguration();
+            textExpansionManager.LoadConfiguration(loadedConfig);
 
-        textExpansionConfigManager.ConfigurationChanged += (_, newConfig) =>
-        {
-            textExpansionManager.LoadConfiguration(newConfig);
-            Console.WriteLine("Text expansion configuration reloaded.");
-        };
-        textExpansionManager.ExpansionOccurred += (_, e) =>
-        {
-            Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
-            AudioPlayer.PlayKnobAsync();
-        };
-        textExpansionManager.ExpansionError += (_, e) =>
-        {
-            Console.WriteLine($"Expansion error for '{e.Rule.Trigger}': {e.Exception.Message}");
-            AudioPlayer.PlayFailure();
-        };
+            textExpansionConfigManager.ConfigurationChanged += (_, newConfig) =>
+            {
+                textExpansionManager.LoadConfiguration(newConfig);
+                Console.WriteLine("Text expansion configuration reloaded.");
+            };
+
+            textExpansionManager.ExpansionOccurred += (_, e) =>
+            {
+                Console.WriteLine($"Expanded '{e.Rule.Trigger}' → '{(e.ExpandedText.Length > 50 ? e.ExpandedText[..50] + "..." : e.ExpandedText)}'");
+                AudioPlayer.PlayKnobAsync();
+            };
+
+            textExpansionManager.ExpansionError += (_, e) =>
+            {
+                Console.WriteLine($"Expansion error for '{e.Rule.Trigger}': {e.Exception.Message}");
+                AudioPlayer.PlayFailure();
+            };
+
+            return loadedConfig;
+        }
+
+        var config = SetupTextExpansion();
 
         Console.WriteLine("\nLoaded expansion rules:");
         foreach (var rule in config.Rules.Where(r => r.Enabled))
