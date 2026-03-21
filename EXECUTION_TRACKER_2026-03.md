@@ -18,7 +18,7 @@ Branch: roadmap/implementation-phased-mar2026
 |------|--------|--------|------------|------------|------------|------------|-------|
 | Phase 0 - Planning Baseline And Governance | 2026-03-23 to 2026-03-25 | Done | 2026-03-20 | 2026-03-25 | 2026-03-20 | 100 | Completed ahead of schedule during kickoff |
 | Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | Done | 2026-03-20 | 2026-04-04 | 2026-03-20 | 100 | Completed ahead of schedule with reliability warning format standardization |
-| Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | In Progress | 2026-03-20 | 2026-04-16 |  | 85 | Shared lifecycle parity extended to text expansion and reminder managers; remaining work is manual config-flow regression verification |
+| Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | In Progress | 2026-03-20 | 2026-04-16 |  | 90 | Shared lifecycle parity completed; manual config-flow regression verification is now in progress |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | Not Started |  | 2026-05-01 |  | 0 |  |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | Not Started |  | 2026-05-08 |  | 0 |  |
 | Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | Not Started |  | 2026-05-22 |  | 0 |  |
@@ -65,7 +65,7 @@ Goal: Remove duplicate config manager logic and centralize lifecycle behavior.
 | P2-2 | Integrate Main configuration manager into shared lifecycle |  | Done | 2026-04-09 | 2026-03-21 | 2026-03-21 | P2-1 | No | None | MainConfigurationManager now supports shared debounced watching, reload event callbacks, and disposal lifecycle |
 | P2-3 | Integrate Hotkey configuration manager into shared lifecycle |  | Done | 2026-04-11 | 2026-03-21 | 2026-03-21 | P2-1 | No | None | Added lifecycle parity methods and normalization while preserving last-known-good recovery semantics |
 | P2-4 | Integrate Text Expansion and Reminder managers |  | Done | 2026-04-14 | 2026-03-21 | 2026-03-21 | P2-2, P2-3 | No | None | Added lifecycle parity APIs, normalization, and aligned recovery messaging while keeping incremental backup naming |
-| P2-5 | Execute manual regression verification for config flows |  | Not Started | 2026-04-16 |  |  | P2-4 |  |  |  |
+| P2-5 | Execute manual regression verification for config flows |  | In Progress | 2026-04-16 | 2026-03-21 |  | P2-4 | No | None | Verification matrix expanded in MANUAL_VERIFICATION_CHECKLIST_2026-03.md; awaiting run-through results |
 
 ## Phase 3 Tracker
 
@@ -109,6 +109,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 |------|---------|----------|--------------------|-------------|----------|--------|
 | 2026-03-21 | P2-3 | Invalid hotkeys config behavior during lifecycle unification | Revert to last known good; fallback to default empty | User | Revert to last known good | Preserves active hotkeys when edited config is invalid |
 | 2026-03-21 | P2-4 | Backup naming and retention policy for text-expansion/reminder managers | Keep incremental naming with unlimited retention; cap retention (for example last 10) | User | Keep incremental naming and unlimited retention | Preserves current behavior and avoids migration side effects |
+| 2026-03-21 | P2-5 | Corruption recovery feedback policy across managers | UI feedback everywhere; mixed approach with targeted dialogs and console diagnostics | User | Mixed approach | Keeps behavior stable while preserving user-facing alerts where already implemented |
 
 ## Blocker Log
 
@@ -121,6 +122,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 |------|--------------|----------|--------|------------|-------------|
 | 2026-03-21 | P2-3 | Keep last-known-good recovery for invalid hotkeys config | Maintain runtime continuity and avoid accidental hotkey loss due to malformed edits | Invalid file still requires manual correction; fallback defaults not automatically applied | User |
 | 2026-03-21 | P2-4 | Keep incremental .bak naming and unlimited backup retention | Maintain compatibility and reduce risk during lifecycle unification | Backup files may accumulate over time | User |
+| 2026-03-21 | P2-5 | Use mixed corruption-recovery feedback policy | Avoid intrusive UI in all paths while preserving visibility for critical managers | Feedback consistency is not absolute across managers | User |
 
 ## Manual Verification Summary (Per Phase)
 

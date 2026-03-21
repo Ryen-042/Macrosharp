@@ -75,6 +75,24 @@ Record:
 - Result:
 - Notes:
 
+## E.1) Phase 2 Config Lifecycle Matrix (P2-5)
+
+Execute this matrix for [main, hotkeys, text-expansions, reminders]:
+1. Start with valid file and confirm startup load succeeds.
+2. Edit valid JSON while app is running and confirm expected reload behavior.
+3. Introduce invalid JSON and confirm backup creation with incremental .bak naming.
+4. Confirm recovery behavior keeps last-known-good state where implemented.
+5. Restore valid JSON and confirm system returns to normal behavior.
+
+Expected feedback policy (approved):
+1. Mixed approach is acceptable.
+2. User-facing dialogs are required only where currently implemented.
+3. Console diagnostics are acceptable for other recovery paths.
+
+Record:
+- Result:
+- Notes:
+
 ## F) Path Safety And Input Validation
 
 1. Normal config and asset paths still resolve correctly.
