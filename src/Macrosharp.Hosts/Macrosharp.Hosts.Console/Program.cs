@@ -151,182 +151,195 @@ public class Program
 
         SetupMainConfigurationWatching();
 
-        bool IsBurstClickActive()
+        var burstClickController = SetupBurstClickController();
+
+        bool IsBurstClickActive() => burstClickController.IsActive();
+
+        void StopBurstClick(string reason, bool notifyWhenInactive = true) => burstClickController.Stop(reason, notifyWhenInactive);
+
+        void StartBurstClickFromTray() => burstClickController.Start();
+
+        (Func<bool> IsActive, Action<string, bool> Stop, Action Start) SetupBurstClickController()
         {
-            lock (burstClickStateGate)
+            bool IsActiveImpl()
             {
-                return burstClickActive;
+                lock (burstClickStateGate)
+                {
+                    return burstClickActive;
+                }
             }
-        }
 
-        string SanitizeWindowInput(string? value)
-        {
-            return (value ?? string.Empty).Replace("\0", string.Empty).Trim();
-        }
-
-        bool TryParseBurstInteger(string rawValue, int defaultValue, string fieldName, bool allowZero, out int parsedValue, out string? error)
-        {
-            if (string.IsNullOrWhiteSpace(rawValue))
+            string SanitizeWindowInput(string? value)
             {
-                parsedValue = defaultValue;
+                return (value ?? string.Empty).Replace("\0", string.Empty).Trim();
+            }
+
+            bool TryParseBurstInteger(string rawValue, int defaultValue, string fieldName, bool allowZero, out int parsedValue, out string? error)
+            {
+                if (string.IsNullOrWhiteSpace(rawValue))
+                {
+                    parsedValue = defaultValue;
+                    error = null;
+                    return true;
+                }
+
+                if (!int.TryParse(rawValue, out parsedValue))
+                {
+                    error = $"{fieldName} must be a valid integer.";
+                    return false;
+                }
+
+                if (allowZero)
+                {
+                    if (parsedValue < 0)
+                    {
+                        error = $"{fieldName} must be zero or greater.";
+                        return false;
+                    }
+                }
+                else if (parsedValue <= 0)
+                {
+                    error = $"{fieldName} must be greater than zero.";
+                    return false;
+                }
+
                 error = null;
                 return true;
             }
 
-            if (!int.TryParse(rawValue, out parsedValue))
+            void StopImpl(string reason, bool notifyWhenInactive)
             {
-                error = $"{fieldName} must be a valid integer.";
-                return false;
-            }
+                CancellationTokenSource? cancellationToCancel;
 
-            if (allowZero)
-            {
-                if (parsedValue < 0)
+                lock (burstClickStateGate)
                 {
-                    error = $"{fieldName} must be zero or greater.";
-                    return false;
-                }
-            }
-            else if (parsedValue <= 0)
-            {
-                error = $"{fieldName} must be greater than zero.";
-                return false;
-            }
-
-            error = null;
-            return true;
-        }
-
-        void StopBurstClick(string reason, bool notifyWhenInactive = true)
-        {
-            CancellationTokenSource? cancellationToCancel;
-
-            lock (burstClickStateGate)
-            {
-                if (!burstClickActive)
-                {
-                    if (notifyWhenInactive)
+                    if (!burstClickActive)
                     {
-                        Console.WriteLine("Burst click is not active.");
+                        if (notifyWhenInactive)
+                        {
+                            Console.WriteLine("Burst click is not active.");
+                        }
+                        return;
                     }
+
+                    burstClickStopReason = reason;
+                    cancellationToCancel = burstClickCancellation;
+                }
+
+                cancellationToCancel?.Cancel();
+            }
+
+            void StartImpl()
+            {
+                if (IsActiveImpl())
+                {
+                    Console.WriteLine("Burst click is already active. Use Stop Burst Click first.");
                     return;
                 }
 
-                burstClickStopReason = reason;
-                cancellationToCancel = burstClickCancellation;
-            }
+                var window = new SimpleWindow("Start Burst Click", labelWidth: 200);
+                window.CreateDynamicInputWindow(
+                    ["Interval (ms)", "Duration (ms, 0 = infinite)"],
+                    [KeyboardSimulator.DefaultBurstClickIntervalMs.ToString(), KeyboardSimulator.DefaultBurstClickDurationMs.ToString()],
+                    enableKeyCapture: true
+                );
 
-            cancellationToCancel?.Cancel();
-        }
-
-        void StartBurstClickFromTray()
-        {
-            if (IsBurstClickActive())
-            {
-                Console.WriteLine("Burst click is already active. Use Stop Burst Click first.");
-                return;
-            }
-
-            var window = new SimpleWindow("Start Burst Click", labelWidth: 200);
-            window.CreateDynamicInputWindow(
-                ["Interval (ms)", "Duration (ms, 0 = infinite)"],
-                [KeyboardSimulator.DefaultBurstClickIntervalMs.ToString(), KeyboardSimulator.DefaultBurstClickDurationMs.ToString()],
-                enableKeyCapture: true
-            );
-
-            if (window.userInputs.Count < 2)
-            {
-                Console.WriteLine("Burst click start canceled.");
-                return;
-            }
-
-            if (window.capturedKeyVK == 0)
-            {
-                Console.WriteLine("Burst click requires a captured key.");
-                return;
-            }
-
-            string intervalText = SanitizeWindowInput(window.userInputs[0]);
-            string durationText = SanitizeWindowInput(window.userInputs[1]);
-
-            if (!TryParseBurstInteger(intervalText, KeyboardSimulator.DefaultBurstClickIntervalMs, "Interval", allowZero: false, out int requestedIntervalMs, out string? parseError))
-            {
-                Console.WriteLine($"Burst click start failed: {parseError}");
-                return;
-            }
-
-            if (!TryParseBurstInteger(durationText, KeyboardSimulator.DefaultBurstClickDurationMs, "Duration", allowZero: true, out int requestedDurationMs, out parseError))
-            {
-                Console.WriteLine($"Burst click start failed: {parseError}");
-                return;
-            }
-
-            VirtualKey requestedKey = (VirtualKey)window.capturedKeyVK;
-            if (!KeyboardSimulator.TryValidateBurstClickSettings(requestedKey, requestedIntervalMs, requestedDurationMs, out string? validationError))
-            {
-                Console.WriteLine($"Burst click start failed: {validationError}");
-                return;
-            }
-
-            CancellationTokenSource localCancellation;
-            lock (burstClickStateGate)
-            {
-                burstClickKey = requestedKey;
-                burstClickIntervalMs = requestedIntervalMs;
-                burstClickDurationMs = requestedDurationMs;
-                burstClickStopReason = null;
-                burstClickCancellation = new CancellationTokenSource();
-                localCancellation = burstClickCancellation;
-                burstClickActive = true;
-            }
-
-            burstClickTask = Task.Run(async () =>
-            {
-                try
+                if (window.userInputs.Count < 2)
                 {
-                    await KeyboardSimulator.SimulateBurstClicksAsync(burstClickKey, burstClickIntervalMs, burstClickDurationMs, localCancellation.Token);
-
-                    if (burstClickDurationMs > 0)
-                    {
-                        Console.WriteLine("Burst click finished after requested duration.");
-                    }
+                    Console.WriteLine("Burst click start canceled.");
+                    return;
                 }
-                catch (OperationCanceledException)
-                {
-                    string stopReason;
-                    lock (burstClickStateGate)
-                    {
-                        stopReason = burstClickStopReason ?? "cancellation";
-                    }
-                    Console.WriteLine($"Burst click stopped ({stopReason}).");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Burst click failed: {ex.Message}");
-                }
-                finally
-                {
-                    lock (burstClickStateGate)
-                    {
-                        burstClickActive = false;
-                        burstClickStopReason = null;
 
-                        if (ReferenceEquals(burstClickCancellation, localCancellation))
+                if (window.capturedKeyVK == 0)
+                {
+                    Console.WriteLine("Burst click requires a captured key.");
+                    return;
+                }
+
+                string intervalText = SanitizeWindowInput(window.userInputs[0]);
+                string durationText = SanitizeWindowInput(window.userInputs[1]);
+
+                if (!TryParseBurstInteger(intervalText, KeyboardSimulator.DefaultBurstClickIntervalMs, "Interval", allowZero: false, out int requestedIntervalMs, out string? parseError))
+                {
+                    Console.WriteLine($"Burst click start failed: {parseError}");
+                    return;
+                }
+
+                if (!TryParseBurstInteger(durationText, KeyboardSimulator.DefaultBurstClickDurationMs, "Duration", allowZero: true, out int requestedDurationMs, out parseError))
+                {
+                    Console.WriteLine($"Burst click start failed: {parseError}");
+                    return;
+                }
+
+                VirtualKey requestedKey = (VirtualKey)window.capturedKeyVK;
+                if (!KeyboardSimulator.TryValidateBurstClickSettings(requestedKey, requestedIntervalMs, requestedDurationMs, out string? validationError))
+                {
+                    Console.WriteLine($"Burst click start failed: {validationError}");
+                    return;
+                }
+
+                CancellationTokenSource localCancellation;
+                lock (burstClickStateGate)
+                {
+                    burstClickKey = requestedKey;
+                    burstClickIntervalMs = requestedIntervalMs;
+                    burstClickDurationMs = requestedDurationMs;
+                    burstClickStopReason = null;
+                    burstClickCancellation = new CancellationTokenSource();
+                    localCancellation = burstClickCancellation;
+                    burstClickActive = true;
+                }
+
+                burstClickTask = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await KeyboardSimulator.SimulateBurstClicksAsync(burstClickKey, burstClickIntervalMs, burstClickDurationMs, localCancellation.Token);
+
+                        if (burstClickDurationMs > 0)
                         {
-                            burstClickCancellation.Dispose();
-                            burstClickCancellation = null;
+                            Console.WriteLine("Burst click finished after requested duration.");
                         }
-
-                        burstClickTask = null;
                     }
-                }
-            });
+                    catch (OperationCanceledException)
+                    {
+                        string stopReason;
+                        lock (burstClickStateGate)
+                        {
+                            stopReason = burstClickStopReason ?? "cancellation";
+                        }
+                        Console.WriteLine($"Burst click stopped ({stopReason}).");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Burst click failed: {ex.Message}");
+                    }
+                    finally
+                    {
+                        lock (burstClickStateGate)
+                        {
+                            burstClickActive = false;
+                            burstClickStopReason = null;
 
-            Console.WriteLine(
-                burstClickDurationMs == 0
-                    ? $"Burst click started for key {burstClickKey} every {burstClickIntervalMs}ms. Use tray Stop or press ESC to stop."
-                    : $"Burst click started for key {burstClickKey} every {burstClickIntervalMs}ms for {burstClickDurationMs}ms."
-            );
+                            if (ReferenceEquals(burstClickCancellation, localCancellation))
+                            {
+                                burstClickCancellation.Dispose();
+                                burstClickCancellation = null;
+                            }
+
+                            burstClickTask = null;
+                        }
+                    }
+                });
+
+                Console.WriteLine(
+                    burstClickDurationMs == 0
+                        ? $"Burst click started for key {burstClickKey} every {burstClickIntervalMs}ms. Use tray Stop or press ESC to stop."
+                        : $"Burst click started for key {burstClickKey} every {burstClickIntervalMs}ms for {burstClickDurationMs}ms."
+                );
+            }
+
+            return (IsActiveImpl, StopImpl, StartImpl);
         }
 
         void RequestAppExit(string source)
