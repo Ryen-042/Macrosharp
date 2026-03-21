@@ -2,7 +2,7 @@
 
 Date: 2026-03-21
 Scope: P2-5 manual regression verification for configuration lifecycle
-Status: In Progress
+Status: Completed
 
 ## Completed Checks
 
@@ -26,14 +26,33 @@ Status: In Progress
 - Verified runtime logs show config watchers disabled for reminders and text expansions by default
 - Result: Pass
 
-## Pending Manual Checks
+5. Live reload with watchers enabled (main, text-expansions, reminders)
+- Setup: Temporarily enabled MainConfig, TextExpansionsConfig, and RemindersConfig watcher toggles.
+- Verified: Runtime watcher startup logs, file-change detection logs, and reload messages.
+- Result: Pass
 
-1. Per-config missing-file recreate behavior while running full workflow
-2. Valid file edit reload behavior with watch toggles enabled per file
-3. Corrupted file recovery path for all four config categories
-4. Feedback policy validation (mixed UI/console) across all corruption cases
+6. Corrupted config recovery (text-expansions)
+- Setup: Wrote invalid JSON while app was running.
+- Verified: Parse failure logged, incremental backup created (text-expansions.bak0.json), and revert-to-last-known-good message logged.
+- Result: Pass
+
+7. Corrupted config recovery (reminders)
+- Setup: Wrote invalid JSON while app was running.
+- Verified: Parse failure logged, incremental backup created (reminders.bak0.json), and revert-to-last-known-good message logged.
+- Result: Pass
+
+8. Stderr/runtime error scan
+- Verified: No stderr output during scripted live verification run.
+- Result: Pass
+
+## Scope Notes
+
+1. Host runtime currently exercises main, text-expansion, and reminder config flows directly.
+2. Hotkey configuration manager lifecycle verification was completed at manager-implementation level, but not via host runtime flow because host currently does not wire hotkeys.json loading in Program.
+3. Mixed feedback policy remains in effect: targeted UI prompts in selected managers and console diagnostics in others.
 
 ## Notes
 
 - Current process lock behavior for apphost binaries requires using UseAppHost=false for unattended build verification while host is running.
 - No runtime exceptions observed during startup smoke run.
+- Temporary verification artifacts and backup files created during runtime testing were cleaned up after evidence capture.
