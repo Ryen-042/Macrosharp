@@ -87,7 +87,7 @@ Goal: Improve reminder scheduler efficiency by reducing unnecessary wakeups.
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P4-1 | Refactor reminder loop to next-due scheduling model |  | Done | 2026-05-04 | 2026-03-21 | 2026-03-21 | P3-5 | No | None | Replaced fixed polling with next-due delay scheduling and wake signals for config/snooze changes |
 | P4-2 | Refresh schedule on snooze and config changes |  | Done | 2026-05-06 | 2026-03-21 | 2026-03-21 | P4-1 | No | None | Snooze callbacks and schedule rebuilds now signal immediate scheduler wake; config-change path rebuilds schedule and wakes loop |
-| P4-3 | Verify reminder behavior parity manually |  | Not Started | 2026-05-08 |  |  | P4-2 |  |  |  |
+| P4-3 | Verify reminder behavior parity manually |  | In Progress | 2026-05-08 | 2026-03-21 |  | P4-2 | No | None | Validation checklist and status captured in PHASE4_VERIFICATION_LOG_2026-03-21.md |
 
 ## Phase 5 Tracker
 
