@@ -1115,107 +1115,16 @@ public class Program
             RepeatThrottleZoomMs
         );
 
-        // Win + CapsLock → Toggle Scroll Lock
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.CAPITAL,
-            Modifiers.WIN,
+        PowerAndDisplayHotkeyRegistry.Register(
+            hotkeyManager,
+            SourceMiscellaneous,
             () =>
             {
-                KeyboardSimulator.SimulateKeyPress(VirtualKey.SCROLL);
-                bool scrollOn = Modifiers.IsScrollLockOn;
-                Console.WriteLine($"Scroll Lock toggled → {(scrollOn ? "ON" : "OFF")}");
-                if (scrollOn)
-                    AudioPlayer.PlayOnAsync();
-                else
-                    AudioPlayer.PlayOffAsync();
+                var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
+                return result == MESSAGEBOX_RESULT.IDYES;
             },
-            description: "Toggle Scroll Lock.",
-            sourceContext: SourceMiscellaneous
+            (component, operation, details, ex) => Warn(component, operation, details, ex)
         );
-
-        // Ctrl + Alt + Win + S → Sleep mode
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_S,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
-            {
-                Console.WriteLine("Entering sleep mode...");
-                try
-                {
-                    AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Logoff Sound.wav");
-                }
-                catch (Exception ex)
-                {
-                    Warn("Program", "PlaySleepSound", "Failed to play sleep sound", ex);
-                } // sync so it finishes before sleep
-                SystemActions.Sleep();
-            },
-            description: "Put the system to sleep.",
-            sourceContext: SourceMiscellaneous
-        );
-
-        // Ctrl + Alt + Win + Q → Shutdown (with confirmation)
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.KEY_Q,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
-            {
-                var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp — Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
-                if (result == MESSAGEBOX_RESULT.IDYES)
-                {
-                    Console.WriteLine("Shutting down...");
-                    SystemActions.Shutdown();
-                }
-            },
-            description: "Shut down the system with confirmation.",
-            sourceContext: SourceMiscellaneous
-        );
-
-        // Ctrl + Alt + Win + Num1-4 → Display switch
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.NUMPAD1,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
-            {
-                SystemActions.SwitchDisplay(1);
-                AudioPlayer.PlayBonkAsync();
-            },
-            description: "Switch display mode to internal screen.",
-            sourceContext: SourceMiscellaneous
-        ); // Internal
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.NUMPAD2,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
-            {
-                SystemActions.SwitchDisplay(2);
-                AudioPlayer.PlayBonkAsync();
-            },
-            description: "Switch display mode to external screen.",
-            sourceContext: SourceMiscellaneous
-        ); // External
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.NUMPAD3,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
-            {
-                SystemActions.SwitchDisplay(3);
-                AudioPlayer.PlayBonkAsync();
-            },
-            description: "Switch display mode to extend.",
-            sourceContext: SourceMiscellaneous
-        ); // Extend
-        hotkeyManager.RegisterHotkey(
-            VirtualKey.NUMPAD4,
-            Modifiers.CTRL_ALT_WIN,
-            () =>
-            {
-                SystemActions.SwitchDisplay(4);
-                AudioPlayer.PlayBonkAsync();
-            },
-            description: "Switch display mode to clone.",
-            sourceContext: SourceMiscellaneous
-        ); // Clone
 
         // ═══════════════════════════════════════════════════════════════════════
         // 11. Register Hotkeys — File Management (Explorer-Focused)
