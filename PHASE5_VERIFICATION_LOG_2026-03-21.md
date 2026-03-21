@@ -19,6 +19,12 @@ Status: In Progress
 - Verified: host-shared extraction and Program orchestration decomposition are documented and tracker status is aligned.
 - Result: Pass
 
+4. Host startup smoke and controlled shutdown
+- Command: dotnet run --project src/Macrosharp.Hosts/Macrosharp.Hosts.Console/Macrosharp.Hosts.Console.csproj
+- Verified startup signals: AUMID registration, toast host startup, text expansion configuration load, and ready banner output.
+- Verified shutdown signals: Ctrl+C exit path with cleanup/dispose logs for mouse binding, text expansion, hotkeys, and toast host.
+- Result: Pass (non-interactive smoke)
+
 ## Pending Interactive Validation (Manual)
 
 1. Host startup and tray stability
