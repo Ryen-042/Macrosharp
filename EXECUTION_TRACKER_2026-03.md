@@ -21,7 +21,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
-| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 99 | P5-1 through P5-4 completed; P5-5 release-readiness preflight (build/publish) passed and interactive checklist validation is in progress |
+| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 95 | P5-5 validation completed with no regressions; scope now includes final Program.cs decomposition to remove remaining behavior logic from Main into dedicated methods/classes |
 
 ## Milestones
 
@@ -99,7 +99,8 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 | P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | Done | 2026-05-14 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Completed by extracting setup helpers for config watching, tray menu construction, text-expansion wiring, keyboard/mouse handlers, hotkey registration wiring, runtime notifier setup, cleanup, and burst-click controller, leaving Main focused on bootstrap and lifecycle orchestration |
 | P5-3 | Implement runtime hotkey reference window |  | Done | 2026-05-17 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Runtime hotkey reference window is available via tray action and Ctrl+Win+/, with filterable table UX, deterministic source/hotkey sorting, and live item count in the title |
 | P5-4 | Update architecture and operations documentation |  | Done | 2026-05-20 | 2026-03-21 | 2026-03-21 | P5-2, P5-3 | No | None | Updated README and FEATURES to reflect host-shared architecture, setup-method orchestration in Program, and runtime hotkey reference behavior (tray/hotkey access, sorting, and item count visibility) |
-| P5-5 | Final manual validation and release readiness review |  | In Progress | 2026-05-22 | 2026-03-21 |  | P5-4 | No | None | Build and publish preflight checks passed, non-interactive host startup/shutdown smoke passed, and remaining interactive checklist/sign-off is tracked in PHASE5_VERIFICATION_LOG_2026-03-21.md |
+| P5-5 | Final manual validation and release readiness review |  | Done | 2026-05-22 | 2026-03-21 | 2026-03-21 | P5-4 | No | None | Build and publish preflight passed; interactive desktop scenarios completed and passed with no regressions (PHASE5_VERIFICATION_LOG_2026-03-21.md) |
+| P5-6 | Complete Program.cs decomposition (Main calls only) |  | In Progress | 2026-05-24 | 2026-03-21 |  | P5-2 | No | None | Extract remaining behavior/interaction logic (tray workflow behavior, runtime notifier wiring, hotkey callback behavior composition, burst-click orchestration internals) from Main-local implementations into dedicated methods/classes so Main only orchestrates bootstrap/lifecycle calls |
 
 ## Clarification Log
 

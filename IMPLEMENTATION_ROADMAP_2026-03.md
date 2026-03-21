@@ -198,6 +198,11 @@ Tasks:
    - Clarification checkpoint: Confirm release go/no-go thresholds for known non-blocking issues.
    - Target completion: 2026-05-22.
 
+6. Complete Program.cs decomposition to orchestration-only Main.
+   - Description: Move any remaining Main-local behavior/interaction logic into dedicated methods/classes so Main only coordinates startup, wiring entry points, and shutdown lifecycle.
+   - Clarification checkpoint: Confirm preferred boundary between Program-level static helpers and extracted host service classes.
+   - Target completion: 2026-05-24.
+
 ## 4) Cross-Phase Review And Update Cadence
 
 1. Daily: Update task status and risks at end of development day.
