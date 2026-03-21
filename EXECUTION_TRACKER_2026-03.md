@@ -21,7 +21,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
-| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | Not Started |  | 2026-05-22 |  | 0 |  |
+| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 10 | P5-1 started with first hotkey registration module extraction for window-management actions |
 
 ## Milestones
 
@@ -95,7 +95,7 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
-| P5-1 | Extract hotkey registrations into grouped registry modules |  | Not Started | 2026-05-12 |  |  | P4-3 |  |  |  |
+| P5-1 | Extract hotkey registrations into grouped registry modules |  | In Progress | 2026-05-12 | 2026-03-21 |  | P4-3 | No | None | Extracted window-management registrations from Program into HotkeyRegistrations/WindowManagementHotkeyRegistry.cs and wired Program call site |
 | P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | Not Started | 2026-05-14 |  |  | P5-1 |  |  |  |
 | P5-3 | Implement runtime hotkey reference window |  | Not Started | 2026-05-17 |  |  | P5-1 |  |  |  |
 | P5-4 | Update architecture and operations documentation |  | Not Started | 2026-05-20 |  |  | P5-2, P5-3 |  |  |  |
@@ -116,6 +116,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 | 2026-03-21 | P3-4 | Policy selection for high-frequency repeatable hotkeys | Keep default immediate everywhere; map targeted repeatable actions to throttled/coalesced | User | Map high-frequency repeatable actions: coalesced for window adjustments, throttled for media/volume/brightness/zoom | Reduces unbounded fan-out on held keys while preserving responsiveness for discrete actions |
 | 2026-03-21 | P4-1 | Reminder scheduler cadence model | Keep fixed 1-second polling loop; switch to next-due wake-up model | User | Switch to next-due wake-up model with explicit wake signals on schedule mutations | Reduces unnecessary wakeups and CPU churn while preserving reminder delivery behavior |
 | 2026-03-21 | P4-2 | Schedule refresh timing for snooze/config mutations | Continue relying on periodic polling; wake scheduler immediately when schedule changes | User | Wake scheduler immediately on snooze and config-driven schedule rebuild events | Improves reminder timing responsiveness without increasing idle CPU usage |
+| 2026-03-21 | P5-1 | Initial extraction boundary for Program decomposition | Extract all hotkey blocks at once; extract by source group incrementally | User | Start with Window Management group extraction as first safe incremental slice | Reduces refactor risk and keeps behavior diff contained while preparing full module split |
 
 ## Blocker Log
 
@@ -135,6 +136,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 | 2026-03-21 | P3-4 | Apply explicit dispatch policy overrides to high-frequency repeatable hotkeys | Realize bounded dispatch model gains in concrete hotkey paths most likely to fan out under held-key repeats | Requires tuning throttle intervals based on manual responsiveness testing | User |
 | 2026-03-21 | P4-1 | Use next-due scheduling for reminder loop and wake on schedule changes | Improve scheduler efficiency by replacing periodic polling with event-driven wake plus due-time delay | Requires careful wake signaling to avoid missed updates | User |
 | 2026-03-21 | P4-2 | Signal scheduler wake on snooze/config schedule changes | Ensure schedule mutations are applied promptly instead of waiting for a periodic loop tick | Additional synchronization paths must remain race-safe | User |
+| 2026-03-21 | P5-1 | Extract window-management hotkeys into dedicated registry class before broader host decomposition | Begin reducing Program size with a low-coupling hotkey group and validate build before extracting additional groups | Temporary mixed architecture while remaining groups are still in Program | User |
 
 ## Manual Verification Summary (Per Phase)
 
@@ -176,11 +178,11 @@ Template to complete before closing each phase.
 ### Week Of 2026-03-30
 
 - Completed: Phase 1 tasks P1-1 through P1-5, full Phase 2 tasks P2-1 through P2-5, and Phase 3 tasks P3-1 through P3-4.
-- In progress: Phase 3 task P3-5 responsiveness validation under heavy manual scenarios, and Phase 4 task P4-3 reminder behavior parity validation.
+- In progress: Phase 3 task P3-5 responsiveness validation under heavy manual scenarios, Phase 4 task P4-3 reminder behavior parity validation, and Phase 5 task P5-1 modular hotkey extraction.
 - Blockers: None.
 - Clarifications requested: None.
 - Timeline impact: Strongly positive (Milestone B achieved early and Phase 3 started ahead of window).
-- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), and scheduler cadence updates for P4-1/P4-2.
+- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), scheduler cadence updates for P4-1/P4-2, and started P5-1 with first extracted hotkey registry module.
 
 ### Week Of 2026-04-06
 
