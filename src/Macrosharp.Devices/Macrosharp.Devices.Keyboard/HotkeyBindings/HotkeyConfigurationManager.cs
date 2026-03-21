@@ -9,11 +9,7 @@ namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 // Manages loading, saving, and monitoring changes to the hotkey configuration file.
 public class HotkeyConfigurationManager : IDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
     private readonly string _configFilePath;
     private readonly DebouncedFileWatcher _configWatcher;

@@ -8,6 +8,7 @@ namespace Macrosharp.Devices.Keyboard.TextExpansion;
 public class TextExpansionManager : IDisposable
 {
     private readonly record struct IndexedRule(TextExpansionRule Rule, int Order);
+
     private readonly record struct PendingExpansion(TextExpansionRule Rule, bool IsDelimiterMode, char? DelimiterChar);
 
     private readonly KeyboardHookManager _keyboardHookManager;

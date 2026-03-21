@@ -262,16 +262,8 @@ internal static class ProgramTrayMenuFactory
             TrayMenuItem.Submenu(
                 "Burst Click",
                 [
-                    TrayMenuItem.ActionItem(
-                        () => dependencies.IsBurstClickActive() ? "Start Burst Click (active)" : "Start Burst Click",
-                        dependencies.StartBurstClick,
-                        iconPath: dependencies.IconCycler.GetNext()
-                    ),
-                    TrayMenuItem.ActionItem(
-                        () => dependencies.IsBurstClickActive() ? "Stop Burst Click" : "Stop Burst Click (inactive)",
-                        () => dependencies.StopBurstClick("tray menu"),
-                        iconPath: dependencies.IconCycler.GetNext()
-                    ),
+                    TrayMenuItem.ActionItem(() => dependencies.IsBurstClickActive() ? "Start Burst Click (active)" : "Start Burst Click", dependencies.StartBurstClick, iconPath: dependencies.IconCycler.GetNext()),
+                    TrayMenuItem.ActionItem(() => dependencies.IsBurstClickActive() ? "Stop Burst Click" : "Stop Burst Click (inactive)", () => dependencies.StopBurstClick("tray menu"), iconPath: dependencies.IconCycler.GetNext()),
                 ],
                 iconPath: dependencies.IconCycler.GetNext()
             ),

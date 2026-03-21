@@ -7,12 +7,7 @@ namespace Macrosharp.Hosts.Shared.HotkeyRegistrations;
 
 public static class PowerAndDisplayHotkeyRegistry
 {
-    public static void Register(
-        HotkeyManager hotkeyManager,
-        string sourceContext,
-        Func<bool> confirmShutdown,
-        Action<string, string, string, Exception?> warn
-    )
+    public static void Register(HotkeyManager hotkeyManager, string sourceContext, Func<bool> confirmShutdown, Action<string, string, string, Exception?> warn)
     {
         // Win+CapsLock toggles Scroll Lock state.
         hotkeyManager.RegisterHotkey(

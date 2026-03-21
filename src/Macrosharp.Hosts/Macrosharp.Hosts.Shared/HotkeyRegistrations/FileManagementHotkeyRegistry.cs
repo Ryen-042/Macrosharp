@@ -44,16 +44,44 @@ public static class FileManagementHotkeyRegistry
         );
 
         // ` + P -> Convert selected PowerPoint files to PDF
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn, description: "Convert selected PowerPoint files to PDF.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_P,
+            Modifiers.BACKTICK,
+            () => ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint"),
+            () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
+            description: "Convert selected PowerPoint files to PDF.",
+            sourceContext: sourceContext
+        );
 
         // ` + O -> Convert selected Word files to PDF
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_O, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Word"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn, description: "Convert selected Word files to PDF.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_O,
+            Modifiers.BACKTICK,
+            () => ExplorerFileAutomation.OfficeFilesToPdf("Word"),
+            () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
+            description: "Convert selected Word files to PDF.",
+            sourceContext: sourceContext
+        );
 
         // ` + E -> Convert selected Excel files to PDF
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_E, Modifiers.BACKTICK, () => ExplorerFileAutomation.OfficeFilesToPdf("Excel"), () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn, description: "Convert selected Excel files to PDF.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_E,
+            Modifiers.BACKTICK,
+            () => ExplorerFileAutomation.OfficeFilesToPdf("Excel"),
+            () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
+            description: "Convert selected Excel files to PDF.",
+            sourceContext: sourceContext
+        );
 
         // Ctrl + Shift + P -> Merge selected images into PDF (Normal mode)
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_P, Modifiers.CTRL_SHIFT, () => ExplorerFileAutomation.ImagesToPdf(), ExplorerHotkeys.IsExplorerOrDesktopFocused, description: "Merge selected images into a PDF.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_P,
+            Modifiers.CTRL_SHIFT,
+            () => ExplorerFileAutomation.ImagesToPdf(),
+            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            description: "Merge selected images into a PDF.",
+            sourceContext: sourceContext
+        );
 
         // Ctrl + Shift + Alt + P -> Merge selected images into PDF (Resize mode)
         hotkeyManager.RegisterConditionalHotkey(
@@ -82,9 +110,23 @@ public static class FileManagementHotkeyRegistry
         );
 
         // Ctrl + Alt + Win + I -> Convert selected images to .ico
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_I, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedImagesToIco(), ExplorerHotkeys.IsExplorerOrDesktopFocused, description: "Convert selected images to ICO files.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_I,
+            Modifiers.CTRL_ALT_WIN,
+            () => ExplorerHotkeys.ConvertSelectedImagesToIco(),
+            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            description: "Convert selected images to ICO files.",
+            sourceContext: sourceContext
+        );
 
         // Ctrl + Alt + Win + M -> Convert selected .mp3 files to .wav
-        hotkeyManager.RegisterConditionalHotkey(VirtualKey.KEY_M, Modifiers.CTRL_ALT_WIN, () => ExplorerHotkeys.ConvertSelectedMp3ToWav(), ExplorerHotkeys.IsExplorerOrDesktopFocused, description: "Convert selected MP3 files to WAV.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(
+            VirtualKey.KEY_M,
+            Modifiers.CTRL_ALT_WIN,
+            () => ExplorerHotkeys.ConvertSelectedMp3ToWav(),
+            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            description: "Convert selected MP3 files to WAV.",
+            sourceContext: sourceContext
+        );
     }
 }

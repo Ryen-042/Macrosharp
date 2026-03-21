@@ -17,19 +17,9 @@ internal static class RuntimeHotkeyReferenceWindow
             .GetRegisteredHotkeysSnapshot()
             .OrderBy(h => string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext, StringComparer.OrdinalIgnoreCase)
             .ThenBy(h => h.Hotkey.ToString(), StringComparer.OrdinalIgnoreCase)
-            .Select(h => (IReadOnlyList<string>)new List<string>
-            {
-                h.Hotkey.ToString(),
-                string.IsNullOrWhiteSpace(h.Description) ? "No description" : h.Description,
-                string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext,
-            })
+            .Select(h => (IReadOnlyList<string>)new List<string> { h.Hotkey.ToString(), string.IsNullOrWhiteSpace(h.Description) ? "No description" : h.Description, string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext })
             .ToList();
 
-        FilterableTableWindow.ShowOrActivate(
-            $"Macrosharp Hotkeys ({rows.Count})",
-            ["Hotkey", "Description", "Source"],
-            rows,
-            filterPlaceholder: "Type to filter hotkeys..."
-        );
+        FilterableTableWindow.ShowOrActivate($"Macrosharp Hotkeys ({rows.Count})", ["Hotkey", "Description", "Source"], rows, filterPlaceholder: "Type to filter hotkeys...");
     }
 }

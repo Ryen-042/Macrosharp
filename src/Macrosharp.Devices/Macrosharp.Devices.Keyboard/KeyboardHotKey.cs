@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Macrosharp.Devices.Core;
@@ -68,16 +67,7 @@ public enum HotkeyDispatchPolicy
 /// <summary>Manages the registration and detection of global hotkeys.</summary>
 public class HotkeyManager : IDisposable
 {
-    private sealed record RegisteredHotkeyEntry(
-        Action Action,
-        Func<bool>? Condition,
-        bool AllowRepeat,
-        string? Description,
-        string? SourceContext,
-        HotkeyDispatchPolicy DispatchPolicy,
-        int ThrottleIntervalMs,
-        bool IsDestructive
-    );
+    private sealed record RegisteredHotkeyEntry(Action Action, Func<bool>? Condition, bool AllowRepeat, string? Description, string? SourceContext, HotkeyDispatchPolicy DispatchPolicy, int ThrottleIntervalMs, bool IsDestructive);
 
     private readonly KeyboardHookManager _keyboardHookManager;
 
@@ -121,7 +111,16 @@ public class HotkeyManager : IDisposable
     /// <param name="modifiers">The bitmask of modifier keys (e.g., Modifiers.CTRL | Modifiers.SHIFT).</param>
     /// <param name="action">The action to execute when the hotkey is pressed.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterHotkey(VirtualKey key, int modifiers, Action action, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterHotkey(
+        VirtualKey key,
+        int modifiers,
+        Action action,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, action, description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -133,7 +132,17 @@ public class HotkeyManager : IDisposable
     /// <param name="action">The action to execute when the hotkey is pressed and the condition is met.</param>
     /// <param name="condition">A predicate that must return true for the hotkey to fire. When false, the key event passes through.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterConditionalHotkey(VirtualKey key, int modifiers, Action action, Func<bool> condition, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterConditionalHotkey(
+        VirtualKey key,
+        int modifiers,
+        Action action,
+        Func<bool> condition,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, action, condition, description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -143,7 +152,16 @@ public class HotkeyManager : IDisposable
     /// <param name="modifiers">The bitmask of modifier keys.</param>
     /// <param name="action">The action to execute on each key-down event (including repeats).</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterRepeatableHotkey(VirtualKey key, int modifiers, Action action, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterRepeatableHotkey(
+        VirtualKey key,
+        int modifiers,
+        Action action,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, action, condition: null, allowRepeat: true, description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -154,7 +172,17 @@ public class HotkeyManager : IDisposable
     /// <param name="action">The action to execute on each key-down event (including repeats).</param>
     /// <param name="condition">A predicate that must return true for the hotkey to fire. When false, the key event passes through.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterConditionalRepeatableHotkey(VirtualKey key, int modifiers, Action action, Func<bool> condition, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterConditionalRepeatableHotkey(
+        VirtualKey key,
+        int modifiers,
+        Action action,
+        Func<bool> condition,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, action, condition, allowRepeat: true, description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -166,7 +194,17 @@ public class HotkeyManager : IDisposable
     /// <param name="action">The action to execute when the hotkey is pressed.</param>
     /// <param name="arg1">The argument bound at registration time.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterHotkey<T1>(VirtualKey key, int modifiers, Action<T1> action, T1 arg1, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterHotkey<T1>(
+        VirtualKey key,
+        int modifiers,
+        Action<T1> action,
+        T1 arg1,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, () => action(arg1), description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -180,7 +218,18 @@ public class HotkeyManager : IDisposable
     /// <param name="arg1">The first argument bound at registration time.</param>
     /// <param name="arg2">The second argument bound at registration time.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterHotkey<T1, T2>(VirtualKey key, int modifiers, Action<T1, T2> action, T1 arg1, T2 arg2, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterHotkey<T1, T2>(
+        VirtualKey key,
+        int modifiers,
+        Action<T1, T2> action,
+        T1 arg1,
+        T2 arg2,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, () => action(arg1, arg2), description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -196,7 +245,19 @@ public class HotkeyManager : IDisposable
     /// <param name="arg2">The second argument bound at registration time.</param>
     /// <param name="arg3">The third argument bound at registration time.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterHotkey<T1, T2, T3>(VirtualKey key, int modifiers, Action<T1, T2, T3> action, T1 arg1, T2 arg2, T3 arg3, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterHotkey<T1, T2, T3>(
+        VirtualKey key,
+        int modifiers,
+        Action<T1, T2, T3> action,
+        T1 arg1,
+        T2 arg2,
+        T3 arg3,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3), description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -214,7 +275,20 @@ public class HotkeyManager : IDisposable
     /// <param name="arg3">The third argument bound at registration time.</param>
     /// <param name="arg4">The fourth argument bound at registration time.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterHotkey<T1, T2, T3, T4>(VirtualKey key, int modifiers, Action<T1, T2, T3, T4> action, T1 arg1, T2 arg2, T3 arg3, T4 arg4, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterHotkey<T1, T2, T3, T4>(
+        VirtualKey key,
+        int modifiers,
+        Action<T1, T2, T3, T4> action,
+        T1 arg1,
+        T2 arg2,
+        T3 arg3,
+        T4 arg4,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3, arg4), description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -234,7 +308,21 @@ public class HotkeyManager : IDisposable
     /// <param name="arg4">The fourth argument bound at registration time.</param>
     /// <param name="arg5">The fifth argument bound at registration time.</param>
     /// <returns>True if the hotkey was registered successfully; false if it was already registered.</returns>
-    public bool RegisterHotkey<T1, T2, T3, T4, T5>(VirtualKey key, int modifiers, Action<T1, T2, T3, T4, T5> action, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, string? description = null, string? sourceContext = null, HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate, int throttleIntervalMs = 50, bool isDestructive = false)
+    public bool RegisterHotkey<T1, T2, T3, T4, T5>(
+        VirtualKey key,
+        int modifiers,
+        Action<T1, T2, T3, T4, T5> action,
+        T1 arg1,
+        T2 arg2,
+        T3 arg3,
+        T4 arg4,
+        T5 arg5,
+        string? description = null,
+        string? sourceContext = null,
+        HotkeyDispatchPolicy dispatchPolicy = HotkeyDispatchPolicy.Immediate,
+        int throttleIntervalMs = 50,
+        bool isDestructive = false
+    )
     {
         return RegisterInternal(key, modifiers, () => action(arg1, arg2, arg3, arg4, arg5), description: description, sourceContext: sourceContext, dispatchPolicy: dispatchPolicy, throttleIntervalMs: throttleIntervalMs, isDestructive: isDestructive);
     }
@@ -437,12 +525,7 @@ public class HotkeyManager : IDisposable
             _serializedPipelines.TryGetValue(hotkey, out Task? existing);
             existing ??= Task.CompletedTask;
 
-            Task next = existing
-                .ContinueWith(
-                    _ => Task.Run(action),
-                    TaskScheduler.Default
-                )
-                .Unwrap();
+            Task next = existing.ContinueWith(_ => Task.Run(action), TaskScheduler.Default).Unwrap();
 
             _serializedPipelines[hotkey] = next;
         }

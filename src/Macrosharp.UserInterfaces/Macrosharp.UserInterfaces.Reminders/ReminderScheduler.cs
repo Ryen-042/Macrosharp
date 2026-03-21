@@ -24,13 +24,7 @@ public sealed class ReminderScheduler : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
-    public ReminderScheduler(
-        ReminderConfigurationManager configurationManager,
-        ToastNotificationHost toastHost,
-        Func<bool> isSilentMode,
-        Func<bool>? areNotificationsHidden = null,
-        Func<bool>? isReminderSoundMuted = null
-    )
+    public ReminderScheduler(ReminderConfigurationManager configurationManager, ToastNotificationHost toastHost, Func<bool> isSilentMode, Func<bool>? areNotificationsHidden = null, Func<bool>? isReminderSoundMuted = null)
     {
         _configurationManager = configurationManager;
         _toastHost = toastHost;

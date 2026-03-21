@@ -142,19 +142,47 @@ internal static class ProgramKeyboardHandlerSetup
                     return;
                 }
                 case VirtualKey.OEM_1:
-                    Task.Run(() => MouseSimulator.MoveCursor(dx: isAlt ? 80 : isShift ? 3 : 20, dy: 0));
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: isAlt ? 80
+                                : isShift ? 3
+                                : 20,
+                            dy: 0
+                        )
+                    );
                     e.Handled = true;
                     return;
                 case VirtualKey.OEM_7:
-                    Task.Run(() => MouseSimulator.MoveCursor(dx: 0, dy: isAlt ? 80 : isShift ? 3 : 20));
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: 0,
+                            dy: isAlt ? 80
+                                : isShift ? 3
+                                : 20
+                        )
+                    );
                     e.Handled = true;
                     return;
                 case VirtualKey.OEM_2:
-                    Task.Run(() => MouseSimulator.MoveCursor(dx: isAlt ? -80 : isShift ? -3 : -20, dy: 0));
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: isAlt ? -80
+                                : isShift ? -3
+                                : -20,
+                            dy: 0
+                        )
+                    );
                     e.Handled = true;
                     return;
                 case VirtualKey.OEM_PERIOD:
-                    Task.Run(() => MouseSimulator.MoveCursor(dx: 0, dy: isAlt ? -80 : isShift ? -3 : -20));
+                    Task.Run(() =>
+                        MouseSimulator.MoveCursor(
+                            dx: 0,
+                            dy: isAlt ? -80
+                                : isShift ? -3
+                                : -20
+                        )
+                    );
                     e.Handled = true;
                     return;
             }
@@ -173,6 +201,6 @@ internal static class ProgramKeyboardHandlerSetup
             pressedModifiers = "None";
         }
 
-        return $"[Key] {displayName}, VK={(ushort)e.KeyCode,3}, SC={scanCode,3}, ASCII={asciiCode,-3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
+        return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, -3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
     }
 }

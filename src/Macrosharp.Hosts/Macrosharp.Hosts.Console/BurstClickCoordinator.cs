@@ -54,11 +54,7 @@ internal sealed class BurstClickCoordinator
         }
 
         var window = new SimpleWindow("Start Burst Click", labelWidth: 200);
-        window.CreateDynamicInputWindow(
-            ["Interval (ms)", "Duration (ms, 0 = infinite)"],
-            [KeyboardSimulator.DefaultBurstClickIntervalMs.ToString(), KeyboardSimulator.DefaultBurstClickDurationMs.ToString()],
-            enableKeyCapture: true
-        );
+        window.CreateDynamicInputWindow(["Interval (ms)", "Duration (ms, 0 = infinite)"], [KeyboardSimulator.DefaultBurstClickIntervalMs.ToString(), KeyboardSimulator.DefaultBurstClickDurationMs.ToString()], enableKeyCapture: true);
 
         if (window.userInputs.Count < 2)
         {

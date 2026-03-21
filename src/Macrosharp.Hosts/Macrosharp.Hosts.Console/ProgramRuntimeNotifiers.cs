@@ -25,12 +25,7 @@ internal static class ProgramRuntimeNotifiers
     {
         try
         {
-            PInvoke.MessageBox(
-                HWND.Null,
-                message,
-                title,
-                MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_OK | MESSAGEBOX_STYLE.MB_TOPMOST
-            );
+            PInvoke.MessageBox(HWND.Null, message, title, MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_OK | MESSAGEBOX_STYLE.MB_TOPMOST);
         }
         catch (Exception ex)
         {
