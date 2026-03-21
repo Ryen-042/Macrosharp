@@ -77,7 +77,7 @@ Goal: Improve keyboard-driven responsiveness and reduce unbounded async fan-out.
 | P3-2 | Harden expansion concurrency gate |  | Done | 2026-04-22 | 2026-03-21 | 2026-03-21 | P3-1 | No | None | Added configurable queued expansion gate (MaxQueuedExpansions) where 0 drops new triggers while busy |
 | P3-3 | Introduce bounded hotkey action dispatch model |  | Done | 2026-04-26 | 2026-03-21 | 2026-03-21 | P3-2 | No | None | Added per-hotkey repeatable dispatch policies (immediate/throttled/coalesced) with default immediate and forced serialization for destructive actions |
 | P3-4 | Apply dispatch policies to high-frequency actions |  | Done | 2026-04-28 | 2026-03-21 | 2026-03-21 | P3-3 | No | None | Applied explicit coalesced dispatch for repeatable window adjustments and throttled dispatch for media seek, volume, brightness, and scroll-zoom actions |
-| P3-5 | Validate responsiveness under heavy manual scenarios |  | Not Started | 2026-05-01 |  |  | P3-4 |  |  |  |
+| P3-5 | Validate responsiveness under heavy manual scenarios |  | In Progress | 2026-05-01 | 2026-03-21 |  | P3-4 | No | None | Build and startup checks passed; interactive held-key stress scenarios are being tracked in PHASE3_VERIFICATION_LOG_2026-03-21.md |
 
 ## Phase 4 Tracker
 
