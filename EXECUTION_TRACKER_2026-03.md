@@ -18,7 +18,7 @@ Branch: roadmap/implementation-phased-mar2026
 |------|--------|--------|------------|------------|------------|------------|-------|
 | Phase 0 - Planning Baseline And Governance | 2026-03-23 to 2026-03-25 | Done | 2026-03-20 | 2026-03-25 | 2026-03-20 | 100 | Completed ahead of schedule during kickoff |
 | Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | Done | 2026-03-20 | 2026-04-04 | 2026-03-20 | 100 | Completed ahead of schedule with reliability warning format standardization |
-| Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | In Progress | 2026-03-20 | 2026-04-16 |  | 45 | Shared debounced lifecycle now includes MainConfigurationManager with live reload event wiring in Program |
+| Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | In Progress | 2026-03-20 | 2026-04-16 |  | 65 | Shared lifecycle now covers Main and Hotkey configuration managers with aligned reload/recovery behavior |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | Not Started |  | 2026-05-01 |  | 0 |  |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | Not Started |  | 2026-05-08 |  | 0 |  |
 | Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | Not Started |  | 2026-05-22 |  | 0 |  |
@@ -63,7 +63,7 @@ Goal: Remove duplicate config manager logic and centralize lifecycle behavior.
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P2-1 | Design shared configuration lifecycle abstraction |  | Done | 2026-04-07 | 2026-03-20 | 2026-03-21 | P1-5 | No | None | Shared DebouncedFileWatcher established and adopted by config manager implementations |
 | P2-2 | Integrate Main configuration manager into shared lifecycle |  | Done | 2026-04-09 | 2026-03-21 | 2026-03-21 | P2-1 | No | None | MainConfigurationManager now supports shared debounced watching, reload event callbacks, and disposal lifecycle |
-| P2-3 | Integrate Hotkey configuration manager into shared lifecycle |  | Not Started | 2026-04-11 |  |  | P2-1 |  |  |  |
+| P2-3 | Integrate Hotkey configuration manager into shared lifecycle |  | Done | 2026-04-11 | 2026-03-21 | 2026-03-21 | P2-1 | No | None | Added lifecycle parity methods and normalization while preserving last-known-good recovery semantics |
 | P2-4 | Integrate Text Expansion and Reminder managers |  | Not Started | 2026-04-14 |  |  | P2-2, P2-3 |  |  |  |
 | P2-5 | Execute manual regression verification for config flows |  | Not Started | 2026-04-16 |  |  | P2-4 |  |  |  |
 
@@ -107,6 +107,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 
 | Date | Task ID | Question | Options Considered | Decision By | Decision | Impact |
 |------|---------|----------|--------------------|-------------|----------|--------|
+| 2026-03-21 | P2-3 | Invalid hotkeys config behavior during lifecycle unification | Revert to last known good; fallback to default empty | User | Revert to last known good | Preserves active hotkeys when edited config is invalid |
 
 ## Blocker Log
 
@@ -117,6 +118,7 @@ Use this section whenever any task has ambiguity or multiple interpretations.
 
 | Date | Related Task | Decision | Reason | Trade-offs | Approved By |
 |------|--------------|----------|--------|------------|-------------|
+| 2026-03-21 | P2-3 | Keep last-known-good recovery for invalid hotkeys config | Maintain runtime continuity and avoid accidental hotkey loss due to malformed edits | Invalid file still requires manual correction; fallback defaults not automatically applied | User |
 
 ## Manual Verification Summary (Per Phase)
 
@@ -147,11 +149,11 @@ Template to complete before closing each phase.
 ### Week Of 2026-03-30
 
 - Completed: Phase 1 tasks P1-1 through P1-5, including reliability warning message standardization.
-- In progress: P2-3/P2-4 follow-up integration parity for hotkey, text expansion, and reminder manager lifecycle behavior.
+- In progress: P2-4 integration parity for text expansion and reminder managers.
 - Blockers: None.
 - Clarifications requested: None.
 - Timeline impact: Positive (Phase 2 kickoff started early while preserving a clean build state).
-- Plan updates applied: Marked P2-1 and P2-2 complete and updated Phase 2 progress after MainConfigurationManager lifecycle integration.
+- Plan updates applied: Marked P2-3 complete and captured invalid-config recovery decision for hotkey lifecycle unification.
 
 ### Week Of 2026-04-06
 

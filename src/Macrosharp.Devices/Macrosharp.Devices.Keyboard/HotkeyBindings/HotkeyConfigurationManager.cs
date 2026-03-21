@@ -9,6 +9,12 @@ namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 // Manages loading, saving, and monitoring changes to the hotkey configuration file.
 public class HotkeyConfigurationManager : IDisposable
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+    };
+
     private readonly string _configFilePath;
     private readonly DebouncedFileWatcher _configWatcher;
     private List<HotkeyDefinition> _currentDefinitions;
@@ -17,6 +23,8 @@ public class HotkeyConfigurationManager : IDisposable
 
     // Event raised when the configuration file changes and is reloaded.
     public event EventHandler<List<HotkeyDefinition>>? ConfigurationChanged;
+
+    public IReadOnlyList<HotkeyDefinition> CurrentDefinitions => _currentDefinitions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HotkeyConfigurationManager"/> class.
@@ -54,12 +62,14 @@ public class HotkeyConfigurationManager : IDisposable
             try
             {
                 jsonString = File.ReadAllText(_configFilePath);
-                loadedDefinitions = JsonSerializer.Deserialize<List<HotkeyDefinition>>(jsonString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                loadedDefinitions = JsonSerializer.Deserialize<List<HotkeyDefinition>>(jsonString, JsonOptions);
 
                 if (loadedDefinitions == null)
                 {
                     throw new JsonException("Deserialization resulted in a null list of hotkey definitions.");
                 }
+
+                Normalize(loadedDefinitions);
 
                 _currentDefinitions = loadedDefinitions;
                 Console.WriteLine($"Configuration loaded. Hotkeys found: {_currentDefinitions.Count}");
@@ -129,9 +139,54 @@ public class HotkeyConfigurationManager : IDisposable
     /// <param name="definitions">The list of hotkey definitions to save.</param>
     private void SaveConfigurationInternal(List<HotkeyDefinition> definitions)
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        string jsonString = JsonSerializer.Serialize(definitions, options);
+        EnsureDirectory();
+        Normalize(definitions);
+        string jsonString = JsonSerializer.Serialize(definitions, JsonOptions);
         File.WriteAllText(_configFilePath, jsonString);
+    }
+
+    public void ReloadNow()
+    {
+        _ = LoadConfiguration();
+    }
+
+    public void SaveConfiguration(List<HotkeyDefinition> definitions)
+    {
+        if (definitions is null)
+        {
+            throw new ArgumentNullException(nameof(definitions));
+        }
+
+        lock (_fileLock)
+        {
+            _currentDefinitions = definitions;
+            SaveConfigurationInternal(_currentDefinitions);
+            ConfigurationChanged?.Invoke(this, _currentDefinitions);
+        }
+    }
+
+    private void EnsureDirectory()
+    {
+        string? directory = Path.GetDirectoryName(_configFilePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+    }
+
+    private static void Normalize(List<HotkeyDefinition> definitions)
+    {
+        for (int i = 0; i < definitions.Count; i++)
+        {
+            HotkeyDefinition definition = definitions[i] ?? new HotkeyDefinition();
+            definition.Key ??= string.Empty;
+            definition.Modifiers ??= new List<string>();
+            definition.LockKeys ??= new List<string>();
+            definition.Action ??= new ActionConfig();
+            definition.Action.Name ??= string.Empty;
+            definition.Action.Arguments ??= new Dictionary<string, string>();
+            definitions[i] = definition;
+        }
     }
 
     /// <summary>
