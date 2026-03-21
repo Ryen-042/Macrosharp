@@ -34,6 +34,15 @@ public class Program
         _rightMouseHeld,
         _middleMouseHeld; // Scroll Lock mouse-hold toggles
 
+    private const string SourceApplicationControl = "Application Control";
+    private const string SourceWindowManagement = "Window Management";
+    private const string SourceMiscellaneous = "Miscellaneous";
+    private const string SourceFileManagement = "File Management";
+    private const int RepeatThrottleMediaSeekMs = 80;
+    private const int RepeatThrottleVolumeMs = 50;
+    private const int RepeatThrottleBrightnessMs = 125;
+    private const int RepeatThrottleZoomMs = 60;
+
     static void Main()
     {
         // ═══════════════════════════════════════════════════════════════════════
@@ -919,15 +928,6 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         //  8. Register Hotkeys — Application Control
         // ═══════════════════════════════════════════════════════════════════════
-        const string SourceApplicationControl = "Application Control";
-        const string SourceWindowManagement = "Window Management";
-        const string SourceMiscellaneous = "Miscellaneous";
-        const string SourceFileManagement = "File Management";
-        const int RepeatThrottleMediaSeekMs = 80;
-        const int RepeatThrottleVolumeMs = 50;
-        const int RepeatThrottleBrightnessMs = 125;
-        const int RepeatThrottleZoomMs = 60;
-
         ApplicationControlHotkeyRegistry.Register(
             hotkeyManager,
             SourceApplicationControl,
@@ -1064,27 +1064,13 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
         // 12. Startup Banner
         // ═══════════════════════════════════════════════════════════════════════
-        Console.WriteLine("╔══════════════════════════════════════════════════╗");
-        Console.WriteLine("║           Macrosharp — Ready                    ║");
-        Console.WriteLine("║  Win+Esc        : Quit                          ║");
-        Console.WriteLine("║  Win+?          : Show running notification     ║");
-        Console.WriteLine("║  Ctrl+Win+/     : Show hotkeys window           ║");
-        Console.WriteLine("║  Win+CapsLock   : Toggle Scroll Lock            ║");
-        Console.WriteLine("║  Ctrl+Alt+T     : Toggle text expansion         ║");
-        Console.WriteLine("║  Ctrl+Alt+Win+P : Pause/resume event handling   ║");
-        Console.WriteLine("╚══════════════════════════════════════════════════╝");
-        Console.WriteLine();
+        WriteStartupBanner();
         AudioPlayer.PlayAchievementAsync(); // startup chime
 
         // ═══════════════════════════════════════════════════════════════════════
         // 13. Message Loop
         // ═══════════════════════════════════════════════════════════════════════
-        MSG msg;
-        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
-        {
-            PInvoke.TranslateMessage(msg);
-            PInvoke.DispatchMessage(msg);
-        }
+        RunMessageLoop();
 
         // ═══════════════════════════════════════════════════════════════════════
         // 14. Cleanup
@@ -1106,6 +1092,30 @@ public class Program
         if (handles.Count > 0)
         {
             Messaging.PostMessageToWindow(handles[0], PInvoke.WM_COMMAND, (WPARAM)(nuint)commandId, default);
+        }
+    }
+
+    private static void WriteStartupBanner()
+    {
+        Console.WriteLine("╔══════════════════════════════════════════════════╗");
+        Console.WriteLine("║           Macrosharp — Ready                    ║");
+        Console.WriteLine("║  Win+Esc        : Quit                          ║");
+        Console.WriteLine("║  Win+?          : Show running notification     ║");
+        Console.WriteLine("║  Ctrl+Win+/     : Show hotkeys window           ║");
+        Console.WriteLine("║  Win+CapsLock   : Toggle Scroll Lock            ║");
+        Console.WriteLine("║  Ctrl+Alt+T     : Toggle text expansion         ║");
+        Console.WriteLine("║  Ctrl+Alt+Win+P : Pause/resume event handling   ║");
+        Console.WriteLine("╚══════════════════════════════════════════════════╝");
+        Console.WriteLine();
+    }
+
+    private static void RunMessageLoop()
+    {
+        MSG msg;
+        while (PInvoke.GetMessage(out msg, new HWND(), 0, 0).Value != 0)
+        {
+            PInvoke.TranslateMessage(msg);
+            PInvoke.DispatchMessage(msg);
         }
     }
 }
