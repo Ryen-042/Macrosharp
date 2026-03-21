@@ -921,6 +921,10 @@ public class Program
         const string SourceWindowManagement = "Window Management";
         const string SourceMiscellaneous = "Miscellaneous";
         const string SourceFileManagement = "File Management";
+        const int RepeatThrottleMediaSeekMs = 80;
+        const int RepeatThrottleVolumeMs = 50;
+        const int RepeatThrottleBrightnessMs = 125;
+        const int RepeatThrottleZoomMs = 60;
 
         // Win + Esc → Confirm and terminate application
         hotkeyManager.RegisterHotkey(
@@ -1074,12 +1078,12 @@ public class Program
         // ═══════════════════════════════════════════════════════════════════════
 
         // ` + = or ` + Add → Increase opacity
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25), description: "Increase active window opacity.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25), description: "Increase active window opacity.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25), description: "Increase active window opacity.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25), description: "Increase active window opacity.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
 
         // ` + - or ` + Subtract → Decrease opacity
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25), description: "Decrease active window opacity.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25), description: "Decrease active window opacity.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25), description: "Decrease active window opacity.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25), description: "Decrease active window opacity.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
 
         // Ctrl + Win + A → Toggle always-on-top
         hotkeyManager.RegisterHotkey(
@@ -1099,22 +1103,22 @@ public class Program
         );
 
         // ` + Arrow Keys → Move active window (medium: 50px)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -50), description: "Move active window up by 50 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 50), description: "Move active window down by 50 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -50), description: "Move active window left by 50 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 50), description: "Move active window right by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -50), description: "Move active window up by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 50), description: "Move active window down by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -50), description: "Move active window left by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 50), description: "Move active window right by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
 
         // ` + Shift + Arrow Keys → Move active window (small: 10px)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -10), description: "Move active window up by 10 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 10), description: "Move active window down by 10 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -10), description: "Move active window left by 10 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 10), description: "Move active window right by 10 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -10), description: "Move active window up by 10 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 10), description: "Move active window down by 10 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -10), description: "Move active window left by 10 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.SHIFT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 10), description: "Move active window right by 10 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
 
         // ` + Alt + Arrow Keys → Resize active window (50px)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: -50), description: "Decrease active window height by 50 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: 50), description: "Increase active window height by 50 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: -50), description: "Decrease active window width by 50 pixels.", sourceContext: SourceWindowManagement);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: 50), description: "Increase active window width by 50 pixels.", sourceContext: SourceWindowManagement);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.UP, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: -50), description: "Decrease active window height by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.DOWN, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: 50), description: "Increase active window height by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.LEFT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: -50), description: "Decrease active window width by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.RIGHT, Modifiers.ALT_BACKTICK, () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: 50), description: "Increase active window width by 50 pixels.", sourceContext: SourceWindowManagement, dispatchPolicy: HotkeyDispatchPolicy.Coalesced);
 
         // Ctrl + Pause → Suspend active window's process
         hotkeyManager.RegisterHotkey(
@@ -1172,8 +1176,8 @@ public class Program
         );
 
         // ` + W → Seek forward in MPC-HC; ` + S → Seek backward; ` + Space → Play/Pause
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_W, Modifiers.BACKTICK, () => SendMpcCommand(905), description: "Seek media forward in MPC-HC.", sourceContext: SourceMiscellaneous); // Jump forward (small)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_S, Modifiers.BACKTICK, () => SendMpcCommand(906), description: "Seek media backward in MPC-HC.", sourceContext: SourceMiscellaneous); // Jump backward (small)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_W, Modifiers.BACKTICK, () => SendMpcCommand(905), description: "Seek media forward in MPC-HC.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleMediaSeekMs); // Jump forward (small)
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_S, Modifiers.BACKTICK, () => SendMpcCommand(906), description: "Seek media backward in MPC-HC.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleMediaSeekMs); // Jump backward (small)
         hotkeyManager.RegisterHotkey(VirtualKey.SPACE, Modifiers.BACKTICK, () => SendMpcCommand(889), description: "Toggle MPC-HC play or pause.", sourceContext: SourceMiscellaneous); // Play/Pause
 
         // Win + CapsLock → Toggle Scroll Lock
@@ -1279,12 +1283,12 @@ public class Program
         ); // Clone
 
         // Ctrl + Shift + = or Ctrl + Shift + Add → Increase volume
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
 
         // Ctrl + Shift + - or Ctrl + Shift + Subtract → Decrease volume
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
+        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
 
         // ` + F2 → Decrease brightness; ` + F3 → Increase brightness
         hotkeyManager.RegisterRepeatableHotkey(
@@ -1297,7 +1301,9 @@ public class Program
                     Console.WriteLine($"Brightness: {level}%");
             },
             description: "Decrease screen brightness.",
-            sourceContext: SourceMiscellaneous
+            sourceContext: SourceMiscellaneous,
+            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
+            throttleIntervalMs: RepeatThrottleBrightnessMs
         );
         hotkeyManager.RegisterRepeatableHotkey(
             VirtualKey.F3,
@@ -1309,7 +1315,9 @@ public class Program
                     Console.WriteLine($"Brightness: {level}%");
             },
             description: "Increase screen brightness.",
-            sourceContext: SourceMiscellaneous
+            sourceContext: SourceMiscellaneous,
+            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
+            throttleIntervalMs: RepeatThrottleBrightnessMs
         );
 
         // Ctrl + E (Scroll Lock ON) → Zoom in; Ctrl + Q → Zoom out
@@ -1323,7 +1331,9 @@ public class Program
             },
             () => Modifiers.IsScrollLockOn,
             description: "Zoom in while Scroll Lock is on.",
-            sourceContext: SourceMiscellaneous
+            sourceContext: SourceMiscellaneous,
+            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
+            throttleIntervalMs: RepeatThrottleZoomMs
         );
 
         hotkeyManager.RegisterConditionalRepeatableHotkey(
@@ -1336,7 +1346,9 @@ public class Program
             },
             () => Modifiers.IsScrollLockOn,
             description: "Zoom out while Scroll Lock is on.",
-            sourceContext: SourceMiscellaneous
+            sourceContext: SourceMiscellaneous,
+            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
+            throttleIntervalMs: RepeatThrottleZoomMs
         );
 
         // ═══════════════════════════════════════════════════════════════════════
