@@ -21,7 +21,7 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
 | Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
 | Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
-| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 65 | P5-1 completed and P5-2 started: Program bootstrap/lifecycle cleanup underway with extracted startup banner and message loop helpers plus class-level hotkey registration metadata constants |
+| Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | In Progress | 2026-03-21 | 2026-05-22 |  | 70 | P5-2 progressing: Program bootstrap/lifecycle cleanup now includes startup banner/message-loop helpers, class-level hotkey metadata constants, and tray menu construction extracted into a dedicated local builder |
 
 ## Milestones
 
@@ -96,7 +96,7 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P5-1 | Extract hotkey registrations into grouped registry modules |  | Done | 2026-05-12 | 2026-03-21 | 2026-03-21 | P4-3 | No | None | Moved MainConfigurationManager and hotkey registries for application-control, window-management, miscellaneous, file-management, media/display, and power/display actions into Macrosharp.Hosts.Shared; Program now delegates all hotkey groups to shared registries with host-specific callbacks where needed |
-| P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | In Progress | 2026-05-14 | 2026-03-21 |  | P5-1 | No | None | Started by extracting startup banner and message loop boilerplate into dedicated methods, and lifting hotkey source/throttle constants to class scope to simplify Main |
+| P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | In Progress | 2026-05-14 | 2026-03-21 |  | P5-1 | No | None | Progressed with startup banner/message loop extraction, class-level hotkey source/throttle constants, and local BuildTrayMenu() extraction to reduce Main body complexity while preserving runtime behavior |
 | P5-3 | Implement runtime hotkey reference window |  | Not Started | 2026-05-17 |  |  | P5-1 |  |  |  |
 | P5-4 | Update architecture and operations documentation |  | Not Started | 2026-05-20 |  |  | P5-2, P5-3 |  |  |  |
 | P5-5 | Final manual validation and release readiness review |  | Not Started | 2026-05-22 |  |  | P5-4 |  |  |  |

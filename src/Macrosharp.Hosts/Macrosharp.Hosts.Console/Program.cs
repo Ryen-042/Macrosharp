@@ -512,8 +512,10 @@ public class Program
             return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, -3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
         }
 
-        var trayMenu = new List<TrayMenuItem>
+        List<TrayMenuItem> BuildTrayMenu()
         {
+            return new List<TrayMenuItem>
+            {
             TrayMenuItem.ActionItem("Open Running Folder", OpenRunningFolder, iconPath: iconCycler.GetNext()),
             TrayMenuItem.Submenu(
                 "Show Notification",
@@ -708,7 +710,10 @@ public class Program
                 iconPath: iconCycler.GetNext()
             ),
             TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: iconCycler.GetNext()),
-        };
+            };
+        }
+
+        var trayMenu = BuildTrayMenu();
 
         trayHost = new TrayIconHost("Macrosharp", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0, quitAction: () => RequestAppExit("tray menu"));
         trayHost.Start();
