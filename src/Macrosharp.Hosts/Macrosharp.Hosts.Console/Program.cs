@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Threading;
@@ -8,7 +7,6 @@ using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Devices.Mouse;
 using Macrosharp.Hosts.Shared;
-using Macrosharp.Hosts.Shared.HotkeyRegistrations;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.DynamicWindow;
 using Macrosharp.UserInterfaces.Reminders;
@@ -78,41 +76,6 @@ public class Program
 
         TrayIconHost? trayHost = null;
         int exitRequested = 0;
-
-        void Warn(string component, string operation, string details, Exception? ex = null)
-        {
-            string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
-            Console.WriteLine($"[WARN] [{component}] Operation='{operation}' Details='{details}'.{suffix}");
-        }
-
-        void ShowOneTimeWarningDialog(string title, string message)
-        {
-            try
-            {
-                PInvoke.MessageBox(
-                    HWND.Null,
-                    message,
-                    title,
-                    MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_OK | MESSAGEBOX_STYLE.MB_TOPMOST
-                );
-            }
-            catch (Exception ex)
-            {
-                Warn("Program", "ShowOneTimeWarningDialog", $"Title='{title}'", ex);
-                Warn("Program", "ShowOneTimeWarningDialog", message);
-            }
-        }
-
-        void OnPathLocatorIssue(string message, bool isLongRunningOperation)
-        {
-            if (isLongRunningOperation)
-            {
-                ShowOneTimeWarningDialog("Macrosharp - Operation Warning", message);
-                return;
-            }
-
-            Warn("PathLocator", "NotifyIssue", message);
-        }
 
         void SetupMainConfigurationWatching()
         {
@@ -387,19 +350,6 @@ public class Program
 
         Console.CancelKeyPress += OnConsoleCancelKeyPress;
 
-        void OpenInShell(string path, string label)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-                Console.WriteLine($"Opened {label}: {path}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to open {label}: {ex.Message}");
-            }
-        }
-
         string textExpansionConfigPath = PathLocator.GetConfigPath("text-expansions.json");
         string reminderConfigPath = PathLocator.GetConfigPath("reminders.json");
 
@@ -447,78 +397,6 @@ public class Program
                 },
             };
 
-        // ═══════════════════════════════════════════════════════════════════════
-        //  3. System Tray Icon
-        // ═══════════════════════════════════════════════════════════════════════
-        void OpenRunningFolder() => Process.Start(new ProcessStartInfo("explorer.exe", AppContext.BaseDirectory) { UseShellExecute = true });
-        void OpenProjectFolder()
-        {
-            if (!string.IsNullOrWhiteSpace(PathLocator.RootPath) && Directory.Exists(PathLocator.RootPath))
-            {
-                OpenInShell(PathLocator.RootPath, "project folder");
-                return;
-            }
-
-            Console.WriteLine("Project root not detected; opening running folder instead.");
-            OpenRunningFolder();
-        }
-        void OpenMainConfig()
-        {
-            mainConfig = mainConfigManager.LoadOrCreate();
-            OpenInShell(mainConfigManager.ConfigPath, "main config");
-        }
-        void OpenTextExpansionConfig() => OpenInShell(textExpansionConfigPath, "text expansion config");
-        void OpenRemindersConfig() => OpenInShell(reminderConfigPath, "reminders config");
-        void SwitchIcon()
-        {
-            string? next = iconCycler.GetNext();
-            if (!string.IsNullOrWhiteSpace(next))
-                trayHost?.UpdateIcon(next);
-        }
-        void ReloadHotkeys() => Console.WriteLine("Tray action: reload hotkeys.");
-        void ReloadConfigs() => Console.WriteLine("Tray action: reload configs.");
-        void ReloadReminders()
-        {
-            reminderConfigManager.ReloadNow();
-            Console.WriteLine("Tray action: reminders config reloaded.");
-        }
-        void AddReminder() => reminderCrudService.AddReminderInteractively();
-        void EditReminder() => reminderCrudService.EditReminderInteractively();
-        void DeleteReminder() => reminderCrudService.DeleteReminderInteractively();
-        void ClearConsoleLogs()
-        {
-            Console.Clear();
-            Console.WriteLine("Console cleared by tray action.");
-        }
-
-        void ShowHotkeysWindow()
-        {
-            if (_hotkeyManager is null)
-            {
-                Console.WriteLine("Hotkeys are not initialized yet.");
-                return;
-            }
-
-            var rows = _hotkeyManager
-                .GetRegisteredHotkeysSnapshot()
-                .OrderBy(h => string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(h => h.Hotkey.ToString(), StringComparer.OrdinalIgnoreCase)
-                .Select(h => (IReadOnlyList<string>)new List<string>
-                {
-                    h.Hotkey.ToString(),
-                    string.IsNullOrWhiteSpace(h.Description) ? "No description" : h.Description,
-                    string.IsNullOrWhiteSpace(h.SourceContext) ? "No source" : h.SourceContext,
-                })
-                .ToList();
-
-            Macrosharp.UserInterfaces.DynamicWindow.FilterableTableWindow.ShowOrActivate(
-                $"Macrosharp Hotkeys ({rows.Count})",
-                ["Hotkey", "Description", "Source"],
-                rows,
-                filterPlaceholder: "Type to filter hotkeys..."
-            );
-        }
-
         string FormatTerminalKeyMessage(KeyboardEvent e)
         {
             var scanCode = PInvoke.MapVirtualKey((uint)e.KeyCode, MAP_VIRTUAL_KEY_TYPE.MAPVK_VK_TO_VSC);
@@ -532,208 +410,31 @@ public class Program
             return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, -3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
         }
 
-        List<TrayMenuItem> BuildTrayMenu()
-        {
-            return new List<TrayMenuItem>
+        var trayMenu = ProgramTrayMenuFactory.Build(
+            new ProgramTrayMenuFactory.Dependencies
             {
-            TrayMenuItem.ActionItem("Open Running Folder", OpenRunningFolder, iconPath: iconCycler.GetNext()),
-            TrayMenuItem.Submenu(
-                "Show Notification",
-                new List<TrayMenuItem>
-                {
-                    TrayMenuItem.ActionItem("Simple", () => toastHost.Show("Macrosharp", "A simple text notification.")),
-                    TrayMenuItem.ActionItem(
-                        "Long Duration",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Macrosharp",
-                                    Body = "This toast stays visible for ~25 seconds.",
-                                    Duration = ToastDuration.Long,
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem(
-                        "With Attribution",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Macrosharp",
-                                    Body = "A notification with attribution text.",
-                                    Attribution = "via Macrosharp",
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem(
-                        "Alarm Scenario",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Alarm",
-                                    Body = "This is an alarm-style notification.",
-                                    Scenario = ToastScenario.Alarm,
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem(
-                        "Reminder Scenario",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Reminder",
-                                    Body = "Don\u0027t forget your task!",
-                                    Scenario = ToastScenario.Reminder,
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem(
-                        "With App Logo",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Macrosharp",
-                                    Body = "Notification with a custom app logo.",
-                                    AppLogoPath = iconPaths.FirstOrDefault(),
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem(
-                        "Progress (Indeterminate)",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Macrosharp",
-                                    Body = "Working on it...",
-                                    ProgressBar = new ToastProgressBar { Title = "Processing", Status = "Please wait..." },
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem(
-                        "Progress (50%)",
-                        () =>
-                            toastHost.Show(
-                                new ToastNotificationContent
-                                {
-                                    Title = "Macrosharp",
-                                    Body = "Half way there!",
-                                    ProgressBar = new ToastProgressBar
-                                    {
-                                        Title = "Downloading",
-                                        Value = 0.5,
-                                        ValueStringOverride = "5 / 10 files",
-                                        Status = "In progress",
-                                    },
-                                }
-                            )
-                    ),
-                    TrayMenuItem.ActionItem("With Action Buttons", () => toastHost.Show(MakeRunningToast())),
-                },
-                iconPath: iconCycler.GetNext()
-            ),
-            TrayMenuItem.Submenu(
-                "Notifications & Sounds",
-                new List<TrayMenuItem>
-                {
-                    TrayMenuItem.ActionItem(
-                        () => notificationsHidden ? "Show Notifications" : "Hide Notifications",
-                        () =>
-                        {
-                            notificationsHidden = !notificationsHidden;
-                            // SaveMainConfig(); // Don't save to config immediately since this is more of a "session" setting and prevents accidental persistence of unwanted states. // ///It will still be saved when the user exits via the tray menu or Win+Esc.
-                            Console.WriteLine($"Notifications: {(notificationsHidden ? "Hidden" : "Visible")}");
-                            if (!notificationsHidden)
-                                AudioPlayer.PlayOnAsync();
-                            else
-                                AudioPlayer.PlayOffAsync();
-                        },
-                        iconPath: iconCycler.GetNext()
-                    ),
-                    TrayMenuItem.ActionItem(
-                        () => reminderSoundsMuted ? "Unmute Reminder Sounds" : "Mute Reminder Sounds",
-                        () =>
-                        {
-                            reminderSoundsMuted = !reminderSoundsMuted;
-                            // SaveMainConfig();
-                            Console.WriteLine($"Reminder sounds: {(reminderSoundsMuted ? "Muted" : "Unmuted")}");
-                            if (!reminderSoundsMuted)
-                                AudioPlayer.PlayOnAsync();
-                        },
-                        iconPath: iconCycler.GetNext()
-                    ),
-                    TrayMenuItem.ActionItem(
-                        () => terminalMessagesEnabled ? "Hide Terminal Keystrokes" : "Show Terminal Keystrokes",
-                        () =>
-                        {
-                            terminalMessagesEnabled = !terminalMessagesEnabled;
-                            // SaveMainConfig();
-                            Console.WriteLine($"Terminal keystrokes: {(terminalMessagesEnabled ? "Shown" : "Hidden")}");
-                            if (terminalMessagesEnabled)
-                                AudioPlayer.PlayOnAsync();
-                            else
-                                AudioPlayer.PlayOffAsync();
-                        },
-                        iconPath: iconCycler.GetNext()
-                    ),
-                },
-                iconPath: iconCycler.GetNext()
-            ),
-            TrayMenuItem.Submenu(
-                "Burst Click",
-                new List<TrayMenuItem>
-                {
-                    TrayMenuItem.ActionItem(
-                        () => IsBurstClickActive() ? "Start Burst Click (active)" : "Start Burst Click",
-                        StartBurstClickFromTray,
-                        iconPath: iconCycler.GetNext()
-                    ),
-                    TrayMenuItem.ActionItem(
-                        () => IsBurstClickActive() ? "Stop Burst Click" : "Stop Burst Click (inactive)",
-                        () => StopBurstClick("tray menu"),
-                        iconPath: iconCycler.GetNext()
-                    ),
-                },
-                iconPath: iconCycler.GetNext()
-            ),
-            TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: iconCycler.GetNext()),
-            TrayMenuItem.ActionItem("Show Hotkeys", ShowHotkeysWindow, iconPath: iconCycler.GetNext()),
-            TrayMenuItem.Submenu(
-                "Reload",
-                new List<TrayMenuItem> { TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: iconCycler.GetNext()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: iconCycler.GetNext()) },
-                iconPath: iconCycler.GetNext()
-            ),
-            TrayMenuItem.Submenu(
-                "Reminders",
-                new List<TrayMenuItem>
-                {
-                    TrayMenuItem.ActionItem("Reload reminders config", ReloadReminders, iconPath: iconCycler.GetNext()),
-                    TrayMenuItem.ActionItem("Add reminder", AddReminder, iconPath: iconCycler.GetNext()),
-                    TrayMenuItem.ActionItem("Edit reminder", EditReminder, iconPath: iconCycler.GetNext()),
-                    TrayMenuItem.ActionItem("Delete reminder", DeleteReminder, iconPath: iconCycler.GetNext()),
-                },
-                iconPath: iconCycler.GetNext()
-            ),
-            TrayMenuItem.Submenu(
-                "Configuration",
-                new List<TrayMenuItem>
-                {
-                    TrayMenuItem.ActionItem("Open Main Config", OpenMainConfig, iconPath: iconCycler.GetNext()),
-                    TrayMenuItem.ActionItem("Open Text Expansion Config", OpenTextExpansionConfig, iconPath: iconCycler.GetNext()),
-                    TrayMenuItem.ActionItem("Open Reminders Config", OpenRemindersConfig, iconPath: iconCycler.GetNext()),
-                    TrayMenuItem.ActionItem("Open Project Folder", OpenProjectFolder, iconPath: iconCycler.GetNext()),
-                },
-                iconPath: iconCycler.GetNext()
-            ),
-            TrayMenuItem.ActionItem("Clear Console Logs", ClearConsoleLogs, iconPath: iconCycler.GetNext()),
-            };
-        }
-
-        var trayMenu = BuildTrayMenu();
+                IconCycler = iconCycler,
+                IconPaths = iconPaths,
+                ToastHost = toastHost,
+                MainConfigurationManager = mainConfigManager,
+                ReminderConfigurationManager = reminderConfigManager,
+                ReminderCrudService = reminderCrudService,
+                TextExpansionConfigPath = textExpansionConfigPath,
+                ReminderConfigPath = reminderConfigPath,
+                GetNotificationsHidden = () => notificationsHidden,
+                SetNotificationsHidden = value => notificationsHidden = value,
+                GetReminderSoundsMuted = () => reminderSoundsMuted,
+                SetReminderSoundsMuted = value => reminderSoundsMuted = value,
+                GetTerminalMessagesEnabled = () => terminalMessagesEnabled,
+                SetTerminalMessagesEnabled = value => terminalMessagesEnabled = value,
+                IsBurstClickActive = IsBurstClickActive,
+                StartBurstClick = StartBurstClickFromTray,
+                StopBurstClick = reason => StopBurstClick(reason),
+                ShowHotkeysWindow = () => RuntimeHotkeyReferenceWindow.Show(_hotkeyManager),
+                CreateRunningToast = MakeRunningToast,
+                GetTrayHost = () => trayHost,
+            }
+        );
 
         trayHost = new TrayIconHost("Macrosharp", iconCycler.GetNext(), trayMenu, defaultClickIndex: 2, defaultDoubleClickIndex: 0, quitAction: () => RequestAppExit("tray menu"));
         trayHost.Start();
@@ -747,14 +448,7 @@ public class Program
         using var hotkeyManager = new HotkeyManager(keyboardHookManager);
         _hotkeyManager = hotkeyManager;
 
-        void SetupRuntimeNotifiers()
-        {
-            PathLocator.IssueNotifier = OnPathLocatorIssue;
-            AudioPlayer.RepeatedFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Audio Warning", message);
-            HotkeyManager.RepeatedActionFailureNotifier = message => ShowOneTimeWarningDialog("Macrosharp - Hotkey Warning", message);
-        }
-
-        SetupRuntimeNotifiers();
+        ProgramRuntimeNotifiers.Configure();
 
         using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath, watchForChanges: watchTextExpansionsConfig);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
@@ -978,146 +672,32 @@ public class Program
         keyboardHookManager.Start();
         mouseHookManager.Start();
 
-        // ═══════════════════════════════════════════════════════════════════════
-        //  8. Register Hotkeys — Application Control
-        // ═══════════════════════════════════════════════════════════════════════
-        void SetupHotkeyRegistrations()
-        {
-            ApplicationControlHotkeyRegistry.Register(
-                hotkeyManager,
-                SourceApplicationControl,
-                onConfirmExit: () =>
-                {
-                    var result = PInvoke.MessageBox(
-                        HWND.Null,
-                        "Win+Esc detected.\n\nDo you want to quit Macrosharp?",
-                        "Macrosharp - Confirm Exit",
-                        MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST
-                    );
-
-                    if (result != MESSAGEBOX_RESULT.IDYES)
-                    {
-                        Console.WriteLine("Win+Esc: exit canceled.");
-                        return;
-                    }
-
-                    Console.WriteLine("Win+Esc: exit confirmed.");
-                    AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
-                    RequestAppExit("Win+Esc");
-                },
-                onImmediateExit: () =>
-                {
-                    Console.WriteLine("Alt+Win+Esc: Terminating application immediately...");
-                    AudioPlayer.PlayCrackTheWhipAsync(shouldPlayAsync: false); // sync so it finishes before exit
-                    RequestAppExit("Alt+Win+Esc");
-                },
-                onShowHotkeys: ShowHotkeysWindow,
-                onShowRunningToast: () =>
-                {
-                    Console.WriteLine("Win+?: Showing 'running' notification.");
-                    toastHost.Show(MakeRunningToast());
-                },
-                onClearConsole: () =>
-                {
-                    Console.Clear();
-                    Console.WriteLine("Console cleared.");
-                    AudioPlayer.PlayUndoAsync();
-                },
-                onToggleConsoleVisibility: () =>
-                {
-                    bool visible = SystemActions.ToggleConsoleVisibility();
-                    Console.WriteLine($"Console visibility: {(visible ? "Shown" : "Hidden")}");
-                    if (visible)
-                        AudioPlayer.PlayOnAsync();
-                    else
-                        AudioPlayer.PlayOffAsync();
-                },
-                onTogglePauseResume: () =>
-                {
-                    _paused = !_paused;
-                    Console.WriteLine($"Event handling: {(_paused ? "PAUSED" : "RESUMED")}");
-                    if (_paused)
-                        AudioPlayer.PlayOffAsync();
-                    else
-                        AudioPlayer.PlayOnAsync();
-                },
-                onToggleBurstClick: () =>
-                {
-                    if (IsBurstClickActive())
-                    {
-                        StopBurstClick("hotkey");
-                    }
-                    else
-                    {
-                        StartBurstClickFromTray();
-                    }
-                },
-                onToggleTextExpansion: () =>
-                {
-                    textExpansionManager.IsEnabled = !textExpansionManager.IsEnabled;
-                    Console.WriteLine($"Text expansion {(textExpansionManager.IsEnabled ? "ENABLED" : "DISABLED")}");
-                    if (textExpansionManager.IsEnabled)
-                        AudioPlayer.PlayOnAsync();
-                    else
-                        AudioPlayer.PlayOffAsync();
-                }
-            );
-
-            // ═══════════════════════════════════════════════════════════════════════
-            //  9. Register Hotkeys — Window Management
-            // ═══════════════════════════════════════════════════════════════════════
-            WindowManagementHotkeyRegistry.Register(hotkeyManager, SourceWindowManagement);
-
-            // ═══════════════════════════════════════════════════════════════════════
-            // 10. Register Hotkeys — Miscellaneous
-            // ═══════════════════════════════════════════════════════════════════════
-
-            MiscellaneousHotkeyRegistry.Register(
-                hotkeyManager,
-                SourceMiscellaneous,
-                () =>
-                {
-                    Console.WriteLine("Opening image editor...");
-                    try
-                    {
-                        AudioPlayer.PlayAudio(@"C:\Windows\Media\Windows Proximity Notification.wav", async: true);
-                    }
-                    catch (Exception ex)
-                    {
-                        Warn("Program", "PlayImageEditorLaunchSound", "Failed to play image-editor launch sound", ex);
-                    }
-                    Task.Run(() => Macrosharp.UserInterfaces.ImageEditorWindow.ImageEditorWindowHost.RunWithClipboard());
-                }
-            );
-
-            MediaAndDisplayHotkeyRegistry.Register(
-                hotkeyManager,
-                SourceMiscellaneous,
-                SendMpcCommand,
-                RepeatThrottleMediaSeekMs,
-                RepeatThrottleVolumeMs,
-                RepeatThrottleBrightnessMs,
-                RepeatThrottleZoomMs
-            );
-
-            PowerAndDisplayHotkeyRegistry.Register(
-                hotkeyManager,
-                SourceMiscellaneous,
-                () =>
-                {
-                    var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
-                    return result == MESSAGEBOX_RESULT.IDYES;
-                },
-                (component, operation, details, ex) => Warn(component, operation, details, ex)
-            );
-
-            // ═══════════════════════════════════════════════════════════════════════
-            // 11. Register Hotkeys — File Management (Explorer-Focused)
-            // ═══════════════════════════════════════════════════════════════════════
-            FileManagementHotkeyRegistry.Register(hotkeyManager, SourceFileManagement);
-        }
-
-        SetupHotkeyRegistrations();
+        ProgramHotkeyRegistration.RegisterAll(
+            new ProgramHotkeyRegistration.Dependencies
+            {
+                HotkeyManager = hotkeyManager,
+                SourceApplicationControl = SourceApplicationControl,
+                SourceWindowManagement = SourceWindowManagement,
+                SourceMiscellaneous = SourceMiscellaneous,
+                SourceFileManagement = SourceFileManagement,
+                ToastHost = toastHost,
+                CreateRunningToast = MakeRunningToast,
+                TextExpansionManager = textExpansionManager,
+                IsBurstClickActive = IsBurstClickActive,
+                StartBurstClick = StartBurstClickFromTray,
+                StopBurstClick = reason => StopBurstClick(reason),
+                ShowHotkeysWindow = () => RuntimeHotkeyReferenceWindow.Show(_hotkeyManager),
+                GetPaused = () => _paused,
+                SetPaused = value => _paused = value,
+                RequestExit = RequestAppExit,
+                Warn = ProgramRuntimeNotifiers.Warn,
+                RepeatThrottleMediaSeekMs = RepeatThrottleMediaSeekMs,
+                RepeatThrottleVolumeMs = RepeatThrottleVolumeMs,
+                RepeatThrottleBrightnessMs = RepeatThrottleBrightnessMs,
+                RepeatThrottleZoomMs = RepeatThrottleZoomMs,
+                SendMpcCommand = SendMpcCommand,
+            }
+        );
 
         // ═══════════════════════════════════════════════════════════════════════
         // 12. Startup Banner
