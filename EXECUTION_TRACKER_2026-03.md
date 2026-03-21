@@ -99,7 +99,7 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 | P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | Done | 2026-05-14 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Completed by extracting setup helpers for config watching, tray menu construction, text-expansion wiring, keyboard/mouse handlers, hotkey registration wiring, runtime notifier setup, cleanup, and burst-click controller, leaving Main focused on bootstrap and lifecycle orchestration |
 | P5-3 | Implement runtime hotkey reference window |  | Done | 2026-05-17 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Runtime hotkey reference window is available via tray action and Ctrl+Win+/, with filterable table UX, deterministic source/hotkey sorting, and live item count in the title |
 | P5-4 | Update architecture and operations documentation |  | Done | 2026-05-20 | 2026-03-21 | 2026-03-21 | P5-2, P5-3 | No | None | Updated README and FEATURES to reflect host-shared architecture, setup-method orchestration in Program, and runtime hotkey reference behavior (tray/hotkey access, sorting, and item count visibility) |
-| P5-5 | Final manual validation and release readiness review |  | In Progress | 2026-05-22 | 2026-03-21 |  | P5-4 | No | None | Build and publish preflight checks passed; interactive checklist execution and sign-off tracking in PHASE5_VERIFICATION_LOG_2026-03-21.md |
+| P5-5 | Final manual validation and release readiness review |  | In Progress | 2026-05-22 | 2026-03-21 |  | P5-4 | No | None | Build and publish preflight checks passed, non-interactive host startup/shutdown smoke passed, and remaining interactive checklist/sign-off is tracked in PHASE5_VERIFICATION_LOG_2026-03-21.md |
 
 ## Clarification Log
 
