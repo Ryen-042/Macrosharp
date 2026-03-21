@@ -32,6 +32,8 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Gets the current configuration.</summary>
     public TextExpansionConfiguration CurrentConfiguration => _currentConfiguration;
 
+    public string ConfigPath => _configFilePath;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="TextExpansionConfigurationManager"/> class.
     /// </summary>
@@ -73,6 +75,8 @@ public class TextExpansionConfigurationManager : IDisposable
                 {
                     throw new JsonException("Deserialization resulted in a null configuration.");
                 }
+
+                Normalize(loadedConfig);
 
                 _currentConfiguration = loadedConfig;
                 Console.WriteLine($"TextExpansion: Configuration loaded. Rules: {_currentConfiguration.Rules.Count}");
@@ -188,12 +192,16 @@ public class TextExpansionConfigurationManager : IDisposable
                 Console.WriteLine($"TextExpansion: Invalid configuration backed up to: {backupFilePath}");
             }
 
-            // Create default configuration
-            _currentConfiguration = CreateDefaultConfiguration();
-            SaveConfigurationInternal(_currentConfiguration);
-            Console.WriteLine("TextExpansion: Configuration reverted to default.");
+            if (_currentConfiguration.Rules.Count == 0)
+            {
+                _currentConfiguration = CreateDefaultConfiguration();
+            }
 
-            string message = $"The text-expansions.json file is invalid.\nError: {errorMessage}\n\nA backup was created at:\n{backupFilePath}\n\nDefault configuration has been restored.";
+            Normalize(_currentConfiguration);
+            SaveConfigurationInternal(_currentConfiguration);
+            Console.WriteLine("TextExpansion: Configuration reverted to last known good state.");
+
+            string message = $"The text-expansions.json file is invalid.\nError: {errorMessage}\n\nA backup was created at:\n{backupFilePath}\n\nThe configuration has been reverted to the last known good state.";
             PInvoke.MessageBox(HWND.Null, message, "Text Expansion Configuration Error", MESSAGEBOX_STYLE.MB_ICONERROR);
         }
         catch (Exception ex)
@@ -205,8 +213,57 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Saves the current configuration to the file.</summary>
     private void SaveConfigurationInternal(TextExpansionConfiguration configuration)
     {
+        EnsureDirectory();
+        Normalize(configuration);
         string jsonString = JsonSerializer.Serialize(configuration, JsonOptions);
         File.WriteAllText(_configFilePath, jsonString);
+    }
+
+    public void ReloadNow()
+    {
+        _ = LoadConfiguration();
+    }
+
+    public void SaveConfiguration(TextExpansionConfiguration configuration)
+    {
+        if (configuration is null)
+        {
+            throw new ArgumentNullException(nameof(configuration));
+        }
+
+        lock (_fileLock)
+        {
+            Normalize(configuration);
+            _currentConfiguration = configuration;
+            SaveConfigurationInternal(_currentConfiguration);
+            ConfigurationChanged?.Invoke(this, _currentConfiguration);
+        }
+    }
+
+    private void EnsureDirectory()
+    {
+        string? directory = Path.GetDirectoryName(_configFilePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+    }
+
+    private static void Normalize(TextExpansionConfiguration config)
+    {
+        config.Rules ??= new List<TextExpansionRule>();
+        config.Settings ??= new TextExpansionSettings();
+
+        config.Settings.Delimiters ??= new List<string>();
+        config.Settings.BufferSize = Math.Clamp(config.Settings.BufferSize, 8, 512);
+        config.Settings.BackspaceDelayMs = Math.Clamp(config.Settings.BackspaceDelayMs, 0, 200);
+        config.Settings.PasteDelayMs = Math.Clamp(config.Settings.PasteDelayMs, 0, 500);
+
+        foreach (var rule in config.Rules)
+        {
+            rule.Trigger ??= string.Empty;
+            rule.Expansion ??= string.Empty;
+        }
     }
 
     /// <summary>

@@ -21,6 +21,8 @@ public sealed class ReminderConfigurationManager : IDisposable
 
     public ReminderConfiguration CurrentConfiguration { get; private set; } = new();
 
+    public string ConfigPath => _configPath;
+
     public event EventHandler<ReminderConfiguration>? ConfigurationChanged;
 
     public ReminderConfigurationManager(string configPath, bool watchForChanges = false)
@@ -97,8 +99,10 @@ public sealed class ReminderConfigurationManager : IDisposable
     {
         try
         {
+            var backupDirectory = Path.GetDirectoryName(_configPath) ?? AppContext.BaseDirectory;
+            Directory.CreateDirectory(backupDirectory);
             var backupFileName = $"{Path.GetFileNameWithoutExtension(_configPath)}.bak{_backupCounter++}{Path.GetExtension(_configPath)}";
-            var backupPath = Path.Combine(Path.GetDirectoryName(_configPath) ?? AppContext.BaseDirectory, backupFileName);
+            var backupPath = Path.Combine(backupDirectory, backupFileName);
 
             if (!string.IsNullOrEmpty(content))
             {
@@ -111,7 +115,7 @@ public sealed class ReminderConfigurationManager : IDisposable
             }
 
             SaveConfigurationInternal(CurrentConfiguration);
-            Console.WriteLine($"Reminder configuration recovered. Backup: {backupPath}. Error: {message}");
+            Console.WriteLine($"Reminder configuration reverted to last known good state. Backup: {backupPath}. Error: {message}");
         }
         catch (Exception ex)
         {
