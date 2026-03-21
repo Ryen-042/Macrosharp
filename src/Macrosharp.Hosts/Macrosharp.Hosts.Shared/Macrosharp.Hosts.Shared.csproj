@@ -9,6 +9,7 @@
     <ProjectReference Include="..\..\Macrosharp.Devices\Macrosharp.Devices.Core\Macrosharp.Devices.Core.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Devices\Macrosharp.Devices.Keyboard\Macrosharp.Devices.Keyboard.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Infrastructure\Macrosharp.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.UserInterfaces\Macrosharp.UserInterfaces.DynamicWindow\Macrosharp.UserInterfaces.DynamicWindow.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Abstractions\Macrosharp.Win32.Abstractions.csproj" />
   </ItemGroup>
 </Project>
