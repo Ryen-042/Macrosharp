@@ -1105,10 +1105,15 @@ public class Program
             sourceContext: SourceMiscellaneous
         );
 
-        // ` + W → Seek forward in MPC-HC; ` + S → Seek backward; ` + Space → Play/Pause
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_W, Modifiers.BACKTICK, () => SendMpcCommand(905), description: "Seek media forward in MPC-HC.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleMediaSeekMs); // Jump forward (small)
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.KEY_S, Modifiers.BACKTICK, () => SendMpcCommand(906), description: "Seek media backward in MPC-HC.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleMediaSeekMs); // Jump backward (small)
-        hotkeyManager.RegisterHotkey(VirtualKey.SPACE, Modifiers.BACKTICK, () => SendMpcCommand(889), description: "Toggle MPC-HC play or pause.", sourceContext: SourceMiscellaneous); // Play/Pause
+        MediaAndDisplayHotkeyRegistry.Register(
+            hotkeyManager,
+            SourceMiscellaneous,
+            SendMpcCommand,
+            RepeatThrottleMediaSeekMs,
+            RepeatThrottleVolumeMs,
+            RepeatThrottleBrightnessMs,
+            RepeatThrottleZoomMs
+        );
 
         // Win + CapsLock → Toggle Scroll Lock
         hotkeyManager.RegisterHotkey(
@@ -1211,75 +1216,6 @@ public class Program
             description: "Switch display mode to clone.",
             sourceContext: SourceMiscellaneous
         ); // Clone
-
-        // Ctrl + Shift + = or Ctrl + Shift + Add → Increase volume
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_PLUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.ADD, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_UP), description: "Increase system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
-
-        // Ctrl + Shift + - or Ctrl + Shift + Subtract → Decrease volume
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.OEM_MINUS, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
-        hotkeyManager.RegisterRepeatableHotkey(VirtualKey.SUBTRACT, Modifiers.CTRL_SHIFT, () => KeyboardSimulator.SimulateKeyPress(VirtualKey.VOLUME_DOWN), description: "Decrease system volume.", sourceContext: SourceMiscellaneous, dispatchPolicy: HotkeyDispatchPolicy.Throttled, throttleIntervalMs: RepeatThrottleVolumeMs);
-
-        // ` + F2 → Decrease brightness; ` + F3 → Increase brightness
-        hotkeyManager.RegisterRepeatableHotkey(
-            VirtualKey.F2,
-            Modifiers.BACKTICK,
-            () =>
-            {
-                int level = BrightnessControl.DecreaseBrightness();
-                if (level >= 0)
-                    Console.WriteLine($"Brightness: {level}%");
-            },
-            description: "Decrease screen brightness.",
-            sourceContext: SourceMiscellaneous,
-            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
-            throttleIntervalMs: RepeatThrottleBrightnessMs
-        );
-        hotkeyManager.RegisterRepeatableHotkey(
-            VirtualKey.F3,
-            Modifiers.BACKTICK,
-            () =>
-            {
-                int level = BrightnessControl.IncreaseBrightness();
-                if (level >= 0)
-                    Console.WriteLine($"Brightness: {level}%");
-            },
-            description: "Increase screen brightness.",
-            sourceContext: SourceMiscellaneous,
-            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
-            throttleIntervalMs: RepeatThrottleBrightnessMs
-        );
-
-        // Ctrl + E (Scroll Lock ON) → Zoom in; Ctrl + Q → Zoom out
-        hotkeyManager.RegisterConditionalRepeatableHotkey(
-            VirtualKey.KEY_E,
-            Modifiers.CTRL,
-            () =>
-            {
-                // Simulate Ctrl+ScrollUp for zoom in
-                MouseSimulator.SendMouseScroll(steps: 3, direction: 1);
-            },
-            () => Modifiers.IsScrollLockOn,
-            description: "Zoom in while Scroll Lock is on.",
-            sourceContext: SourceMiscellaneous,
-            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
-            throttleIntervalMs: RepeatThrottleZoomMs
-        );
-
-        hotkeyManager.RegisterConditionalRepeatableHotkey(
-            VirtualKey.KEY_Q,
-            Modifiers.CTRL,
-            () =>
-            {
-                // Simulate Ctrl+ScrollDown for zoom out
-                MouseSimulator.SendMouseScroll(steps: -3, direction: 1);
-            },
-            () => Modifiers.IsScrollLockOn,
-            description: "Zoom out while Scroll Lock is on.",
-            sourceContext: SourceMiscellaneous,
-            dispatchPolicy: HotkeyDispatchPolicy.Throttled,
-            throttleIntervalMs: RepeatThrottleZoomMs
-        );
 
         // ═══════════════════════════════════════════════════════════════════════
         // 11. Register Hotkeys — File Management (Explorer-Focused)
