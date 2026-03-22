@@ -1,7 +1,7 @@
 ﻿using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
-using Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 using Macrosharp.Infrastructure;
+using Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.Win32.Abstractions.SystemControl;
 using Windows.Win32;
@@ -172,6 +172,3 @@ public static class ProgramHotkeyRegistration
         FileManagementHotkeyRegistry.Register(dependencies.HotkeyManager, dependencies.SourceFileManagement);
     }
 }
-
-
-

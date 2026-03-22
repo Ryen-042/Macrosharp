@@ -1,4 +1,4 @@
-namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
+﻿namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public enum MpcCommandId
 {

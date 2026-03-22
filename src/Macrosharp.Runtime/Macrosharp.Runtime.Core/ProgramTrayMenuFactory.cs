@@ -1,5 +1,5 @@
-﻿using Macrosharp.Runtime.Configuration;
-using Macrosharp.Infrastructure;
+﻿using Macrosharp.Infrastructure;
+using Macrosharp.Runtime.Configuration;
 using Macrosharp.UserInterfaces.Reminders;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.UserInterfaces.TrayIcon;
@@ -298,6 +298,3 @@ public static class ProgramTrayMenuFactory
         ];
     }
 }
-
-
-

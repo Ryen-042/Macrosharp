@@ -23,5 +23,3 @@ public static class RuntimeHotkeyReferenceWindow
         FilterableTableWindow.ShowOrActivate($"Macrosharp Hotkeys ({rows.Count})", ["Hotkey", "Description", "Source"], rows, filterPlaceholder: "Type to filter hotkeys...");
     }
 }
-
-

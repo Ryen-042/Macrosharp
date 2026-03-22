@@ -1,5 +1,5 @@
-﻿using Macrosharp.Win32.Abstractions.WindowTools;
-using Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
+﻿using Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
+using Macrosharp.Win32.Abstractions.WindowTools;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 

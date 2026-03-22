@@ -112,14 +112,7 @@ public sealed class BurstClickCoordinator
         {
             try
             {
-                await KeyboardSimulator.SimulateBurstClicksAsync(
-                    _burstClickKey,
-                    _burstClickIntervalMs,
-                    _burstClickDurationMs,
-                    selectedTargetWindow,
-                    pinActiveFallback,
-                    localCancellation.Token
-                );
+                await KeyboardSimulator.SimulateBurstClicksAsync(_burstClickKey, _burstClickIntervalMs, _burstClickDurationMs, selectedTargetWindow, pinActiveFallback, localCancellation.Token);
 
                 if (_burstClickDurationMs > 0)
                 {

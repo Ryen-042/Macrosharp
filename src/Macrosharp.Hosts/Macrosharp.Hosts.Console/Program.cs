@@ -5,8 +5,8 @@ using Macrosharp.Devices.Core;
 using Macrosharp.Devices.Keyboard;
 using Macrosharp.Devices.Keyboard.TextExpansion;
 using Macrosharp.Devices.Mouse;
-using Macrosharp.Runtime.Configuration;
 using Macrosharp.Infrastructure;
+using Macrosharp.Runtime.Configuration;
 using Macrosharp.Runtime.Core;
 using Macrosharp.UserInterfaces.Reminders;
 using Macrosharp.UserInterfaces.ToastNotifications;
@@ -195,4 +195,3 @@ public class Program
         CleanupAndExit();
     }
 }
-
