@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -8,6 +9,11 @@ namespace Macrosharp.Win32.Abstractions.WindowTools;
 
 public class WindowFinder
 {
+    public readonly record struct WindowSummary(HWND Handle, string Title, string ClassName)
+    {
+        public string DisplayLabel => string.IsNullOrWhiteSpace(ClassName) ? Title : $"{Title} [{ClassName}]";
+    }
+
     // Retrieves the class name of the window.
     public static string GetWindowClassName(HWND hwnd = default)
     {
@@ -109,5 +115,65 @@ public class WindowFinder
         }
 
         return output;
+    }
+
+    public static List<WindowSummary> GetVisibleTopLevelWindows(bool includeUntitled = false)
+    {
+        var output = new List<WindowSummary>();
+        HWND hwnd = PInvoke.GetTopWindow(HWND.Null);
+
+        while (hwnd != HWND.Null)
+        {
+            if (PInvoke.GetWindow(hwnd, GET_WINDOW_CMD.GW_OWNER) == HWND.Null)
+            {
+                string title = TryGetWindowTitleSafe(hwnd);
+                if (includeUntitled || !string.IsNullOrWhiteSpace(title))
+                {
+                    string className = TryGetWindowClassNameSafe(hwnd);
+                    output.Add(new WindowSummary(hwnd, title, className));
+                }
+            }
+
+            hwnd = PInvoke.GetWindow(hwnd, GET_WINDOW_CMD.GW_HWNDNEXT);
+        }
+
+        return output;
+    }
+
+    public static bool TryGetRootWindowFromCurrentCursor(out HWND rootWindow)
+    {
+        rootWindow = HWND.Null;
+
+        if (!PInvoke.GetCursorPos(out Point cursorPos))
+        {
+            return false;
+        }
+
+        rootWindow = PInvoke.GetForegroundWindow();
+        return rootWindow != HWND.Null;
+    }
+
+    private static string TryGetWindowTitleSafe(HWND hwnd)
+    {
+        try
+        {
+            return GetWindowTitle(hwnd);
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string TryGetWindowClassNameSafe(HWND hwnd)
+    {
+        try
+        {
+            return GetWindowClassName(hwnd);
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 }

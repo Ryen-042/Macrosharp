@@ -1,6 +1,6 @@
 ﻿using Macrosharp.Devices.Core;
 using Macrosharp.UserInterfaces.DynamicWindow;
-using Windows.Win32.UI.Input.KeyboardAndMouse;
+using Windows.Win32.Foundation;
 
 namespace Macrosharp.Runtime.Core;
 
@@ -56,6 +56,7 @@ public sealed class BurstClickCoordinator
         var window = new SimpleWindow("Start Burst Click", labelWidth: 200);
         window.NumberOfCombinationsToCapture = 1;
         window.AllowSingleKeysWithoutModifiers = true;
+        window.EnableWindowSelection = true;
         window.CreateDynamicInputWindow(["Interval (ms)", "Duration (ms, 0 = infinite)"], [KeyboardSimulator.DefaultBurstClickIntervalMs.ToString(), KeyboardSimulator.DefaultBurstClickDurationMs.ToString()], enableKeyCapture: true);
 
         if (window.userInputs.Count < 2)
@@ -93,6 +94,9 @@ public sealed class BurstClickCoordinator
         }
 
         CancellationTokenSource localCancellation;
+        var selectedTargetWindow = new HWND(window.SelectedWindowHandle);
+        bool pinActiveFallback = window.UsePinnedActiveWindowWhenNoSelection;
+
         lock (_stateGate)
         {
             _burstClickKey = requestedKey;
@@ -108,7 +112,14 @@ public sealed class BurstClickCoordinator
         {
             try
             {
-                await KeyboardSimulator.SimulateBurstClicksAsync(_burstClickKey, _burstClickIntervalMs, _burstClickDurationMs, localCancellation.Token);
+                await KeyboardSimulator.SimulateBurstClicksAsync(
+                    _burstClickKey,
+                    _burstClickIntervalMs,
+                    _burstClickDurationMs,
+                    selectedTargetWindow,
+                    pinActiveFallback,
+                    localCancellation.Token
+                );
 
                 if (_burstClickDurationMs > 0)
                 {
@@ -192,5 +203,3 @@ public sealed class BurstClickCoordinator
         return true;
     }
 }
-
-

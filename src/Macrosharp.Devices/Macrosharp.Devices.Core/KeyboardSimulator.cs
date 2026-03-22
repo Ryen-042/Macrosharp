@@ -477,16 +477,51 @@ public static partial class KeyboardSimulator
         CancellationToken cancellationToken = default
     )
     {
+        await SimulateBurstClicksAsync(keyToSimulate, intervalMs, durationMs, HWND.Null, pinActiveWindowWhenNoSelection: false, cancellationToken);
+    }
+
+    public static async Task SimulateBurstClicksAsync(
+        VirtualKey keyToSimulate,
+        int intervalMs,
+        int durationMs,
+        HWND targetWindow,
+        bool pinActiveWindowWhenNoSelection,
+        CancellationToken cancellationToken = default
+    )
+    {
         if (!TryValidateBurstClickSettings(keyToSimulate, intervalMs, durationMs, out string? errorMessage))
         {
             throw new ArgumentException(errorMessage);
+        }
+
+        HWND pinnedFallbackWindow = HWND.Null;
+        if (targetWindow == HWND.Null && pinActiveWindowWhenNoSelection)
+        {
+            pinnedFallbackWindow = PInvoke.GetForegroundWindow();
         }
 
         Stopwatch stopwatch = Stopwatch.StartNew();
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            SimulateKeyPress(keyToSimulate, delayMilliseconds: 0);
+            if (targetWindow != HWND.Null)
+            {
+                if (!TryPostKeyPressToWindow(targetWindow, keyToSimulate))
+                {
+                    SimulateKeyPress(keyToSimulate, delayMilliseconds: 0);
+                }
+            }
+            else if (pinnedFallbackWindow != HWND.Null)
+            {
+                if (!TryPostKeyPressToWindow(pinnedFallbackWindow, keyToSimulate))
+                {
+                    SimulateKeyPress(keyToSimulate, delayMilliseconds: 0);
+                }
+            }
+            else
+            {
+                SimulateKeyPress(keyToSimulate, delayMilliseconds: 0);
+            }
 
             if (durationMs > 0)
             {
@@ -504,6 +539,19 @@ public static partial class KeyboardSimulator
                 await Task.Delay(intervalMs, cancellationToken);
             }
         }
+    }
+
+    private static bool TryPostKeyPressToWindow(HWND hwnd, VirtualKey key)
+    {
+        uint virtualKey = (uint)key;
+        uint scanCode = PInvoke.MapVirtualKey(virtualKey, MAP_VIRTUAL_KEY_TYPE.MAPVK_VK_TO_VSC);
+
+        nint keyDownLParam = 0x00000001 | ((nint)scanCode << 16);
+        nint keyUpLParam = keyDownLParam | unchecked((nint)0xC0000000u);
+
+        bool downPosted = PInvoke.PostMessage(hwnd, PInvoke.WM_KEYDOWN, new WPARAM((nuint)virtualKey), new LPARAM(keyDownLParam));
+        bool upPosted = PInvoke.PostMessage(hwnd, PInvoke.WM_KEYUP, new WPARAM((nuint)virtualKey), new LPARAM(keyUpLParam));
+        return downPosted && upPosted;
     }
 
     /// <summary>

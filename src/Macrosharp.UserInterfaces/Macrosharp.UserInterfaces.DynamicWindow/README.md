@@ -8,6 +8,7 @@ A lightweight Windows dialog library for creating dynamic input forms with optio
 - **Key Capture** - Optional keyboard key capture for hotkey configuration
 - **Modifier Key Support** - Capture key combinations with Ctrl, Shift, Alt, and Win modifiers
 - **Key Sequence Capture** - Capture a configurable number of key presses in a single sequence
+- **Optional Window Selection** - Target visible windows via dropdown or pick-by-click controls
 - **DPI Aware** - Proper scaling on high-DPI displays
 - **Always-On-Top** - Window stays on top for quick input scenarios
 - **Resizable** - Window width adjusts to content with constraints
@@ -89,6 +90,7 @@ var window = new SimpleWindow("Register Hotkey");
 window.NumberOfCombinationsToCapture = 3;
 window.AllowSingleKeysWithoutModifiers = false;
 window.AutoStartKeyCapture = true;
+window.EnableWindowSelection = true;
 
 var labels = new List<string> { "Action Name:" };
 var placeholders = new List<string> { "Toggle Window" };
@@ -103,6 +105,11 @@ if (!string.IsNullOrEmpty(window.capturedKeySequence))
 {
     Console.WriteLine($"Captured: {window.capturedKeySequence}");
     // Example output: "Ctrl+Shift+A" or "Ctrl+A, B, C" for sequences
+}
+
+if (window.SelectedWindowHandle != 0)
+{
+    Console.WriteLine($"Selected target window: {window.SelectedWindowDisplayName}");
 }
 ```
 
@@ -138,6 +145,20 @@ When `NumberOfCombinationsToCapture` is `1`, capture auto-finishes after the fir
 | `NumberOfCombinationsToCapture` | `3` | Number of accepted captures before auto-stop. Values less than `1` are treated as `1`. |
 | `AllowSingleKeysWithoutModifiers` | `false` | When `true`, captures single keys and modifier-only keys, and splits chords into individual captures. |
 | `AutoStartKeyCapture` | `true` | When `true`, capture mode starts immediately when a key-capture window opens. |
+
+### Window Selection Configuration
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `EnableWindowSelection` | `false` | Shows optional target window controls (dropdown, refresh, click-to-pick). |
+| `UsePinnedActiveWindowWhenNoSelection` | `false` | When `true`, callers can keep the active window at submit-time pinned as fallback when no explicit target is selected. |
+
+### Window Selection Output
+
+| Property | Description |
+|----------|-------------|
+| `SelectedWindowHandle` | Selected target window handle (`0` means "use active window"). |
+| `SelectedWindowDisplayName` | Selected target window display text from the dropdown or click picker. |
 
 ## Keyboard Shortcuts
 

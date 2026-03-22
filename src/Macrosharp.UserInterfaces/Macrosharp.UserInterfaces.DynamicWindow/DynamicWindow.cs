@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using Macrosharp.Devices.Core;
+using Macrosharp.Win32.Abstractions.WindowTools;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -46,9 +47,35 @@ public class SimpleWindow
     public int NumberOfCombinationsToCapture { get; set; } = 3;
     public bool AllowSingleKeysWithoutModifiers { get; set; } = false;
     public bool AutoStartKeyCapture { get; set; } = true;
+    public bool EnableWindowSelection { get; set; }
+    public bool UsePinnedActiveWindowWhenNoSelection { get; set; }
+    public nint SelectedWindowHandle { get; private set; }
+    public string? SelectedWindowDisplayName { get; private set; }
+
+    private bool showWindowSelectionField;
+    private HWND hWindowSelectionCombo;
+    private HWND hRefreshWindowsButton;
+    private HWND hPickWindowButton;
+    private HWND hPinFallbackCheckbox;
+    private readonly List<WindowFinder.WindowSummary> availableWindows = new();
+
     private const int OK_BUTTON_ID = 1;
     private const int CAPTURE_BUTTON_ID = 2;
     private const int FINISH_CAPTURE_BUTTON_ID = 3;
+    private const int WINDOW_SELECTION_COMBO_ID = 4;
+    private const int REFRESH_WINDOWS_BUTTON_ID = 5;
+    private const int PICK_WINDOW_BUTTON_ID = 6;
+    private const int PIN_ACTIVE_FALLBACK_CHECKBOX_ID = 7;
+
+    private const uint CB_ADDSTRING = 0x0143;
+    private const uint CB_GETCURSEL = 0x0147;
+    private const uint CB_SETCURSEL = 0x014E;
+    private const uint CB_RESETCONTENT = 0x014B;
+    private const uint BM_GETCHECK = 0x00F0;
+    private const uint BM_SETCHECK = 0x00F1;
+    private const uint BST_CHECKED = 0x0001;
+    private const uint CBS_DROPDOWNLIST = 0x0003;
+    private const uint BS_AUTOCHECKBOX = 0x0003;
 
     private enum ModifierKind
     {
@@ -123,6 +150,12 @@ public class SimpleWindow
                     {
                         ArrayPool<char>.Shared.Return(bufferArray);
                     }
+
+                    if (showWindowSelectionField)
+                    {
+                        CaptureWindowSelectionValues();
+                    }
+
                     DestroyWindow();
                     return (LRESULT)0;
                 }
@@ -134,6 +167,16 @@ public class SimpleWindow
                 else if (controlId == FINISH_CAPTURE_BUTTON_ID)
                 {
                     FinishKeyCapture();
+                    return (LRESULT)0;
+                }
+                else if (controlId == REFRESH_WINDOWS_BUTTON_ID)
+                {
+                    RefreshWindowSelectionOptions();
+                    return (LRESULT)0;
+                }
+                else if (controlId == PICK_WINDOW_BUTTON_ID)
+                {
+                    PickWindowByClick();
                     return (LRESULT)0;
                 }
                 break;
@@ -273,6 +316,14 @@ public class SimpleWindow
                     }
                 }
 
+                if (showWindowSelectionField)
+                {
+                    PInvoke.SetWindowPos(hWindowSelectionCombo, HWND.Null, 0, 0, width - (labelWidth + xSep + 2 * xOffset), itemsHeight * 8, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+                    PInvoke.SetWindowPos(hRefreshWindowsButton, HWND.Null, 0, 0, width - 2 * xOffset, itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+                    PInvoke.SetWindowPos(hPickWindowButton, HWND.Null, 0, 0, width - 2 * xOffset, itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+                    PInvoke.SetWindowPos(hPinFallbackCheckbox, HWND.Null, 0, 0, width - 2 * xOffset, itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+                }
+
                 foreach (var hEdit in hEditFields)
                 {
                     PInvoke.SetWindowPos(hEdit, HWND.Null, 0, 0, width - (labelWidth + xSep + 2 * xOffset), itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
@@ -290,6 +341,7 @@ public class SimpleWindow
         ResetWindowSessionState();
         this.enableKeyCapture = enableKeyCapture;
         showKeyCaptureField = enableKeyCapture;
+        showWindowSelectionField = EnableWindowSelection;
 
         if (placeholders != null && placeholders.Count != inputLabels.Count)
         {
@@ -327,8 +379,11 @@ public class SimpleWindow
                     capturedKeyRows = SupportsManualFinishCapture() ? 2 : 1;
                 }
 
+                int windowSelectionRows = showWindowSelectionField ? 4 : 0;
+
                 int capturedKeyHeight = capturedKeyRows * (itemsHeight + ySep);
-                computedHeight = 60 + capturedKeyHeight + (itemsHeight + ySep) * inputLabels.Count + itemsHeight + 2 * yOffset;
+                int windowSelectionHeight = windowSelectionRows * (itemsHeight + ySep);
+                computedHeight = 60 + capturedKeyHeight + windowSelectionHeight + (itemsHeight + ySep) * inputLabels.Count + itemsHeight + 2 * yOffset;
 
                 // Create main window
                 hwnd = PInvoke.CreateWindowEx(
@@ -359,6 +414,11 @@ public class SimpleWindow
         if (showKeyCaptureField)
         {
             CreateKeyCaptureControls(ref yPos);
+        }
+
+        if (showWindowSelectionField)
+        {
+            CreateWindowSelectionControls(ref yPos);
         }
 
         // Create Label and Edit controls
@@ -436,6 +496,231 @@ public class SimpleWindow
         {
             hFinishCaptureButton = HWND.Null;
         }
+    }
+
+    private unsafe void CreateWindowSelectionControls(ref int yPos)
+    {
+        PInvoke.CreateWindowEx(
+            0,
+            "STATIC",
+            "Target Window:",
+            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE,
+            xOffset,
+            yPos,
+            labelWidth,
+            itemsHeight,
+            hwnd,
+            default,
+            PInvoke.GetModuleHandle((string?)null),
+            null
+        );
+
+        hWindowSelectionCombo = PInvoke.CreateWindowEx(
+            0,
+            "COMBOBOX",
+            string.Empty,
+            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE | WINDOW_STYLE.WS_TABSTOP | WINDOW_STYLE.WS_VSCROLL | (WINDOW_STYLE)CBS_DROPDOWNLIST,
+            xOffset + labelWidth + xSep,
+            yPos,
+            inputFieldWidth,
+            itemsHeight * 8,
+            hwnd,
+            new SafeFileHandle((IntPtr)WINDOW_SELECTION_COMBO_ID, ownsHandle: false),
+            PInvoke.GetModuleHandle((string?)null),
+            null
+        );
+
+        yPos += itemsHeight + ySep;
+
+        hRefreshWindowsButton = PInvoke.CreateWindowEx(
+            0,
+            "BUTTON",
+            "Refresh Window List",
+            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE | WINDOW_STYLE.WS_TABSTOP,
+            xOffset,
+            yPos,
+            labelWidth + inputFieldWidth + xSep,
+            itemsHeight,
+            hwnd,
+            new SafeFileHandle((IntPtr)REFRESH_WINDOWS_BUTTON_ID, ownsHandle: false),
+            PInvoke.GetModuleHandle((string?)null),
+            null
+        );
+
+        yPos += itemsHeight + ySep;
+
+        hPickWindowButton = PInvoke.CreateWindowEx(
+            0,
+            "BUTTON",
+            "Pick Window By Click",
+            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE | WINDOW_STYLE.WS_TABSTOP,
+            xOffset,
+            yPos,
+            labelWidth + inputFieldWidth + xSep,
+            itemsHeight,
+            hwnd,
+            new SafeFileHandle((IntPtr)PICK_WINDOW_BUTTON_ID, ownsHandle: false),
+            PInvoke.GetModuleHandle((string?)null),
+            null
+        );
+
+        yPos += itemsHeight + ySep;
+
+        hPinFallbackCheckbox = PInvoke.CreateWindowEx(
+            0,
+            "BUTTON",
+            "Pin active window when no target is selected",
+            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE | WINDOW_STYLE.WS_TABSTOP | (WINDOW_STYLE)BS_AUTOCHECKBOX,
+            xOffset,
+            yPos,
+            labelWidth + inputFieldWidth + xSep,
+            itemsHeight,
+            hwnd,
+            new SafeFileHandle((IntPtr)PIN_ACTIVE_FALLBACK_CHECKBOX_ID, ownsHandle: false),
+            PInvoke.GetModuleHandle((string?)null),
+            null
+        );
+
+        if (UsePinnedActiveWindowWhenNoSelection)
+        {
+            PInvoke.SendMessage(hPinFallbackCheckbox, BM_SETCHECK, new WPARAM(BST_CHECKED), 0);
+        }
+
+        RefreshWindowSelectionOptions();
+        yPos += itemsHeight + ySep;
+    }
+
+    private void RefreshWindowSelectionOptions()
+    {
+        if (hWindowSelectionCombo == HWND.Null)
+        {
+            return;
+        }
+
+        availableWindows.Clear();
+        availableWindows.AddRange(WindowFinder.GetVisibleTopLevelWindows(includeUntitled: false));
+
+        PInvoke.SendMessage(hWindowSelectionCombo, CB_RESETCONTENT, 0, 0);
+        AddComboItem(hWindowSelectionCombo, "Use Active Window (Default)");
+        foreach (var window in availableWindows)
+        {
+            AddComboItem(hWindowSelectionCombo, window.DisplayLabel);
+        }
+
+        PInvoke.SendMessage(hWindowSelectionCombo, CB_SETCURSEL, 0, 0);
+    }
+
+    private void PickWindowByClick()
+    {
+        if (hPickWindowButton == HWND.Null)
+        {
+            return;
+        }
+
+        PInvoke.SetWindowText(hPickWindowButton, "Click target window...");
+        PInvoke.ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_MINIMIZE);
+
+        HWND capturedWindow = WaitForWindowClick(TimeSpan.FromSeconds(10));
+
+        PInvoke.ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_SHOWNORMAL);
+        PInvoke.SetForegroundWindow(hwnd);
+        PInvoke.SetFocus(hwnd);
+        PInvoke.SetWindowText(hPickWindowButton, "Pick Window By Click");
+
+        if (capturedWindow == HWND.Null || capturedWindow == hwnd)
+        {
+            return;
+        }
+
+        capturedWindow = PInvoke.GetAncestor(capturedWindow, GET_ANCESTOR_FLAGS.GA_ROOT);
+        if (capturedWindow == HWND.Null || capturedWindow == hwnd)
+        {
+            return;
+        }
+
+        TrySelectWindowInDropdown(capturedWindow);
+    }
+
+    private HWND WaitForWindowClick(TimeSpan timeout)
+    {
+        DateTime startedAt = DateTime.UtcNow;
+        bool sawButtonRelease = false;
+
+        while (DateTime.UtcNow - startedAt < timeout)
+        {
+            bool isLeftButtonDown = (PInvoke.GetAsyncKeyState((int)VirtualKey.LBUTTON) & 0x8000) != 0;
+            if (!isLeftButtonDown)
+            {
+                sawButtonRelease = true;
+                Thread.Sleep(25);
+                continue;
+            }
+
+            if (sawButtonRelease && WindowFinder.TryGetRootWindowFromCurrentCursor(out HWND rootWindow))
+            {
+                return rootWindow;
+            }
+
+            Thread.Sleep(25);
+        }
+
+        return HWND.Null;
+    }
+
+    private void TrySelectWindowInDropdown(HWND selectedWindow)
+    {
+        if (hWindowSelectionCombo == HWND.Null)
+        {
+            return;
+        }
+
+        RefreshWindowSelectionOptions();
+
+        for (int i = 0; i < availableWindows.Count; i++)
+        {
+            if (availableWindows[i].Handle == selectedWindow)
+            {
+                PInvoke.SendMessage(hWindowSelectionCombo, CB_SETCURSEL, (WPARAM)(nuint)(i + 1), 0);
+                return;
+            }
+        }
+
+        string title = WindowFinder.GetWindowTitle(selectedWindow);
+        string className = WindowFinder.GetWindowClassName(selectedWindow);
+        var summary = new WindowFinder.WindowSummary(selectedWindow, title, className);
+        availableWindows.Add(summary);
+        AddComboItem(hWindowSelectionCombo, summary.DisplayLabel);
+        PInvoke.SendMessage(hWindowSelectionCombo, CB_SETCURSEL, (WPARAM)(nuint)availableWindows.Count, 0);
+    }
+
+    private void AddComboItem(HWND comboHandle, string text)
+    {
+        Messaging.SendMessageToWindow(comboHandle, CB_ADDSTRING, default, text);
+    }
+
+    private unsafe void CaptureWindowSelectionValues()
+    {
+        UsePinnedActiveWindowWhenNoSelection = PInvoke.SendMessage(hPinFallbackCheckbox, BM_GETCHECK, 0, 0).Value == BST_CHECKED;
+
+        int selectedIndex = (int)PInvoke.SendMessage(hWindowSelectionCombo, CB_GETCURSEL, 0, 0).Value;
+        if (selectedIndex <= 0)
+        {
+            SelectedWindowHandle = 0;
+            SelectedWindowDisplayName = "Active Window";
+            return;
+        }
+
+        int windowsIndex = selectedIndex - 1;
+        if (windowsIndex >= availableWindows.Count)
+        {
+            SelectedWindowHandle = 0;
+            SelectedWindowDisplayName = "Active Window";
+            return;
+        }
+
+        var selectedWindow = availableWindows[windowsIndex];
+        SelectedWindowHandle = (nint)selectedWindow.Handle.Value;
+        SelectedWindowDisplayName = selectedWindow.DisplayLabel;
     }
 
     private unsafe void CreateLabelAndEditControl(string label, string placeholder, ref int yPos)
@@ -723,10 +1008,17 @@ public class SimpleWindow
         captureFinished = false;
         pendingModifiers.Clear();
         capturedPresses.Clear();
+        availableWindows.Clear();
         capturedKeyVK = 0;
         capturedKeyScanCode = 0;
         capturedKeyName = null;
         capturedKeySequence = null;
+        SelectedWindowHandle = 0;
+        SelectedWindowDisplayName = null;
+        hWindowSelectionCombo = HWND.Null;
+        hRefreshWindowsButton = HWND.Null;
+        hPickWindowButton = HWND.Null;
+        hPinFallbackCheckbox = HWND.Null;
     }
 
     private static bool IsCapsLockOn()
