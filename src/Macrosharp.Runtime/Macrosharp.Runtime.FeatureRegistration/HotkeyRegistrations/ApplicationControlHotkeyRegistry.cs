@@ -11,6 +11,7 @@ public static class ApplicationControlHotkeyRegistry
         Action onConfirmExit,
         Action onImmediateExit,
         Action onShowHotkeys,
+        Action onShowTextExpansions,
         Action onShowRunningToast,
         Action onClearConsole,
         Action onToggleConsoleVisibility,
@@ -24,6 +25,8 @@ public static class ApplicationControlHotkeyRegistry
         hotkeyManager.RegisterHotkey(VirtualKey.ESCAPE, Modifiers.ALT_WIN, onImmediateExit, description: "Terminate Macrosharp immediately.", sourceContext: sourceContext);
 
         hotkeyManager.RegisterHotkey(VirtualKey.OEM_2, Modifiers.CTRL_WIN, onShowHotkeys, description: "Open the hotkeys reference window.", sourceContext: sourceContext);
+
+        hotkeyManager.RegisterHotkey(VirtualKey.OEM_2, Modifiers.CTRL_ALT_WIN, onShowTextExpansions, description: "Open the text expansions reference window.", sourceContext: sourceContext);
 
         hotkeyManager.RegisterHotkey(VirtualKey.OEM_2, Modifiers.SHIFT_WIN, onShowRunningToast, description: "Show the running status toast with quick actions.", sourceContext: sourceContext);
 

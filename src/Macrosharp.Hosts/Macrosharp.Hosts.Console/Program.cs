@@ -66,6 +66,7 @@ public class Program
 
         string textExpansionConfigPath = PathLocator.GetConfigPath("text-expansions.json");
         string reminderConfigPath = PathLocator.GetConfigPath("reminders.json");
+        using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath, watchForChanges: runtimeState.WatchTextExpansionsConfig);
 
         // ═══════════════════════════════════════════════════════════════════════
         //  2. Toast Notification Host
@@ -103,6 +104,7 @@ public class Program
                 StartBurstClick = StartBurstClickFromTray,
                 StopBurstClick = reason => StopBurstClick(reason),
                 ShowHotkeysWindow = () => RuntimeHotkeyReferenceWindow.Show(_hotkeyManager),
+                ShowTextExpansionsWindow = () => RuntimeTextExpansionReferenceWindow.Show(textExpansionConfigManager),
                 CreateRunningToast = MakeRunningToast,
                 GetTrayHost = () => trayHost,
             }
@@ -122,7 +124,6 @@ public class Program
 
         ProgramRuntimeNotifiers.Configure();
 
-        using var textExpansionConfigManager = new TextExpansionConfigurationManager(textExpansionConfigPath, watchForChanges: runtimeState.WatchTextExpansionsConfig);
         using var textExpansionManager = new TextExpansionManager(keyboardHookManager);
         ProgramKeyboardHandlerSetup.SetupTerminalKeyLoggingHandler(keyboardHookManager, () => runtimeState.TerminalMessagesEnabled);
         ProgramKeyboardHandlerSetup.SetupBurstClickEscapeStopHandler(keyboardHookManager, IsBurstClickActive, () => StopBurstClick("ESC key", notifyWhenInactive: false));
@@ -159,6 +160,7 @@ public class Program
                 StartBurstClick = StartBurstClickFromTray,
                 StopBurstClick = reason => StopBurstClick(reason),
                 ShowHotkeysWindow = () => RuntimeHotkeyReferenceWindow.Show(_hotkeyManager),
+                ShowTextExpansionsWindow = () => RuntimeTextExpansionReferenceWindow.Show(textExpansionConfigManager),
                 GetPaused = () => _paused,
                 SetPaused = value => _paused = value,
                 RequestExit = RequestAppExit,

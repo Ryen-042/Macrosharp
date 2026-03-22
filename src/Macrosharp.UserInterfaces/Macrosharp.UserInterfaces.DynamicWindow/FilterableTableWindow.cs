@@ -501,13 +501,13 @@ public static class FilterableTableWindow
                     if (!string.Equals(currentGroup, rowGroup, StringComparison.OrdinalIgnoreCase))
                     {
                         currentGroup = rowGroup;
-                        InsertListViewRow(itemIndex++, $"[{rowGroup}]", string.Empty, string.Empty);
+                        var groupRow = new string[Math.Max(1, _columns.Count)];
+                        groupRow[0] = $"[{rowGroup}]";
+                        InsertListViewRow(itemIndex++, groupRow);
                     }
 
-                    string first = GetCell(row, 0);
-                    string second = _columns.Count > 1 ? GetCell(row, 1) : string.Empty;
-                    string third = _columns.Count > 2 ? GetCell(row, 2) : string.Empty;
-                    InsertListViewRow(itemIndex++, first, second, third);
+                    var values = Enumerable.Range(0, Math.Max(1, _columns.Count)).Select(index => GetCell(row, index)).ToArray();
+                    InsertListViewRow(itemIndex++, values);
                 }
             }
             finally
@@ -519,8 +519,10 @@ public static class FilterableTableWindow
 
         private static string NormalizeGroup(string value) => string.IsNullOrWhiteSpace(value) ? "No source" : value;
 
-        private unsafe void InsertListViewRow(int itemIndex, string first, string second, string third)
+        private unsafe void InsertListViewRow(int itemIndex, IReadOnlyList<string> values)
         {
+            string first = values.Count > 0 ? values[0] : string.Empty;
+
             fixed (char* pFirst = first)
             {
                 LVITEMWNative item = new()
@@ -534,21 +536,13 @@ public static class FilterableTableWindow
                 PInvoke.SendMessage(_listView, LvmInsertItemW, 0, (LPARAM)(nint)(&item));
             }
 
-            if (_columns.Count > 1)
+            for (int columnIndex = 1; columnIndex < _columns.Count; columnIndex++)
             {
-                fixed (char* pSecond = second)
+                string value = columnIndex < values.Count ? values[columnIndex] : string.Empty;
+                fixed (char* pValue = value)
                 {
-                    LVITEMWNative sub1 = new() { iSubItem = 1, pszText = pSecond };
-                    PInvoke.SendMessage(_listView, LvmSetItemTextW, (WPARAM)(nuint)itemIndex, (LPARAM)(nint)(&sub1));
-                }
-            }
-
-            if (_columns.Count > 2)
-            {
-                fixed (char* pThird = third)
-                {
-                    LVITEMWNative sub2 = new() { iSubItem = 2, pszText = pThird };
-                    PInvoke.SendMessage(_listView, LvmSetItemTextW, (WPARAM)(nuint)itemIndex, (LPARAM)(nint)(&sub2));
+                    LVITEMWNative subItem = new() { iSubItem = columnIndex, pszText = pValue };
+                    PInvoke.SendMessage(_listView, LvmSetItemTextW, (WPARAM)(nuint)itemIndex, (LPARAM)(nint)(&subItem));
                 }
             }
         }

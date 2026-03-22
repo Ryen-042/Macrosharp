@@ -28,6 +28,7 @@ public static class ProgramTrayMenuFactory
         public required Action StartBurstClick { get; init; }
         public required Action<string> StopBurstClick { get; init; }
         public required Action ShowHotkeysWindow { get; init; }
+        public required Action ShowTextExpansionsWindow { get; init; }
         public required Func<ToastNotificationContent> CreateRunningToast { get; init; }
         public required Func<TrayIconHost?> GetTrayHost { get; init; }
     }
@@ -269,6 +270,7 @@ public static class ProgramTrayMenuFactory
             ),
             TrayMenuItem.ActionItem("Switch Icon", SwitchIcon, iconPath: dependencies.IconCycler.GetNext()),
             TrayMenuItem.ActionItem("Show Hotkeys", dependencies.ShowHotkeysWindow, iconPath: dependencies.IconCycler.GetNext()),
+            TrayMenuItem.ActionItem("Show Text Expansions", dependencies.ShowTextExpansionsWindow, iconPath: dependencies.IconCycler.GetNext()),
             TrayMenuItem.Submenu(
                 "Reload",
                 [TrayMenuItem.ActionItem("Hotkeys", ReloadHotkeys, iconPath: dependencies.IconCycler.GetNext()), TrayMenuItem.ActionItem("Configs", ReloadConfigs, iconPath: dependencies.IconCycler.GetNext())],

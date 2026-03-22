@@ -26,6 +26,7 @@ public static class ProgramHotkeyRegistration
         public required Action StartBurstClick { get; init; }
         public required Action<string> StopBurstClick { get; init; }
         public required Action ShowHotkeysWindow { get; init; }
+        public required Action ShowTextExpansionsWindow { get; init; }
         public required Func<bool> GetPaused { get; init; }
         public required Action<bool> SetPaused { get; init; }
         public required Action<string> RequestExit { get; init; }
@@ -63,6 +64,7 @@ public static class ProgramHotkeyRegistration
                 dependencies.RequestExit("Alt+Win+Esc");
             },
             onShowHotkeys: dependencies.ShowHotkeysWindow,
+            onShowTextExpansions: dependencies.ShowTextExpansionsWindow,
             onShowRunningToast: () =>
             {
                 Console.WriteLine("Win+?: Showing 'running' notification.");
