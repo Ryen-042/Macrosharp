@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
     <ProjectReference Include="..\Macrosharp.Devices.Core\Macrosharp.Devices.Core.csproj" />
+    <ProjectReference Include="..\..\Macrosharp.Infrastructure\Macrosharp.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

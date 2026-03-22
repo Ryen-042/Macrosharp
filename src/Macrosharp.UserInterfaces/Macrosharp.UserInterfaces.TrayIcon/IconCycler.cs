@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.TrayIcon;
+﻿namespace Macrosharp.UserInterfaces.TrayIcon;
 
 /// <summary>
 /// Cycles through a collection of icon file paths in a round-robin fashion.

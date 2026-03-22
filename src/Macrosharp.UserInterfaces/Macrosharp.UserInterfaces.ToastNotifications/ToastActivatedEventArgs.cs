@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ToastNotifications;
+﻿namespace Macrosharp.UserInterfaces.ToastNotifications;
 
 /// <summary>
 /// Event arguments for toast activation (body click or action button click).

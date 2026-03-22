@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ToastNotifications;
+﻿namespace Macrosharp.UserInterfaces.ToastNotifications;
 
 /// <summary>
 /// Indicates why a toast notification was dismissed.

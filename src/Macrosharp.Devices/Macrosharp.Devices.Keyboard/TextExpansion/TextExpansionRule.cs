@@ -1,4 +1,4 @@
-namespace Macrosharp.Devices.Keyboard.TextExpansion;
+﻿namespace Macrosharp.Devices.Keyboard.TextExpansion;
 
 /// <summary>Specifies when a text expansion trigger should activate.</summary>
 public enum TriggerMode
@@ -72,4 +72,10 @@ public class TextExpansionSettings
 
     /// <summary>Whether text expansion is globally enabled.</summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Maximum number of pending expansions allowed while one expansion is running.
+    /// 0 means drop new triggers while busy.
+    /// </summary>
+    public int MaxQueuedExpansions { get; set; } = 0;
 }

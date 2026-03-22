@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Macrosharp.Infrastructure;
 using Macrosharp.Infrastructure.ImageProcessing;
@@ -17,10 +17,22 @@ public static class ExplorerFileAutomation
 {
     private static readonly StaThreadRunner Sta = new();
 
+    private static void Warn(string operation, string details, Exception? ex = null)
+    {
+        string suffix = ex is null ? string.Empty : $" Error='{ex.Message}'.";
+        Console.WriteLine($"[WARN] [ExplorerFileAutomation] Operation='{operation}' Details='{details}'.{suffix}");
+    }
+
     public enum ImagesToPdfMode
     {
         Normal = 1,
         Resize = 2,
+    }
+
+    private static void NotifyLongRunningFailure(string operation, string details, Exception? ex = null)
+    {
+        string message = ex is null ? $"{operation} failed: {details}" : $"{operation} failed: {details}. Error: {ex.Message}";
+        PathLocator.NotifyIssue(message, isLongRunningOperation: true);
     }
 
     /// <summary>
@@ -49,8 +61,10 @@ public static class ExplorerFileAutomation
             AudioPlayer.PlaySuccessAsync();
             return 1;
         }
-        catch
+        catch (Exception ex)
         {
+            Warn(nameof(CreateNewFile), "Failed to create a file in the active folder", ex);
+            NotifyLongRunningFailure("Create new file", "Unable to create a file in the active folder", ex);
             return 0;
         }
     }
@@ -104,7 +118,18 @@ public static class ExplorerFileAutomation
             AudioPlayer.PlayFailure();
 
         AudioPlayer.PlayStartAsync();
-        Sta.Run(() => ConvertOfficeFilesToPdfInternal(appKey, officeApplication, targets));
+
+        try
+        {
+            Sta.Run(() => ConvertOfficeFilesToPdfInternal(appKey, officeApplication, targets));
+        }
+        catch (Exception ex)
+        {
+            Warn(nameof(OfficeFilesToPdf), $"Failed for OfficeApplication='{officeApplication}'", ex);
+            NotifyLongRunningFailure($"{officeApplication} to PDF conversion", "The conversion did not complete", ex);
+            AudioPlayer.PlayFailure();
+            return;
+        }
 
         string lastPdf = Path.ChangeExtension(targets[^1], ".pdf");
         ExplorerShellManager.SelectItems(Path.GetDirectoryName(lastPdf) ?? string.Empty, new[] { lastPdf }, targetHwnd);
@@ -156,9 +181,17 @@ public static class ExplorerFileAutomation
             if (File.Exists(newFilePath))
                 continue;
 
-            convertFunc(filePath, newFilePath);
-            anyConverted = true;
-            lastOutput = newFilePath;
+            try
+            {
+                convertFunc(filePath, newFilePath);
+                anyConverted = true;
+                lastOutput = newFilePath;
+            }
+            catch (Exception ex)
+            {
+                Warn(nameof(GenericFileConverter), $"Failed while converting File='{filePath}'", ex);
+                NotifyLongRunningFailure("File conversion", $"Failed while converting '{Path.GetFileName(filePath)}'", ex);
+            }
         }
 
         if (!anyConverted)
@@ -244,6 +277,7 @@ public static class ExplorerFileAutomation
         string outputDirectory = Path.GetDirectoryName(imageFiles[0]) ?? string.Empty;
         if (string.IsNullOrWhiteSpace(outputDirectory))
         {
+            NotifyLongRunningFailure("Images to PDF", "Output directory could not be determined for selected files");
             AudioPlayer.PlayFailure();
             return;
         }
@@ -280,8 +314,10 @@ public static class ExplorerFileAutomation
 
             AudioPlayer.PlaySuccessAsync();
         }
-        catch
+        catch (Exception ex)
         {
+            Warn(nameof(ImagesToPdf), "The PDF generation did not complete", ex);
+            NotifyLongRunningFailure("Images to PDF", "The PDF generation did not complete", ex);
             AudioPlayer.PlayFailure();
         }
         finally

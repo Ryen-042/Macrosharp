@@ -1,4 +1,4 @@
-namespace Macrosharp.Devices.Core;
+﻿namespace Macrosharp.Devices.Core;
 
 /// <summary>
 /// Flags enum representing mouse buttons. Supports combinations for multi-button bindings.

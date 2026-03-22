@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ToastNotifications;
+﻿namespace Macrosharp.UserInterfaces.ToastNotifications;
 
 /// <summary>
 /// Event arguments raised when a toast notification fails to display.

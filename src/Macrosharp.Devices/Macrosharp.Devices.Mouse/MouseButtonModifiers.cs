@@ -1,4 +1,4 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 
 namespace Macrosharp.Devices.Mouse;
 

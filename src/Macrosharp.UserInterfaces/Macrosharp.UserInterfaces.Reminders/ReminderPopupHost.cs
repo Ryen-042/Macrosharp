@@ -1,4 +1,4 @@
-using Macrosharp.UserInterfaces.PopupNotifications;
+﻿using Macrosharp.UserInterfaces.PopupNotifications;
 
 namespace Macrosharp.UserInterfaces.Reminders;
 

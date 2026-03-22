@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Macrosharp.Infrastructure;
 using Macrosharp.UserInterfaces.ToastNotifications;
 
@@ -16,6 +16,7 @@ public sealed class ReminderScheduler : IDisposable
     private readonly ReminderPopupHost _popupHost;
     private readonly DateTime _programStartLocal;
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _wakeSignal = new(0, 1);
 
     private readonly Dictionary<string, DateTime> _nextById = new();
     private readonly Dictionary<string, DateTime> _snoozedUntilById = new();
@@ -23,13 +24,7 @@ public sealed class ReminderScheduler : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
-    public ReminderScheduler(
-        ReminderConfigurationManager configurationManager,
-        ToastNotificationHost toastHost,
-        Func<bool> isSilentMode,
-        Func<bool>? areNotificationsHidden = null,
-        Func<bool>? isReminderSoundMuted = null
-    )
+    public ReminderScheduler(ReminderConfigurationManager configurationManager, ToastNotificationHost toastHost, Func<bool> isSilentMode, Func<bool>? areNotificationsHidden = null, Func<bool>? isReminderSoundMuted = null)
     {
         _configurationManager = configurationManager;
         _toastHost = toastHost;
@@ -75,8 +70,8 @@ public sealed class ReminderScheduler : IDisposable
         {
             try
             {
-                EvaluateDueReminders();
-                await Task.Delay(1000, cancellationToken);
+                TimeSpan nextDelay = EvaluateDueRemindersAndGetNextDelay();
+                await WaitForWakeOrDelayAsync(nextDelay, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -90,40 +85,45 @@ public sealed class ReminderScheduler : IDisposable
         }
     }
 
-    private void EvaluateDueReminders()
+    private TimeSpan EvaluateDueRemindersAndGetNextDelay()
     {
         var config = _configurationManager.CurrentConfiguration;
         if (!config.Settings.Enabled)
         {
-            return;
+            return Timeout.InfiniteTimeSpan;
         }
 
         var now = DateTime.Now;
         var dirty = false;
+        DateTime? nextDue = null;
 
         foreach (var reminder in config.Reminders.Where(r => r.Enabled))
         {
+            DateTime due;
+
             lock (_gate)
             {
                 if (_snoozedUntilById.TryGetValue(reminder.Id, out var snoozedUntil) && snoozedUntil > now)
                 {
+                    nextDue = MinDate(nextDue, snoozedUntil);
                     continue;
                 }
-            }
 
-            if (!_nextById.TryGetValue(reminder.Id, out var due))
-            {
-                due = ComputeNext(reminder, now, config.Settings.MissedPolicy, config.Settings.StartupGraceMinutes);
-                if (due == DateTime.MinValue)
+                if (!_nextById.TryGetValue(reminder.Id, out due))
                 {
-                    continue;
-                }
+                    due = ComputeNext(reminder, now, config.Settings.MissedPolicy, config.Settings.StartupGraceMinutes);
+                    if (due == DateTime.MinValue)
+                    {
+                        continue;
+                    }
 
-                _nextById[reminder.Id] = due;
+                    _nextById[reminder.Id] = due;
+                }
             }
 
             if (now < due)
             {
+                nextDue = MinDate(nextDue, due);
                 continue;
             }
 
@@ -132,13 +132,17 @@ public sealed class ReminderScheduler : IDisposable
             dirty = true;
 
             var next = ReminderRecurrenceCalculator.GetNextOccurrenceLocal(reminder, now, _programStartLocal);
-            if (next.HasValue)
+            lock (_gate)
             {
-                _nextById[reminder.Id] = next.Value;
-            }
-            else
-            {
-                _nextById.Remove(reminder.Id);
+                if (next.HasValue)
+                {
+                    _nextById[reminder.Id] = next.Value;
+                    nextDue = MinDate(nextDue, next.Value);
+                }
+                else
+                {
+                    _nextById.Remove(reminder.Id);
+                }
             }
         }
 
@@ -146,6 +150,14 @@ public sealed class ReminderScheduler : IDisposable
         {
             _configurationManager.SaveConfiguration(config);
         }
+
+        if (!nextDue.HasValue)
+        {
+            return Timeout.InfiniteTimeSpan;
+        }
+
+        var delay = nextDue.Value - DateTime.Now;
+        return delay <= TimeSpan.Zero ? TimeSpan.FromMilliseconds(50) : delay;
     }
 
     private DateTime ComputeNext(ReminderDefinition reminder, DateTime now, ReminderMissedPolicy missedPolicy, int startupGraceMinutes)
@@ -246,6 +258,8 @@ public sealed class ReminderScheduler : IDisposable
                             {
                                 _snoozedUntilById[reminder.Id] = DateTime.Now.AddMinutes(Math.Max(1, result.SnoozeMinutes));
                             }
+
+                            SignalWakeLoop();
                         }
                     );
                 }
@@ -271,11 +285,44 @@ public sealed class ReminderScheduler : IDisposable
                 }
             }
         }
+
+        SignalWakeLoop();
     }
 
     public void Dispose()
     {
         Stop();
+        _wakeSignal.Dispose();
+    }
+
+    private async Task WaitForWakeOrDelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        if (delay == Timeout.InfiniteTimeSpan)
+        {
+            await _wakeSignal.WaitAsync(cancellationToken);
+            return;
+        }
+
+        var wakeTask = _wakeSignal.WaitAsync(cancellationToken);
+        var delayTask = Task.Delay(delay, cancellationToken);
+        await Task.WhenAny(wakeTask, delayTask);
+    }
+
+    private void SignalWakeLoop()
+    {
+        try
+        {
+            _wakeSignal.Release();
+        }
+        catch (SemaphoreFullException)
+        {
+            // Wake signal already pending.
+        }
+    }
+
+    private static DateTime? MinDate(DateTime? current, DateTime candidate)
+    {
+        return current.HasValue && current.Value <= candidate ? current : candidate;
     }
 
     private static string StripRichTextTags(string text)

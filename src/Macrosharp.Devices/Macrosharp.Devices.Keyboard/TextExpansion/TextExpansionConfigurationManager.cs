@@ -1,5 +1,6 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Macrosharp.Infrastructure;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -12,12 +13,10 @@ namespace Macrosharp.Devices.Keyboard.TextExpansion;
 public class TextExpansionConfigurationManager : IDisposable
 {
     private readonly string _configFilePath;
-    private FileSystemWatcher? _watcher;
+    private readonly DebouncedFileWatcher _configWatcher;
     private TextExpansionConfiguration _currentConfiguration;
     private readonly object _fileLock = new();
     private int _backupCounter = 0;
-    private DateTime _lastReloadTime = DateTime.MinValue;
-    private static readonly TimeSpan ReloadDebounceTime = TimeSpan.FromMilliseconds(500);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -33,65 +32,17 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Gets the current configuration.</summary>
     public TextExpansionConfiguration CurrentConfiguration => _currentConfiguration;
 
+    public string ConfigPath => _configFilePath;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="TextExpansionConfigurationManager"/> class.
     /// </summary>
     /// <param name="configFilePath">The full path to the text expansion configuration JSON file.</param>
-    public TextExpansionConfigurationManager(string configFilePath)
+    public TextExpansionConfigurationManager(string configFilePath, bool watchForChanges = false)
     {
         _configFilePath = configFilePath;
         _currentConfiguration = new TextExpansionConfiguration();
-        InitializeWatcher();
-    }
-
-    /// <summary>Sets up the FileSystemWatcher to monitor the configuration file.</summary>
-    private void InitializeWatcher()
-    {
-        string? directory = Path.GetDirectoryName(_configFilePath);
-        if (string.IsNullOrEmpty(directory))
-        {
-            directory = AppContext.BaseDirectory;
-        }
-
-        string fileName = Path.GetFileName(_configFilePath);
-
-        _watcher = new FileSystemWatcher(directory)
-        {
-            Filter = fileName,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
-            EnableRaisingEvents = true,
-        };
-
-        _watcher.Changed += OnConfigFileChanged;
-        _watcher.Created += OnConfigFileChanged;
-        _watcher.Deleted += OnConfigFileChanged;
-        _watcher.Renamed += OnConfigFileRenamed;
-
-        Console.WriteLine($"TextExpansion: Watching for changes to: {_configFilePath}");
-    }
-
-    /// <summary>Handler for file change events.</summary>
-    private void OnConfigFileChanged(object sender, FileSystemEventArgs e)
-    {
-        // Debounce rapid file change events
-        if (DateTime.Now - _lastReloadTime < ReloadDebounceTime)
-            return;
-
-        Console.WriteLine($"TextExpansion: Configuration file {e.ChangeType}: {e.FullPath}");
-
-        // Add a small delay to ensure the file is not locked
-        Task.Delay(200).ContinueWith(_ => LoadConfiguration());
-    }
-
-    /// <summary>Handler for file rename events.</summary>
-    private void OnConfigFileRenamed(object sender, RenamedEventArgs e)
-    {
-        Console.WriteLine($"TextExpansion: Configuration file Renamed: {e.OldFullPath} to {e.FullPath}");
-
-        if (e.FullPath.Equals(_configFilePath, StringComparison.OrdinalIgnoreCase))
-        {
-            Task.Delay(200).ContinueWith(_ => LoadConfiguration());
-        }
+        _configWatcher = new DebouncedFileWatcher(_configFilePath, () => _ = LoadConfiguration(), watchForChanges, nameof(TextExpansionConfigurationManager), TimeSpan.FromMilliseconds(500));
     }
 
     /// <summary>
@@ -103,8 +54,6 @@ public class TextExpansionConfigurationManager : IDisposable
     {
         lock (_fileLock)
         {
-            _lastReloadTime = DateTime.Now;
-
             if (!File.Exists(_configFilePath))
             {
                 Console.WriteLine($"TextExpansion: Configuration file not found: {_configFilePath}. Creating default.");
@@ -126,6 +75,8 @@ public class TextExpansionConfigurationManager : IDisposable
                 {
                     throw new JsonException("Deserialization resulted in a null configuration.");
                 }
+
+                Normalize(loadedConfig);
 
                 _currentConfiguration = loadedConfig;
                 Console.WriteLine($"TextExpansion: Configuration loaded. Rules: {_currentConfiguration.Rules.Count}");
@@ -223,6 +174,7 @@ public class TextExpansionConfigurationManager : IDisposable
                 BackspaceDelayMs = 2,
                 PasteDelayMs = 30,
                 Enabled = true,
+                MaxQueuedExpansions = 0,
             },
         };
     }
@@ -241,12 +193,16 @@ public class TextExpansionConfigurationManager : IDisposable
                 Console.WriteLine($"TextExpansion: Invalid configuration backed up to: {backupFilePath}");
             }
 
-            // Create default configuration
-            _currentConfiguration = CreateDefaultConfiguration();
-            SaveConfigurationInternal(_currentConfiguration);
-            Console.WriteLine("TextExpansion: Configuration reverted to default.");
+            if (_currentConfiguration.Rules.Count == 0)
+            {
+                _currentConfiguration = CreateDefaultConfiguration();
+            }
 
-            string message = $"The text-expansions.json file is invalid.\nError: {errorMessage}\n\nA backup was created at:\n{backupFilePath}\n\nDefault configuration has been restored.";
+            Normalize(_currentConfiguration);
+            SaveConfigurationInternal(_currentConfiguration);
+            Console.WriteLine("TextExpansion: Configuration reverted to last known good state.");
+
+            string message = $"The text-expansions.json file is invalid.\nError: {errorMessage}\n\nA backup was created at:\n{backupFilePath}\n\nThe configuration has been reverted to the last known good state.";
             PInvoke.MessageBox(HWND.Null, message, "Text Expansion Configuration Error", MESSAGEBOX_STYLE.MB_ICONERROR);
         }
         catch (Exception ex)
@@ -258,8 +214,58 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Saves the current configuration to the file.</summary>
     private void SaveConfigurationInternal(TextExpansionConfiguration configuration)
     {
+        EnsureDirectory();
+        Normalize(configuration);
         string jsonString = JsonSerializer.Serialize(configuration, JsonOptions);
         File.WriteAllText(_configFilePath, jsonString);
+    }
+
+    public void ReloadNow()
+    {
+        _ = LoadConfiguration();
+    }
+
+    public void SaveConfiguration(TextExpansionConfiguration configuration)
+    {
+        if (configuration is null)
+        {
+            throw new ArgumentNullException(nameof(configuration));
+        }
+
+        lock (_fileLock)
+        {
+            Normalize(configuration);
+            _currentConfiguration = configuration;
+            SaveConfigurationInternal(_currentConfiguration);
+            ConfigurationChanged?.Invoke(this, _currentConfiguration);
+        }
+    }
+
+    private void EnsureDirectory()
+    {
+        string? directory = Path.GetDirectoryName(_configFilePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+    }
+
+    private static void Normalize(TextExpansionConfiguration config)
+    {
+        config.Rules ??= new List<TextExpansionRule>();
+        config.Settings ??= new TextExpansionSettings();
+
+        config.Settings.Delimiters ??= new List<string>();
+        config.Settings.BufferSize = Math.Clamp(config.Settings.BufferSize, 8, 512);
+        config.Settings.BackspaceDelayMs = Math.Clamp(config.Settings.BackspaceDelayMs, 0, 200);
+        config.Settings.PasteDelayMs = Math.Clamp(config.Settings.PasteDelayMs, 0, 500);
+        config.Settings.MaxQueuedExpansions = Math.Clamp(config.Settings.MaxQueuedExpansions, 0, 50);
+
+        foreach (var rule in config.Rules)
+        {
+            rule.Trigger ??= string.Empty;
+            rule.Expansion ??= string.Empty;
+        }
     }
 
     /// <summary>
@@ -339,7 +345,7 @@ public class TextExpansionConfigurationManager : IDisposable
     /// <summary>Disposes of the configuration manager.</summary>
     public void Dispose()
     {
-        _watcher?.Dispose();
+        _configWatcher.Dispose();
         Console.WriteLine("TextExpansionConfigurationManager disposed.");
     }
 }

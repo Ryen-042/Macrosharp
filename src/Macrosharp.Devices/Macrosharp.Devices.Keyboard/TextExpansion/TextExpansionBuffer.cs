@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Windows.Win32;
 
 namespace Macrosharp.Devices.Keyboard.TextExpansion;
@@ -161,6 +161,22 @@ public class TextExpansionBuffer
             {
                 return _buffer.Length > 0 ? _buffer[_buffer.Length - 1] : null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Gets a character by offset from the end of the buffer.
+    /// Offset 0 returns the last character, offset 1 returns the character before last.
+    /// </summary>
+    public char? CharFromEnd(int offset)
+    {
+        if (offset < 0)
+            return null;
+
+        lock (_lock)
+        {
+            int index = _buffer.Length - 1 - offset;
+            return index >= 0 ? _buffer[index] : null;
         }
     }
 

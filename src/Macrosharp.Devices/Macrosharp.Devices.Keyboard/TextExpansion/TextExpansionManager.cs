@@ -1,4 +1,4 @@
-using Macrosharp.Devices.Core;
+﻿using Macrosharp.Devices.Core;
 
 namespace Macrosharp.Devices.Keyboard.TextExpansion;
 
@@ -7,13 +7,23 @@ namespace Macrosharp.Devices.Keyboard.TextExpansion;
 /// </summary>
 public class TextExpansionManager : IDisposable
 {
+    private readonly record struct IndexedRule(TextExpansionRule Rule, int Order);
+
+    private readonly record struct PendingExpansion(TextExpansionRule Rule, bool IsDelimiterMode, char? DelimiterChar);
+
     private readonly KeyboardHookManager _keyboardHookManager;
     private readonly TextExpansionBuffer _buffer;
     private readonly PlaceholderProcessor _placeholderProcessor;
 
     private List<TextExpansionRule> _rules;
+    private Dictionary<char, List<IndexedRule>> _immediateInsensitiveIndex;
+    private Dictionary<char, List<IndexedRule>> _immediateSensitiveIndex;
+    private Dictionary<char, List<IndexedRule>> _delimiterInsensitiveIndex;
+    private Dictionary<char, List<IndexedRule>> _delimiterSensitiveIndex;
     private TextExpansionSettings _settings;
     private HashSet<char> _delimiters;
+    private readonly Queue<PendingExpansion> _pendingExpansions;
+    private int _maxQueuedExpansions;
 
     private bool _isExpanding = false;
     private bool _isEnabled = true;
@@ -52,8 +62,14 @@ public class TextExpansionManager : IDisposable
         _buffer = new TextExpansionBuffer();
         _placeholderProcessor = new PlaceholderProcessor();
         _rules = new List<TextExpansionRule>();
+        _immediateInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _immediateSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
         _settings = new TextExpansionSettings();
         _delimiters = new HashSet<char>(_settings.Delimiters.Select(d => d.Length > 0 ? d[0] : ' '));
+        _pendingExpansions = new Queue<PendingExpansion>();
+        _maxQueuedExpansions = 0;
         _maxTriggerLength = 0;
 
         _keyboardHookManager.KeyDownHandler += OnKeyDown;
@@ -70,6 +86,9 @@ public class TextExpansionManager : IDisposable
             _rules = configuration.Rules.Where(r => r.Enabled).ToList();
             _settings = configuration.Settings;
             _isEnabled = _settings.Enabled;
+            _maxQueuedExpansions = _settings.MaxQueuedExpansions;
+            _pendingExpansions.Clear();
+            RebuildRuleIndex();
 
             // Update delimiters set
             _delimiters = new HashSet<char>(_settings.Delimiters.Select(d => d.Length > 0 ? d[0] : ' '));
@@ -80,7 +99,7 @@ public class TextExpansionManager : IDisposable
             // Update buffer size
             _buffer.Clear();
 
-            Console.WriteLine($"TextExpansionManager: Loaded {_rules.Count} rules. Enabled: {_isEnabled}");
+            Console.WriteLine($"TextExpansionManager: Loaded {_rules.Count} rules. Enabled: {_isEnabled}. MaxQueuedExpansions: {_maxQueuedExpansions}");
         }
     }
 
@@ -97,8 +116,8 @@ public class TextExpansionManager : IDisposable
     /// <summary>Handles key down events from the keyboard hook.</summary>
     private void OnKeyDown(object? sender, KeyboardEvent e)
     {
-        // Skip if disabled, already handled, or we're currently expanding
-        if (!_isEnabled || e.Handled || _isExpanding)
+        // Skip if disabled or already handled
+        if (!_isEnabled || e.Handled)
             return;
 
         // Ignore injected events (from our own typing)
@@ -210,11 +229,16 @@ public class TextExpansionManager : IDisposable
     /// <summary>Finds a matching rule for the current buffer state.</summary>
     private TextExpansionRule? FindMatchingRule(TriggerMode mode)
     {
-        foreach (var rule in _rules)
+        char? terminalChar = mode == TriggerMode.Immediate ? _buffer.LastChar : _buffer.CharFromEnd(1);
+        if (terminalChar is null)
         {
-            if (rule.Mode != mode)
-                continue;
+            return null;
+        }
 
+        var orderedCandidates = GetOrderedCandidates(mode, terminalChar.Value);
+        foreach (var indexed in orderedCandidates)
+        {
+            var rule = indexed.Rule;
             bool matches = mode == TriggerMode.Immediate ? _buffer.EndsWithTrigger(rule.Trigger, rule.CaseSensitive) : _buffer.EndsWithTriggerBeforeLastChar(rule.Trigger, rule.CaseSensitive);
 
             if (matches)
@@ -224,80 +248,177 @@ public class TextExpansionManager : IDisposable
         return null;
     }
 
+    private List<IndexedRule> GetOrderedCandidates(TriggerMode mode, char terminalChar)
+    {
+        var sensitiveIndex = mode == TriggerMode.Immediate ? _immediateSensitiveIndex : _delimiterSensitiveIndex;
+        var insensitiveIndex = mode == TriggerMode.Immediate ? _immediateInsensitiveIndex : _delimiterInsensitiveIndex;
+
+        sensitiveIndex.TryGetValue(terminalChar, out var sensitiveCandidates);
+        insensitiveIndex.TryGetValue(char.ToLowerInvariant(terminalChar), out var insensitiveCandidates);
+
+        if (sensitiveCandidates is null && insensitiveCandidates is null)
+        {
+            return new List<IndexedRule>();
+        }
+
+        if (sensitiveCandidates is null)
+        {
+            return insensitiveCandidates!;
+        }
+
+        if (insensitiveCandidates is null)
+        {
+            return sensitiveCandidates;
+        }
+
+        var merged = new List<IndexedRule>(sensitiveCandidates.Count + insensitiveCandidates.Count);
+        merged.AddRange(sensitiveCandidates);
+        merged.AddRange(insensitiveCandidates);
+        merged.Sort((a, b) => a.Order.CompareTo(b.Order));
+        return merged;
+    }
+
+    private void RebuildRuleIndex()
+    {
+        _immediateInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _immediateSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterInsensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+        _delimiterSensitiveIndex = new Dictionary<char, List<IndexedRule>>();
+
+        for (int i = 0; i < _rules.Count; i++)
+        {
+            var rule = _rules[i];
+            if (string.IsNullOrEmpty(rule.Trigger))
+            {
+                continue;
+            }
+
+            char terminalChar = rule.Trigger[^1];
+            var indexedRule = new IndexedRule(rule, i);
+            bool isImmediate = rule.Mode == TriggerMode.Immediate;
+
+            if (rule.CaseSensitive)
+            {
+                AddToIndex(isImmediate ? _immediateSensitiveIndex : _delimiterSensitiveIndex, terminalChar, indexedRule);
+            }
+            else
+            {
+                AddToIndex(isImmediate ? _immediateInsensitiveIndex : _delimiterInsensitiveIndex, char.ToLowerInvariant(terminalChar), indexedRule);
+            }
+        }
+    }
+
+    private static void AddToIndex(Dictionary<char, List<IndexedRule>> index, char key, IndexedRule rule)
+    {
+        if (!index.TryGetValue(key, out var list))
+        {
+            list = new List<IndexedRule>();
+            index[key] = list;
+        }
+
+        list.Add(rule);
+    }
+
     /// <summary>Performs the text expansion.</summary>
     private void PerformExpansion(TextExpansionRule rule, KeyboardEvent e, bool isDelimiterMode, char? delimiterChar)
     {
-        _isExpanding = true;
+        PendingExpansion request = new(rule, isDelimiterMode, delimiterChar);
+        bool shouldStartNow;
 
-        try
+        lock (_lock)
         {
-            // Suppress the triggering key from reaching the application
-            e.Handled = true;
-
-            // Calculate how many characters to delete (trigger + delimiter if applicable)
-            int charsToDelete = rule.Trigger.Length;
-            if (isDelimiterMode && delimiterChar.HasValue)
+            if (!_isExpanding)
             {
-                charsToDelete += 1; // Include the delimiter
+                _isExpanding = true;
+                shouldStartNow = true;
+            }
+            else
+            {
+                shouldStartNow = false;
+
+                if (_maxQueuedExpansions <= 0)
+                {
+                    return;
+                }
+
+                if (_pendingExpansions.Count >= _maxQueuedExpansions)
+                {
+                    return;
+                }
+
+                _pendingExpansions.Enqueue(request);
+                Console.WriteLine($"TextExpansion: queued pending expansion ({_pendingExpansions.Count}/{_maxQueuedExpansions}).");
             }
 
-            // Process placeholders
-            PlaceholderResult result = _placeholderProcessor.Process(rule.Expansion);
-
-            // Prepare expansion text (add delimiter back if it was included and we want to keep it)
-            string expansionText = result.Text;
-
-            // Clear the buffer before expansion
+            e.Handled = true;
             _buffer.Clear();
-
-            // Perform the expansion in a separate thread to avoid blocking the hook
-            Task.Run(() =>
-            {
-                try
-                {
-                    // Small initial delay to let the key event settle
-                    Thread.Sleep(10);
-
-                    // Delete the trigger characters (the last key was suppressed, so only delete previous ones)
-                    // In immediate mode, we suppressed the last char so delete trigger.Length - 1
-                    // In delimiter mode, we suppressed the delimiter so delete trigger.Length
-                    int backspaceCount = isDelimiterMode
-                        ? rule.Trigger.Length // Delete trigger chars (delimiter was suppressed)
-                        : rule.Trigger.Length - 1; // Last trigger char was suppressed
-
-                    if (backspaceCount > 0)
-                    {
-                        KeyboardSimulator.SendBackspaces(backspaceCount, _settings.BackspaceDelayMs);
-                    }
-
-                    // Paste the expansion
-                    KeyboardSimulator.PasteText(expansionText, _settings.PasteDelayMs);
-
-                    // Move cursor if needed
-                    if (result.HasCursorPosition && result.CursorOffsetFromEnd > 0)
-                    {
-                        KeyboardSimulator.MoveCursorLeft(result.CursorOffsetFromEnd, _settings.BackspaceDelayMs);
-                    }
-
-                    // Raise event
-                    ExpansionOccurred?.Invoke(this, new TextExpansionEventArgs(rule, expansionText));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"TextExpansion error: {ex.Message}");
-                    ExpansionError?.Invoke(this, new TextExpansionErrorEventArgs(rule, ex));
-                }
-                finally
-                {
-                    _isExpanding = false;
-                }
-            });
         }
-        catch (Exception ex)
+
+        if (shouldStartNow)
         {
-            _isExpanding = false;
-            Console.WriteLine($"TextExpansion error: {ex.Message}");
-            ExpansionError?.Invoke(this, new TextExpansionErrorEventArgs(rule, ex));
+            StartExpansionWorker(request);
+        }
+    }
+
+    private void StartExpansionWorker(PendingExpansion request)
+    {
+        Task.Run(() =>
+        {
+            var rule = request.Rule;
+
+            try
+            {
+                Thread.Sleep(10);
+
+                PlaceholderResult result = _placeholderProcessor.Process(rule.Expansion);
+                string expansionText = result.Text;
+
+                int backspaceCount = request.IsDelimiterMode ? rule.Trigger.Length : rule.Trigger.Length - 1;
+                if (backspaceCount > 0)
+                {
+                    KeyboardSimulator.SendBackspaces(backspaceCount, _settings.BackspaceDelayMs);
+                }
+
+                KeyboardSimulator.PasteText(expansionText, _settings.PasteDelayMs);
+
+                if (result.HasCursorPosition && result.CursorOffsetFromEnd > 0)
+                {
+                    KeyboardSimulator.MoveCursorLeft(result.CursorOffsetFromEnd, _settings.BackspaceDelayMs);
+                }
+
+                ExpansionOccurred?.Invoke(this, new TextExpansionEventArgs(rule, expansionText));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"TextExpansion error: {ex.Message}");
+                ExpansionError?.Invoke(this, new TextExpansionErrorEventArgs(rule, ex));
+            }
+            finally
+            {
+                CompleteExpansionWorker();
+            }
+        });
+    }
+
+    private void CompleteExpansionWorker()
+    {
+        PendingExpansion? next = null;
+
+        lock (_lock)
+        {
+            if (_pendingExpansions.Count > 0)
+            {
+                next = _pendingExpansions.Dequeue();
+            }
+            else
+            {
+                _isExpanding = false;
+            }
+        }
+
+        if (next.HasValue)
+        {
+            StartExpansionWorker(next.Value);
         }
     }
 

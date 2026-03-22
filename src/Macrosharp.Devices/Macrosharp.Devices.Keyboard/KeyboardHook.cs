@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Macrosharp.Devices.Core;
 using Windows.Win32; // For PInvoke access to generated constants and methods
 using Windows.Win32.Foundation; // For LPARAM, WPARAM, LRESULT, HHOOK, BOOL, HINSTANCE

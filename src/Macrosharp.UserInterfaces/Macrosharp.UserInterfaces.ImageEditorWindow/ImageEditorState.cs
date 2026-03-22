@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ImageEditorWindow;
+﻿namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 
 /// <summary>
 /// Manages the image buffer state including raster pixels, drawing matrix, undo/redo history, and original state.

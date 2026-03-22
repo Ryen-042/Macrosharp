@@ -6,5 +6,11 @@
   },
   "Diagnostics": {
     "TerminalMessagesEnabled": false
+  },
+  "FileWatching": {
+    "MainConfig": false,
+    "HotkeysConfig": false,
+    "TextExpansionsConfig": false,
+    "RemindersConfig": false
   }
 }

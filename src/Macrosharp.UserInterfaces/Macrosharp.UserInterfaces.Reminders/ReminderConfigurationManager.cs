@@ -1,12 +1,11 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Macrosharp.Infrastructure;
 
 namespace Macrosharp.UserInterfaces.Reminders;
 
 public sealed class ReminderConfigurationManager : IDisposable
 {
-    private static readonly TimeSpan ReloadDebounceTime = TimeSpan.FromMilliseconds(500);
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -16,27 +15,26 @@ public sealed class ReminderConfigurationManager : IDisposable
     };
 
     private readonly string _configPath;
+    private readonly DebouncedFileWatcher _configWatcher;
     private readonly object _gate = new();
-    private FileSystemWatcher? _watcher;
-    private DateTime _lastReloadTime = DateTime.MinValue;
     private int _backupCounter;
 
     public ReminderConfiguration CurrentConfiguration { get; private set; } = new();
 
+    public string ConfigPath => _configPath;
+
     public event EventHandler<ReminderConfiguration>? ConfigurationChanged;
 
-    public ReminderConfigurationManager(string configPath)
+    public ReminderConfigurationManager(string configPath, bool watchForChanges = false)
     {
         _configPath = configPath;
-        InitializeWatcher();
+        _configWatcher = new DebouncedFileWatcher(_configPath, () => _ = LoadConfiguration(), watchForChanges, nameof(ReminderConfigurationManager), TimeSpan.FromMilliseconds(500));
     }
 
     public ReminderConfiguration LoadConfiguration()
     {
         lock (_gate)
         {
-            _lastReloadTime = DateTime.Now;
-
             if (!File.Exists(_configPath))
             {
                 CurrentConfiguration = CreateDefaultConfiguration();
@@ -97,55 +95,14 @@ public sealed class ReminderConfigurationManager : IDisposable
         File.WriteAllText(_configPath, json);
     }
 
-    private void InitializeWatcher()
-    {
-        var directory = Path.GetDirectoryName(_configPath);
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            directory = AppContext.BaseDirectory;
-        }
-
-        var fileName = Path.GetFileName(_configPath);
-
-        _watcher = new FileSystemWatcher(directory)
-        {
-            Filter = fileName,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName,
-            EnableRaisingEvents = true,
-        };
-
-        _watcher.Changed += OnConfigChanged;
-        _watcher.Created += OnConfigChanged;
-        _watcher.Deleted += OnConfigChanged;
-        _watcher.Renamed += OnConfigRenamed;
-    }
-
-    private void OnConfigChanged(object sender, FileSystemEventArgs e)
-    {
-        if (DateTime.Now - _lastReloadTime < ReloadDebounceTime)
-        {
-            return;
-        }
-
-        Task.Delay(200).ContinueWith(_ => LoadConfiguration());
-    }
-
-    private void OnConfigRenamed(object sender, RenamedEventArgs e)
-    {
-        if (!e.FullPath.Equals(_configPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        Task.Delay(200).ContinueWith(_ => LoadConfiguration());
-    }
-
     private void HandleInvalidConfig(string? content, string message)
     {
         try
         {
+            var backupDirectory = Path.GetDirectoryName(_configPath) ?? AppContext.BaseDirectory;
+            Directory.CreateDirectory(backupDirectory);
             var backupFileName = $"{Path.GetFileNameWithoutExtension(_configPath)}.bak{_backupCounter++}{Path.GetExtension(_configPath)}";
-            var backupPath = Path.Combine(Path.GetDirectoryName(_configPath) ?? AppContext.BaseDirectory, backupFileName);
+            var backupPath = Path.Combine(backupDirectory, backupFileName);
 
             if (!string.IsNullOrEmpty(content))
             {
@@ -158,7 +115,7 @@ public sealed class ReminderConfigurationManager : IDisposable
             }
 
             SaveConfigurationInternal(CurrentConfiguration);
-            Console.WriteLine($"Reminder configuration recovered. Backup: {backupPath}. Error: {message}");
+            Console.WriteLine($"Reminder configuration reverted to last known good state. Backup: {backupPath}. Error: {message}");
         }
         catch (Exception ex)
         {
@@ -250,6 +207,6 @@ public sealed class ReminderConfigurationManager : IDisposable
 
     public void Dispose()
     {
-        _watcher?.Dispose();
+        _configWatcher.Dispose();
     }
 }

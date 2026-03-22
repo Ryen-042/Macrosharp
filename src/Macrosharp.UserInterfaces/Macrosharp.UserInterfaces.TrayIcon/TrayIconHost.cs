@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -734,7 +734,7 @@ public sealed class TrayIconHost : IDisposable
     private sealed class SafeBrushHandle : SafeHandle
     {
         // csharpier-ignore
-        public unsafe SafeBrushHandle(HBRUSH handle): base(IntPtr.Zero, false)
+        public unsafe SafeBrushHandle(HBRUSH handle) : base(IntPtr.Zero, false)
         {
             SetHandle((IntPtr)handle.Value);
         }

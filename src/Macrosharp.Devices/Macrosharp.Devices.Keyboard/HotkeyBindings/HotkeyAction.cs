@@ -1,4 +1,4 @@
-namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
+﻿namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 
 // Manages the mapping and execution of hotkey actions.
 public class HotkeyActionService

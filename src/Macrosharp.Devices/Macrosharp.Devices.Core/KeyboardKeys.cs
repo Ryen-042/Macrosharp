@@ -1,4 +1,4 @@
-using Windows.Win32;
+﻿using Windows.Win32;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 
 namespace Macrosharp.Devices.Core;
@@ -1222,7 +1222,7 @@ public static class KeysMapper
             case "down": return VirtualKey.DOWN;
             case "printscreen": return VirtualKey.SNAPSHOT;
             case "pause": return VirtualKey.PAUSE;
-            // Add more aliases as needed
+                // Add more aliases as needed
         }
         // csharpier-ignore-end
 

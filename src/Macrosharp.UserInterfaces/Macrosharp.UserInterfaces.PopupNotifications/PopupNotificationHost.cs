@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
@@ -341,39 +341,39 @@ public sealed class PopupNotificationHost
             switch (message)
             {
                 case PInvoke.WM_COMMAND:
-                {
-                    var controlId = (ushort)(wParam.Value & 0xFFFF);
-                    if (controlId == SnoozeButtonId)
                     {
-                        Submit(PopupNotificationAction.Snooze, ResolveSnoozeMinutes(_popupOptions));
-                        return (LRESULT)0;
-                    }
+                        var controlId = (ushort)(wParam.Value & 0xFFFF);
+                        if (controlId == SnoozeButtonId)
+                        {
+                            Submit(PopupNotificationAction.Snooze, ResolveSnoozeMinutes(_popupOptions));
+                            return (LRESULT)0;
+                        }
 
-                    if (controlId == DismissButtonId)
-                    {
-                        Submit(PopupNotificationAction.Dismiss, 0);
-                        return (LRESULT)0;
-                    }
+                        if (controlId == DismissButtonId)
+                        {
+                            Submit(PopupNotificationAction.Dismiss, 0);
+                            return (LRESULT)0;
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 case PInvoke.WM_CTLCOLORSTATIC:
-                {
-                    var hdc = new HDC((nint)wParam.Value);
-                    var child = new HWND((nint)lParam.Value);
-                    if (_textColors.TryGetValue((nint)child.Value, out var color))
                     {
-                        PInvoke.SetTextColor(hdc, color);
-                    }
-                    else
-                    {
-                        PInvoke.SetTextColor(hdc, new COLORREF(0xDCDCDC));
-                    }
+                        var hdc = new HDC((nint)wParam.Value);
+                        var child = new HWND((nint)lParam.Value);
+                        if (_textColors.TryGetValue((nint)child.Value, out var color))
+                        {
+                            PInvoke.SetTextColor(hdc, color);
+                        }
+                        else
+                        {
+                            PInvoke.SetTextColor(hdc, new COLORREF(0xDCDCDC));
+                        }
 
-                    PInvoke.SetBkMode(hdc, BACKGROUND_MODE.TRANSPARENT);
-                    return (LRESULT)(nint)_backgroundBrush.Value;
-                }
+                        PInvoke.SetBkMode(hdc, BACKGROUND_MODE.TRANSPARENT);
+                        return (LRESULT)(nint)_backgroundBrush.Value;
+                    }
 
                 case PInvoke.WM_CLOSE:
                     Submit(PopupNotificationAction.Timeout, 0);

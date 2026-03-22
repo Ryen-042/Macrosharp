@@ -1,4 +1,4 @@
-namespace Macrosharp.UserInterfaces.ImageEditorWindow;
+﻿namespace Macrosharp.UserInterfaces.ImageEditorWindow;
 
 /// <summary>
 /// Encapsulates a single input event (mouse or keyboard) with all necessary context.
