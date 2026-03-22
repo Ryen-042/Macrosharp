@@ -12,7 +12,8 @@ namespace Macrosharp.UserInterfaces.DynamicWindow;
 
 public class SimpleWindow
 {
-    private readonly string className = "SimpleWindowClass";
+    private readonly string className = $"SimpleWindowClass_{Guid.NewGuid():N}";
+    private readonly WNDPROC wndProcDelegate;
     private readonly string title;
     private int computedWidth = 500;
     private int computedHeight = 300;
@@ -41,8 +42,10 @@ public class SimpleWindow
     private bool enableKeyCapture = false;
     private readonly HashSet<ModifierKind> pendingModifiers = new();
     private readonly List<KeyPress> capturedPresses = new();
-    private readonly HashSet<VirtualKey> nonModifierKeysUsed = new();
     private bool captureFinished;
+    public int NumberOfCombinationsToCapture { get; set; } = 3;
+    public bool AllowSingleKeysWithoutModifiers { get; set; } = false;
+    public bool AutoStartKeyCapture { get; set; } = true;
     private const int OK_BUTTON_ID = 1;
     private const int CAPTURE_BUTTON_ID = 2;
     private const int FINISH_CAPTURE_BUTTON_ID = 3;
@@ -60,6 +63,7 @@ public class SimpleWindow
     public SimpleWindow(string title, int labelWidth = 150, int inputFieldWidth = 250, int itemsHeight = 20, int xSep = 10, int ySep = 10, int xOffset = 10, int yOffset = 10)
     {
         this.title = title;
+        this.wndProcDelegate = WndProc;
         this.labelWidth = labelWidth;
         this.inputFieldWidth = inputFieldWidth;
         this.itemsHeight = itemsHeight;
@@ -77,6 +81,8 @@ public class SimpleWindow
         switch (message)
         {
             case PInvoke.WM_DESTROY:
+                isCapturing = false;
+                pendingModifiers.Clear();
                 PInvoke.PostQuitMessage(0);
                 PInvoke.UnregisterClass(className, default);
                 return (LRESULT)0;
@@ -89,7 +95,7 @@ public class SimpleWindow
                     {
                         var warningResult = PInvoke.MessageBox(
                             hwnd,
-                            "No keys were captured.\n\nTo capture: click 'Press to Capture Key', then press a key (or press a modifier then a key), and click Finish.",
+                            "No keys were captured.\n\nTo capture: press the desired key(s). Use 'Press to Capture Key' to restart capture if needed.",
                             "No Keys Captured",
                             MESSAGEBOX_STYLE.MB_OKCANCEL | MESSAGEBOX_STYLE.MB_ICONWARNING
                         );
@@ -149,6 +155,24 @@ public class SimpleWindow
 
                     if (IsModifierKey(key))
                     {
+                        if (AllowSingleKeysWithoutModifiers)
+                        {
+                            AddCompletedPress(key, new HashSet<ModifierKind>());
+                            pendingModifiers.Clear();
+                            UpdateCaptureDisplay(includePending: false);
+
+                            if (HasReachedCaptureTarget())
+                            {
+                                FinishKeyCapture();
+                            }
+                            else
+                            {
+                                ShowFinishCaptureButton();
+                            }
+
+                            return (LRESULT)0;
+                        }
+
                         pendingModifiers.Add(ToModifierKind(key));
                         UpdateCaptureDisplay(includePending: true);
                         return (LRESULT)0;
@@ -160,20 +184,36 @@ public class SimpleWindow
                         combinedModifiers.Add(modifier);
                     }
 
+                    if (AllowSingleKeysWithoutModifiers)
+                    {
+                        combinedModifiers.Clear();
+                        AddCompletedPress(key, combinedModifiers);
+                        pendingModifiers.Clear();
+                        UpdateCaptureDisplay(includePending: false);
+
+                        if (HasReachedCaptureTarget())
+                        {
+                            FinishKeyCapture();
+                        }
+                        else
+                        {
+                            ShowFinishCaptureButton();
+                        }
+
+                        return (LRESULT)0;
+                    }
+
                     if (combinedModifiers.Count == 0)
                     {
-                        if (!nonModifierKeysUsed.Add(key))
-                        {
-                            UpdateCaptureDisplay(includePending: false);
-                            return (LRESULT)0;
-                        }
+                        UpdateCaptureDisplay(includePending: false);
+                        return (LRESULT)0;
                     }
 
                     AddCompletedPress(key, combinedModifiers);
                     pendingModifiers.Clear();
                     UpdateCaptureDisplay(includePending: false);
 
-                    if (capturedPresses.Count >= 3)
+                    if (HasReachedCaptureTarget())
                     {
                         FinishKeyCapture();
                     }
@@ -227,7 +267,10 @@ public class SimpleWindow
                 {
                     PInvoke.SetWindowPos(hCaptureButton, HWND.Null, 0, 0, width - (labelWidth + xSep + 2 * xOffset), itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
 
-                    PInvoke.SetWindowPos(hFinishCaptureButton, HWND.Null, 0, 0, width - 2 * xOffset, itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+                    if (hFinishCaptureButton != HWND.Null)
+                    {
+                        PInvoke.SetWindowPos(hFinishCaptureButton, HWND.Null, 0, 0, width - 2 * xOffset, itemsHeight, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOZORDER);
+                    }
                 }
 
                 foreach (var hEdit in hEditFields)
@@ -244,6 +287,7 @@ public class SimpleWindow
 
     public void CreateDynamicInputWindow(IReadOnlyList<string> inputLabels, IReadOnlyList<string>? placeholders = null, bool enableKeyCapture = false)
     {
+        ResetWindowSessionState();
         this.enableKeyCapture = enableKeyCapture;
         showKeyCaptureField = enableKeyCapture;
 
@@ -261,41 +305,50 @@ public class SimpleWindow
                 var wndClass = new WNDCLASSW
                 {
                     style = WNDCLASS_STYLES.CS_HREDRAW | WNDCLASS_STYLES.CS_VREDRAW,
-                    lpfnWndProc = new WNDPROC(WndProc),
+                    lpfnWndProc = this.wndProcDelegate,
                     hInstance = PInvoke.GetModuleHandle((PCWSTR)null),
                     hIcon = PInvoke.LoadIcon(HINSTANCE.Null, PInvoke.IDI_APPLICATION),
                     hCursor = PInvoke.LoadCursor(HINSTANCE.Null, PInvoke.IDC_ARROW),
                     hbrBackground = new HBRUSH(PInvoke.GetStockObject(GET_STOCK_OBJECT_FLAGS.BLACK_BRUSH).Value),
                     lpszClassName = new PCWSTR(ptrClassName),
                 };
-                try
+
+                ushort classAtom = PInvoke.RegisterClass(wndClass);
+                if (classAtom == 0)
                 {
-                    PInvoke.RegisterClass(wndClass);
-
-                    // Adjust window dimensions
-                    computedWidth = labelWidth + inputFieldWidth + xSep + 2 * xOffset;
-                    int capturedKeyHeight = showKeyCaptureField ? (itemsHeight + ySep) * 2 : 0;
-                    computedHeight = 60 + capturedKeyHeight + (itemsHeight + ySep) * inputLabels.Count + itemsHeight + 2 * yOffset;
-
-                    // Create main window
-                    hwnd = PInvoke.CreateWindowEx(
-                        WINDOW_EX_STYLE.WS_EX_TOPMOST,
-                        className,
-                        title,
-                        WINDOW_STYLE.WS_OVERLAPPEDWINDOW,
-                        PInvoke.CW_USEDEFAULT,
-                        PInvoke.CW_USEDEFAULT,
-                        computedWidth,
-                        computedHeight,
-                        default,
-                        default,
-                        new SafeFileHandle(wndClass.hInstance, ownsHandle: false),
-                        null
-                    );
+                    throw new InvalidOperationException($"Failed to register window class '{className}'.");
                 }
-                catch (Exception)
+
+                // Adjust window dimensions
+                computedWidth = labelWidth + inputFieldWidth + xSep + 2 * xOffset;
+                int capturedKeyRows = 0;
+                if (showKeyCaptureField)
                 {
-                    Console.WriteLine("Failed to register window class as it already exists. Continuing...");
+                    capturedKeyRows = SupportsManualFinishCapture() ? 2 : 1;
+                }
+
+                int capturedKeyHeight = capturedKeyRows * (itemsHeight + ySep);
+                computedHeight = 60 + capturedKeyHeight + (itemsHeight + ySep) * inputLabels.Count + itemsHeight + 2 * yOffset;
+
+                // Create main window
+                hwnd = PInvoke.CreateWindowEx(
+                    WINDOW_EX_STYLE.WS_EX_TOPMOST,
+                    className,
+                    title,
+                    WINDOW_STYLE.WS_OVERLAPPEDWINDOW,
+                    PInvoke.CW_USEDEFAULT,
+                    PInvoke.CW_USEDEFAULT,
+                    computedWidth,
+                    computedHeight,
+                    default,
+                    default,
+                    new SafeFileHandle(wndClass.hInstance, ownsHandle: false),
+                    null
+                );
+
+                if (hwnd == HWND.Null)
+                {
+                    throw new InvalidOperationException("Failed to create dynamic input window.");
                 }
             }
         }
@@ -320,6 +373,11 @@ public class SimpleWindow
         // Show window
         PInvoke.ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_SHOWNORMAL);
         PInvoke.UpdateWindow(hwnd);
+
+        if (showKeyCaptureField && AutoStartKeyCapture)
+        {
+            StartKeyCapture();
+        }
 
         // Message loop
         MSG msg = new();
@@ -353,25 +411,31 @@ public class SimpleWindow
 
         yPos += itemsHeight + ySep;
 
-        // Finish capture button (hidden until first press)
-        hFinishCaptureButton = PInvoke.CreateWindowEx(
-            0,
-            "BUTTON",
-            "Finish capture",
-            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_TABSTOP,
-            xOffset,
-            yPos,
-            labelWidth + inputFieldWidth + xSep,
-            itemsHeight,
-            hwnd,
-            new SafeFileHandle((IntPtr)FINISH_CAPTURE_BUTTON_ID, ownsHandle: false),
-            PInvoke.GetModuleHandle((string?)null),
-            null
-        );
+        if (SupportsManualFinishCapture())
+        {
+            // Finish capture button (hidden until first press)
+            hFinishCaptureButton = PInvoke.CreateWindowEx(
+                0,
+                "BUTTON",
+                "Finish capture",
+                WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_TABSTOP,
+                xOffset,
+                yPos,
+                labelWidth + inputFieldWidth + xSep,
+                itemsHeight,
+                hwnd,
+                new SafeFileHandle((IntPtr)FINISH_CAPTURE_BUTTON_ID, ownsHandle: false),
+                PInvoke.GetModuleHandle((string?)null),
+                null
+            );
 
-        PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_HIDE);
-
-        yPos += itemsHeight + ySep;
+            PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_HIDE);
+            yPos += itemsHeight + ySep;
+        }
+        else
+        {
+            hFinishCaptureButton = HWND.Null;
+        }
     }
 
     private unsafe void CreateLabelAndEditControl(string label, string placeholder, ref int yPos)
@@ -420,7 +484,6 @@ public class SimpleWindow
     private unsafe void DestroyWindow()
     {
         PInvoke.DestroyWindow(hwnd);
-        PInvoke.UnregisterClass(className, default);
     }
 
     private void StartKeyCapture()
@@ -431,15 +494,20 @@ public class SimpleWindow
         }
 
         capturedPresses.Clear();
-        nonModifierKeysUsed.Clear();
         pendingModifiers.Clear();
+        capturedKeyVK = 0;
+        capturedKeyScanCode = 0;
+        capturedKeyName = null;
         capturedKeySequence = null;
         captureFinished = false;
         isCapturing = true;
 
         PInvoke.SetWindowText(hCaptureButton, "Capturing...");
         PInvoke.SetWindowText(hKeyDisplay, "");
-        PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_HIDE);
+        if (hFinishCaptureButton != HWND.Null)
+        {
+            PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_HIDE);
+        }
         PInvoke.SetFocus(hwnd);
     }
 
@@ -456,7 +524,10 @@ public class SimpleWindow
         capturedKeySequence = BuildSequenceDisplay(includePending: false);
         PInvoke.SetWindowText(hKeyDisplay, capturedKeySequence ?? string.Empty);
         PInvoke.SetWindowText(hCaptureButton, "Press to Capture Key");
-        PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_HIDE);
+        if (hFinishCaptureButton != HWND.Null)
+        {
+            PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_HIDE);
+        }
     }
 
     private void CancelKeyCapture()
@@ -465,7 +536,7 @@ public class SimpleWindow
         pendingModifiers.Clear();
         PInvoke.SetWindowText(hCaptureButton, "Press to Capture Key");
         UpdateCaptureDisplay(includePending: false);
-        if (capturedPresses.Count > 0)
+        if (capturedPresses.Count > 0 && GetCaptureTargetCount() > 1)
         {
             ShowFinishCaptureButton();
         }
@@ -473,6 +544,11 @@ public class SimpleWindow
 
     private void ShowFinishCaptureButton()
     {
+        if (!SupportsManualFinishCapture() || hFinishCaptureButton == HWND.Null)
+        {
+            return;
+        }
+
         PInvoke.ShowWindow(hFinishCaptureButton, SHOW_WINDOW_CMD.SW_SHOWNORMAL);
     }
 
@@ -516,6 +592,11 @@ public class SimpleWindow
 
     private static string FormatPress(KeyPress press)
     {
+        if (press.Modifiers.Count == 0 && IsModifierKey(press.Key))
+        {
+            return GetModifierLabel(ToModifierKind(press.Key));
+        }
+
         var modifierText = press.Modifiers.Count == 0 ? string.Empty : string.Join("+", press.Modifiers.Select(GetModifierLabel)) + "+";
 
         bool shiftDown = press.Modifiers.Contains(ModifierKind.Shift);
@@ -617,6 +698,35 @@ public class SimpleWindow
             ModifierKind.Win => "Win",
             _ => "",
         };
+    }
+
+    private bool HasReachedCaptureTarget()
+    {
+        return capturedPresses.Count >= GetCaptureTargetCount();
+    }
+
+    private int GetCaptureTargetCount()
+    {
+        return NumberOfCombinationsToCapture < 1 ? 1 : NumberOfCombinationsToCapture;
+    }
+
+    private bool SupportsManualFinishCapture()
+    {
+        return GetCaptureTargetCount() > 1;
+    }
+
+    private void ResetWindowSessionState()
+    {
+        hEditFields.Clear();
+        userInputs.Clear();
+        isCapturing = false;
+        captureFinished = false;
+        pendingModifiers.Clear();
+        capturedPresses.Clear();
+        capturedKeyVK = 0;
+        capturedKeyScanCode = 0;
+        capturedKeyName = null;
+        capturedKeySequence = null;
     }
 
     private static bool IsCapsLockOn()

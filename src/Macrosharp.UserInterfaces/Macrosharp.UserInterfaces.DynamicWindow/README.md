@@ -7,7 +7,7 @@ A lightweight Windows dialog library for creating dynamic input forms with optio
 - **Dynamic Input Forms** - Create dialogs with any number of labeled input fields
 - **Key Capture** - Optional keyboard key capture for hotkey configuration
 - **Modifier Key Support** - Capture key combinations with Ctrl, Shift, Alt, and Win modifiers
-- **Key Sequence Capture** - Capture up to 3 key presses in a single sequence
+- **Key Sequence Capture** - Capture a configurable number of key presses in a single sequence
 - **DPI Aware** - Proper scaling on high-DPI displays
 - **Always-On-Top** - Window stays on top for quick input scenarios
 - **Resizable** - Window width adjusts to content with constraints
@@ -86,6 +86,9 @@ window.CreateDynamicInputWindow(labels, placeholders);
 
 ```csharp
 var window = new SimpleWindow("Register Hotkey");
+window.NumberOfCombinationsToCapture = 3;
+window.AllowSingleKeysWithoutModifiers = false;
+window.AutoStartKeyCapture = true;
 
 var labels = new List<string> { "Action Name:" };
 var placeholders = new List<string> { "Toggle Window" };
@@ -105,12 +108,19 @@ if (!string.IsNullOrEmpty(window.capturedKeySequence))
 
 ## Key Capture Workflow
 
-1. Click the **"Press to Capture Key"** button
-2. Press a key (optionally with Ctrl, Shift, Alt, or Win modifiers)
+1. Capture starts automatically when the window opens (default behavior).
+2. Press keys according to your capture mode:
+    - `AllowSingleKeysWithoutModifiers = false` (default): only combinations that include at least one modifier are accepted.
+    - `AllowSingleKeysWithoutModifiers = true`: single keys and modifier-only keys are accepted.
+   - If `AutoStartKeyCapture = false`, click **"Press to Capture Key"** first.
 3. The key combination is displayed in the status field
-4. Optionally press more keys to create a sequence (up to 3 keys)
+4. Optionally press more keys to create a sequence (up to `NumberOfCombinationsToCapture`)
+5. In permissive mode (`AllowSingleKeysWithoutModifiers = true`), chords are split into individual captures.
+    - Example: `Ctrl + Shift + A` becomes `Ctrl, Shift, A`.
 5. Click **"Finish capture"** to confirm
 6. Press **Escape** to cancel capture mode
+
+When `NumberOfCombinationsToCapture` is `1`, capture auto-finishes after the first accepted key and the **"Finish capture"** button row is not rendered.
 
 ### Captured Key Properties
 
@@ -120,6 +130,14 @@ if (!string.IsNullOrEmpty(window.capturedKeySequence))
 | `capturedKeyScanCode` | Hardware scan code of the last captured key |
 | `capturedKeyName` | Display name of the last captured key |
 | `capturedKeySequence` | Full sequence string (e.g., "Ctrl+A, B") |
+
+### Key Capture Configuration
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `NumberOfCombinationsToCapture` | `3` | Number of accepted captures before auto-stop. Values less than `1` are treated as `1`. |
+| `AllowSingleKeysWithoutModifiers` | `false` | When `true`, captures single keys and modifier-only keys, and splits chords into individual captures. |
+| `AutoStartKeyCapture` | `true` | When `true`, capture mode starts immediately when a key-capture window opens. |
 
 ## Keyboard Shortcuts
 
