@@ -34,7 +34,7 @@ public static class ProgramHotkeyRegistration
         public required int RepeatThrottleVolumeMs { get; init; }
         public required int RepeatThrottleBrightnessMs { get; init; }
         public required int RepeatThrottleZoomMs { get; init; }
-        public required Action<int> SendMpcCommand { get; init; }
+        public required Action<MpcCommandId> SendMpcCommand { get; init; }
     }
 
     public static void RegisterAll(Dependencies dependencies)
