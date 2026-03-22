@@ -1,7 +1,7 @@
 # Macrosharp Execution Tracker
 
 Created: 2026-03-20
-Linked roadmap: IMPLEMENTATION_ROADMAP_2026-03.md
+Linked roadmap: [IMPLEMENTATION_ROADMAP_2026-03.md](IMPLEMENTATION_ROADMAP_2026-03.md)
 Branch: roadmap/implementation-phased-mar2026
 
 ## How to Use This Tracker
@@ -40,8 +40,8 @@ Goal: Lock execution model, sequencing, and decision process.
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P0-1 | Define implementation order and risk matrix |  | Done | 2026-03-23 | 2026-03-20 | 2026-03-20 |  | No | None | See PHASE0_RISK_MATRIX_2026-03.md |
-| P0-2 | Publish branch strategy and commit convention |  | Done | 2026-03-24 | 2026-03-20 | 2026-03-20 | P0-1 | No | None | See GIT_WORKFLOW_CONVENTIONS_2026-03.md |
-| P0-3 | Establish manual verification checklist template |  | Done | 2026-03-25 | 2026-03-20 | 2026-03-20 | P0-1 | No | None | See MANUAL_VERIFICATION_CHECKLIST_2026-03.md |
+| P0-2 | Publish branch strategy and commit convention |  | Done | 2026-03-24 | 2026-03-20 | 2026-03-20 | P0-1 | No | None | See [GIT_WORKFLOW_CONVENTIONS_2026-03.md](GIT_WORKFLOW_CONVENTIONS_2026-03.md) |
+| P0-3 | Establish manual verification checklist template |  | Done | 2026-03-25 | 2026-03-20 | 2026-03-20 | P0-1 | No | None | See [MANUAL_VERIFICATION_CHECKLIST_2026-03.md](MANUAL_VERIFICATION_CHECKLIST_2026-03.md) |
 
 ## Phase 1 Tracker
 

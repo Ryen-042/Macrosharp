@@ -1,7 +1,7 @@
 # Phase 0 Risk Matrix
 
 Created: 2026-03-20
-Related roadmap: IMPLEMENTATION_ROADMAP_2026-03.md
+Related roadmap: [IMPLEMENTATION_ROADMAP_2026-03.md](IMPLEMENTATION_ROADMAP_2026-03.md)
 
 ## Scoring Model
 

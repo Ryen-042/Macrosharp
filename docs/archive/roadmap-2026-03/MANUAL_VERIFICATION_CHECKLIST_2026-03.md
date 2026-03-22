@@ -6,7 +6,7 @@ Scope: Regression control for roadmap execution without automated tests
 ## Usage Rules
 
 1. Run relevant sections before merging each task.
-2. Record results in docs/archive/roadmap-2026-03/EXECUTION_TRACKER_2026-03.md phase closeout and weekly review sections.
+2. Record results in [EXECUTION_TRACKER_2026-03.md](EXECUTION_TRACKER_2026-03.md) phase closeout and weekly review sections.
 3. If uncertain about expected behavior, ask for clarification before marking pass or fail.
 
 ## Result Marking

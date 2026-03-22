@@ -15,7 +15,7 @@ Status: Completed
 - Result: Pass
 
 3. Host-shared architecture and documentation alignment review
-- Files reviewed: README.md, FEATURES.md, EXECUTION_TRACKER_2026-03.md
+- Files reviewed: [README.md](../../../README.md), [FEATURES.md](../../guides/FEATURES.md), [EXECUTION_TRACKER_2026-03.md](EXECUTION_TRACKER_2026-03.md)
 - Verified: host-shared extraction and Program orchestration decomposition are documented and tracker status is aligned.
 - Result: Pass
 
