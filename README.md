@@ -76,7 +76,7 @@ dotnet run
 ## Reminders Configuration
 
 - Primary config file: src/reminders.json
-- Full guide: src/REMINDERS_GUIDE.md
+- Full guide: docs/guides/REMINDERS_GUIDE.md
 
 The reminders system supports interval, daily, weekly, and monthly recurrences, toast/popup/sound channels, popup position and opacity settings, snooze options, and rich popup message tags (`[b]`, `[i]`, `[color=#RRGGBB]`).
 
