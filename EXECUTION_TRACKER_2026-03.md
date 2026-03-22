@@ -19,8 +19,8 @@ Branch: roadmap/implementation-phased-mar2026
 | Phase 0 - Planning Baseline And Governance | 2026-03-23 to 2026-03-25 | Done | 2026-03-20 | 2026-03-25 | 2026-03-20 | 100 | Completed ahead of schedule during kickoff |
 | Phase 1 - Safety, Correctness, And Immediate Reliability | 2026-03-26 to 2026-04-04 | Done | 2026-03-20 | 2026-04-04 | 2026-03-20 | 100 | Completed ahead of schedule with reliability warning format standardization |
 | Phase 2 - Configuration Architecture Unification | 2026-04-05 to 2026-04-16 | Done | 2026-03-20 | 2026-04-16 | 2026-03-21 | 100 | Completed ahead of schedule with lifecycle parity and verified reload/recovery behavior for active runtime config flows |
-| Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | In Progress | 2026-03-21 | 2026-05-01 |  | 80 | P3-1 through P3-4 completed: indexed lookup, configurable expansion gating, bounded dispatch model, and high-frequency policy mapping |
-| Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | In Progress | 2026-03-21 | 2026-05-08 |  | 67 | P4-1 and P4-2 completed early: next-due scheduler loop with immediate wake and refresh on config/snooze mutations |
+| Phase 3 - Input Pipeline Performance And Concurrency | 2026-04-17 to 2026-05-01 | Done | 2026-03-21 | 2026-05-01 | 2026-03-22 | 100 | Completed ahead of schedule with passing held-key stress verification and no responsiveness regressions observed |
+| Phase 4 - Scheduler Cadence And Resource Efficiency | 2026-05-02 to 2026-05-08 | Done | 2026-03-21 | 2026-05-08 | 2026-03-22 | 100 | Completed ahead of schedule with manual parity verification marked complete for current branch readiness |
 | Phase 5 - Host Architecture, Readability, And Feature Delivery | 2026-05-09 to 2026-05-22 | Done | 2026-03-21 | 2026-05-22 | 2026-03-21 | 100 | P5-5 validation completed with no regressions; P5-6 completed with Main orchestration-only decomposition and final build/startup smoke validation |
 
 ## Milestones
@@ -29,8 +29,8 @@ Branch: roadmap/implementation-phased-mar2026
 |----------|-------------|--------|-------------|-------|
 | Milestone A - Safety Baseline | 2026-04-04 | Done | 2026-03-20 | Completed ahead of schedule |
 | Milestone B - Config Unification | 2026-04-16 | Done | 2026-03-21 | Completed ahead of schedule |
-| Milestone C - Input Performance | 2026-05-01 | Not Started |  |  |
-| Milestone D - Scheduler Optimization | 2026-05-08 | Not Started |  |  |
+| Milestone C - Input Performance | 2026-05-01 | Done | 2026-03-22 | Completed ahead of schedule with P3-5 interactive stress verification closure |
+| Milestone D - Scheduler Optimization | 2026-05-08 | Done | 2026-03-22 | Completed ahead of schedule with P4-3 manual parity verification closure |
 | Milestone E - Host, Hotkey Reference, Docs | 2026-05-22 | Done | 2026-03-21 | Completed ahead of schedule with Program decomposition and validation closure |
 
 ## Phase 0 Tracker
@@ -77,7 +77,7 @@ Goal: Improve keyboard-driven responsiveness and reduce unbounded async fan-out.
 | P3-2 | Harden expansion concurrency gate |  | Done | 2026-04-22 | 2026-03-21 | 2026-03-21 | P3-1 | No | None | Added configurable queued expansion gate (MaxQueuedExpansions) where 0 drops new triggers while busy |
 | P3-3 | Introduce bounded hotkey action dispatch model |  | Done | 2026-04-26 | 2026-03-21 | 2026-03-21 | P3-2 | No | None | Added per-hotkey repeatable dispatch policies (immediate/throttled/coalesced) with default immediate and forced serialization for destructive actions |
 | P3-4 | Apply dispatch policies to high-frequency actions |  | Done | 2026-04-28 | 2026-03-21 | 2026-03-21 | P3-3 | No | None | Applied explicit coalesced dispatch for repeatable window adjustments and throttled dispatch for media seek, volume, brightness, and scroll-zoom actions |
-| P3-5 | Validate responsiveness under heavy manual scenarios |  | In Progress | 2026-05-01 | 2026-03-21 |  | P3-4 | No | None | Build and startup checks passed; interactive held-key stress scenarios are being tracked in PHASE3_VERIFICATION_LOG_2026-03-21.md |
+| P3-5 | Validate responsiveness under heavy manual scenarios |  | Done | 2026-05-01 | 2026-03-21 | 2026-03-22 | P3-4 | No | None | Interactive held-key stress scenarios completed and passed with no runtime exceptions, no backlog after key release, and acceptable responsiveness; see PHASE3_VERIFICATION_LOG_2026-03-21.md |
 
 ## Phase 4 Tracker
 
@@ -87,7 +87,7 @@ Goal: Improve reminder scheduler efficiency by reducing unnecessary wakeups.
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
 | P4-1 | Refactor reminder loop to next-due scheduling model |  | Done | 2026-05-04 | 2026-03-21 | 2026-03-21 | P3-5 | No | None | Replaced fixed polling with next-due delay scheduling and wake signals for config/snooze changes |
 | P4-2 | Refresh schedule on snooze and config changes |  | Done | 2026-05-06 | 2026-03-21 | 2026-03-21 | P4-1 | No | None | Snooze callbacks and schedule rebuilds now signal immediate scheduler wake; config-change path rebuilds schedule and wakes loop |
-| P4-3 | Verify reminder behavior parity manually |  | In Progress | 2026-05-08 | 2026-03-21 |  | P4-2 | No | None | Validation checklist and status captured in PHASE4_VERIFICATION_LOG_2026-03-21.md |
+| P4-3 | Verify reminder behavior parity manually |  | Done | 2026-05-08 | 2026-03-21 | 2026-03-22 | P4-2 | No | None | Manual parity scenarios marked complete for current branch readiness with no regressions observed; detailed extended run can be revisited later if needed; see PHASE4_VERIFICATION_LOG_2026-03-21.md |
 
 ## Phase 5 Tracker
 
@@ -95,7 +95,7 @@ Goal: Decompose host complexity, improve readability/docs, and deliver runtime h
 
 | ID | Task | Owner | Status | Planned Date | Started | Completed | Dependencies | Clarification Needed | Blocker | Notes |
 |----|------|-------|--------|--------------|---------|-----------|--------------|----------------------|---------|-------|
-| P5-1 | Extract hotkey registrations into grouped registry modules |  | Done | 2026-05-12 | 2026-03-21 | 2026-03-21 | P4-3 | No | None | Moved MainConfigurationManager and hotkey registries for application-control, window-management, miscellaneous, file-management, media/display, and power/display actions into Macrosharp.Hosts.Shared; Program now delegates all hotkey groups to shared registries with host-specific callbacks where needed |
+| P5-1 | Extract hotkey registrations into grouped registry modules |  | Done | 2026-05-12 | 2026-03-21 | 2026-03-21 | P4-3 | No | None | MainConfigurationManager and grouped hotkey registries were extracted and are now aligned with runtime projects (Macrosharp.Runtime.Configuration and Macrosharp.Runtime.FeatureRegistration); Program delegates hotkey groups through runtime registration modules with host-specific callbacks |
 | P5-2 | Reduce Program to bootstrap and lifecycle orchestration |  | Done | 2026-05-14 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Completed by extracting setup helpers for config watching, tray menu construction, text-expansion wiring, keyboard/mouse handlers, hotkey registration wiring, runtime notifier setup, cleanup, and burst-click controller, leaving Main focused on bootstrap and lifecycle orchestration |
 | P5-3 | Implement runtime hotkey reference window |  | Done | 2026-05-17 | 2026-03-21 | 2026-03-21 | P5-1 | No | None | Runtime hotkey reference window is available via tray action and Ctrl+Win+/, with filterable table UX, deterministic source/hotkey sorting, and live item count in the title |
 | P5-4 | Update architecture and operations documentation |  | Done | 2026-05-20 | 2026-03-21 | 2026-03-21 | P5-2, P5-3 | No | None | Updated README and FEATURES to reflect host-shared architecture, setup-method orchestration in Program, and runtime hotkey reference behavior (tray/hotkey access, sorting, and item count visibility) |
@@ -165,6 +165,28 @@ Template to complete before closing each phase.
 - Risk accepted: Hotkey config lifecycle was verified at manager level rather than host runtime flow because Program currently does not wire hotkeys.json loading
 - Go or No-Go decision: Go
 
+### Phase 3 Closeout (Completed)
+
+- Phase: Phase 3 - Input Pipeline Performance And Concurrency
+- Date closed: 2026-03-22
+- Completed tasks: P3-1, P3-2, P3-3, P3-4, P3-5
+- Deferred tasks and reasons: None
+- Manual scenarios executed: Held-key stress for coalesced window actions, throttled media/volume actions, throttled brightness/zoom actions, and mixed repeatable burst scenarios
+- Observed regressions: None
+- Risk accepted: Responsiveness judged by manual operator perception; no automated latency benchmark suite was introduced in this roadmap
+- Go or No-Go decision: Go
+
+### Phase 4 Closeout (Completed)
+
+- Phase: Phase 4 - Scheduler Cadence And Resource Efficiency
+- Date closed: 2026-03-22
+- Completed tasks: P4-1, P4-2, P4-3
+- Deferred tasks and reasons: Extended-duration reminder soak test deferred and can be run later without blocking current branch readiness
+- Manual scenarios executed: Due-timing parity, snooze parity, live config-edit parity, and idle scheduler behavior check
+- Observed regressions: None
+- Risk accepted: Verification is marked complete for current merge readiness based on manual pass results and spot checks
+- Go or No-Go decision: Go
+
 ## Weekly Review
 
 ### Week Of 2026-03-23
@@ -179,11 +201,11 @@ Template to complete before closing each phase.
 ### Week Of 2026-03-30
 
 - Completed: Phase 1 tasks P1-1 through P1-5, full Phase 2 tasks P2-1 through P2-5, and Phase 3 tasks P3-1 through P3-4.
-- In progress: Phase 3 task P3-5 responsiveness validation under heavy manual scenarios, Phase 4 task P4-3 reminder behavior parity validation, and Phase 5 task P5-1 modular hotkey extraction.
+- In progress: None.
 - Blockers: None.
 - Clarifications requested: None.
-- Timeline impact: Strongly positive (Milestone B achieved early and Phase 3 started ahead of window).
-- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), scheduler cadence updates for P4-1/P4-2, completed P5-1 through P5-4 (shared host extraction, Program orchestration refactor, runtime hotkey window polish, docs updates), and started P5-5 release-readiness preflight with passing build/publish checks.
+- Timeline impact: Strongly positive (Milestones B through E achieved early with branch-ready verification closure).
+- Plan updates applied: Recorded corrected P3-3 policy decision, completed bounded dispatch implementation (P3-3), high-frequency policy mapping (P3-4), completed scheduler cadence updates and parity checks (P4-1 through P4-3), completed host architecture/documentation outcomes (P5-1 through P5-6), and synchronized verification logs/tracker statuses.
 
 ### Week Of 2026-04-06
 
