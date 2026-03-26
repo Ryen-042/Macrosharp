@@ -42,6 +42,7 @@ public sealed class ImageEditor
     // UI state
     private bool _showStatusBar;
     private bool _showHelp;
+    private bool _showOverlay = true;
     private IntPoint _lastImagePoint;
     private IntPoint _lastScreenPoint;
     private bool _autoFit = true;
@@ -176,6 +177,8 @@ public sealed class ImageEditor
     /// - Shift+/: Toggle help overlay
     /// - Ctrl+O: Open image from file
     /// - Ctrl+V: Open image from clipboard
+    /// - Ctrl+C: Copy current image to clipboard
+    /// - F2: Toggle top-left tool overlay
     /// - V: Flip image vertically
     /// - W: Switch to Draw tool
     /// - L: Switch to Crop tool
@@ -216,6 +219,12 @@ public sealed class ImageEditor
             return;
         }
 
+        if (key == VIRTUAL_KEY.VK_C && modifiers.HasFlag(ModifierState.Control))
+        {
+            TryCopyImageToClipboard();
+            return;
+        }
+
         if (key == VIRTUAL_KEY.VK_Z && modifiers.HasFlag(ModifierState.Control))
         {
             _state.TryUndo();
@@ -244,6 +253,9 @@ public sealed class ImageEditor
         {
             case VIRTUAL_KEY.VK_F1:
                 _showStatusBar = !_showStatusBar;
+                return;
+            case VIRTUAL_KEY.VK_F2:
+                _showOverlay = !_showOverlay;
                 return;
             case VIRTUAL_KEY.VK_V:
                 ApplyFlipVertical();
@@ -299,6 +311,7 @@ public sealed class ImageEditor
     }
 
     public ImageEditorState State => _state;
+    public bool IsOverlayVisible => _showOverlay;
 
     /// <summary>
     /// Gets the current view transform which combines zoom, pan, and viewport origin.
@@ -525,6 +538,14 @@ public sealed class ImageEditor
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Attempts to copy the current image to the clipboard.
+    /// </summary>
+    public bool TryCopyImageToClipboard()
+    {
+        return ImageEditorIO.TryCopyToClipboard(_state.GetRaster());
     }
 
     private void ApplyLoadedImage(ImageBuffer buffer)
@@ -774,6 +795,11 @@ public sealed class ImageEditor
     /// </summary>
     private void DrawOverlay(HDC hdc)
     {
+        if (!_showOverlay)
+        {
+            return;
+        }
+
         string text = $"{_activeToolKind.ToString().ToUpperInvariant()}";
         var rect = new RECT
         {
@@ -823,7 +849,7 @@ public sealed class ImageEditor
         // Semi-transparent dark background
         int padding = 20;
         int boxWidth = 320;
-        int boxHeight = 380;
+        int boxHeight = 410;
         int boxX = (_viewportWidth - boxWidth) / 2;
         int boxY = (_viewportHeight - boxHeight) / 2;
 
@@ -859,10 +885,12 @@ public sealed class ImageEditor
             "  Ctrl+Click - Pan",
             "  Ctrl+0 - Reset view",
             "  F1 - Toggle status bar",
+            "  F2 - Toggle top-left tool label",
             "",
             "Image:",
             "  Ctrl+O - Open file",
             "  Ctrl+V - Paste from clipboard",
+            "  Ctrl+C - Copy to clipboard",
             "  Ctrl+Z/Y - Undo/Redo",
             "  R - Rotate 90 degrees",
             "  H/V - Flip horizontal/vertical",

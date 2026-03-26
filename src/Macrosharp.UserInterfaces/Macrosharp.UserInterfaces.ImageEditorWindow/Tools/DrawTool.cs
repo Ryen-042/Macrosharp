@@ -175,6 +175,11 @@ public sealed class DrawTool : IEditorTool
     /// </summary>
     public void OnRender(ImageEditor editor, HDC hdc, int width, int height)
     {
+        if (!editor.IsOverlayVisible)
+        {
+            return;
+        }
+
         // Display brush info text
         string info = $"Brush: {_brushRadius}px | Color: #{_color & 0xFFFFFF:X6} | Keys: 0-9 for presets";
         var rect = new RECT

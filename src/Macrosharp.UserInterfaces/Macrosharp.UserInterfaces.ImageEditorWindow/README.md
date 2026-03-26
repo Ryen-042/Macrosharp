@@ -8,7 +8,7 @@ A lightweight, keyboard-first image editor built entirely with Win32 GDI APIs fo
 - **Zoom & Pan** - Mouse wheel zoom with anchor point, Ctrl+click pan
 - **Image Transformations** - Rotate, flip, grayscale, invert
 - **Undo/Redo Support** - Full edit history with Ctrl+Z/Ctrl+Y
-- **Clipboard Integration** - Open images from clipboard with Ctrl+V
+- **Clipboard Integration** - Open images from clipboard with Ctrl+V and copy with Ctrl+C
 - **File Support** - Open images via file dialog or command line
 - **Double-Buffered Rendering** - Flicker-free display using GDI
 - **Keyboard Shortcuts** - Full keyboard navigation for power users
@@ -49,6 +49,7 @@ editor.Run();
 |----------|--------|
 | `Ctrl+O` | Open image from file dialog |
 | `Ctrl+V` | Paste image from clipboard |
+| `Ctrl+C` | Copy current image to clipboard |
 
 ### Undo / Redo
 | Shortcut | Action |
@@ -83,6 +84,7 @@ editor.Run();
 | `Ctrl+0` | Reset view |
 | `Mouse Wheel` | Zoom in/out at cursor position |
 | `F1` | Toggle status bar |
+| `F2` | Toggle top-left tool label |
 | `Shift+?` | Toggle help overlay |
 
 ### Brush Controls (Draw Tool)

@@ -128,7 +128,7 @@ public sealed class ImageEditorWindow : IDisposable
         unsafe
         {
             _hwnd = PInvoke.CreateWindowEx(
-                0,
+                WINDOW_EX_STYLE.WS_EX_TOPMOST,
                 WindowClassName,
                 _title,
                 WINDOW_STYLE.WS_OVERLAPPEDWINDOW | WINDOW_STYLE.WS_VISIBLE,
@@ -158,7 +158,31 @@ public sealed class ImageEditorWindow : IDisposable
     private void ShowWindow()
     {
         PInvoke.ShowWindow(_hwnd, SHOW_WINDOW_CMD.SW_SHOW);
+        ActivateWindow();
         PInvoke.UpdateWindow(_hwnd);
+    }
+
+    /// <summary>
+    /// Brings the window to the front, keeps it topmost, and requests keyboard focus.
+    /// </summary>
+    private void ActivateWindow()
+    {
+        if (_hwnd == HWND.Null)
+        {
+            return;
+        }
+
+        PInvoke.SetWindowPos(
+            _hwnd,
+            HWND.HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_SHOWWINDOW);
+
+        PInvoke.SetForegroundWindow(_hwnd);
+        PInvoke.SetFocus(_hwnd);
     }
 
     /// <summary>
