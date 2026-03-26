@@ -52,6 +52,10 @@ public sealed class ImageEditor
     private bool _isPanningWithCtrl;
     private IntPoint _ctrlPanStart;
 
+    // Middle-click panning state
+    private bool _isPanningWithMiddle;
+    private IntPoint _middlePanStart;
+
     // Toggle zoom state (for Space key)
     private double _savedZoom = 1.0;
     private int _savedPanX;
@@ -102,10 +106,17 @@ public sealed class ImageEditor
 
     /// <summary>
     /// Handles mouse down events. Delegates to the active tool.
-    /// Ctrl+left-click starts panning regardless of active tool.
+    /// Ctrl+left-click and middle-click start panning regardless of active tool.
     /// </summary>
     public void HandleMouseDown(IntPoint point, MouseButton button, ModifierState modifiers)
     {
+        if (button == MouseButton.Middle)
+        {
+            _isPanningWithMiddle = true;
+            _middlePanStart = point;
+            return;
+        }
+
         // Ctrl+left-click initiates panning
         if (button == MouseButton.Left && modifiers.HasFlag(ModifierState.Control))
         {
@@ -120,10 +131,19 @@ public sealed class ImageEditor
 
     /// <summary>
     /// Handles mouse move events. Tracks cursor position and delegates to the active tool.
-    /// If Ctrl+click panning is active, pans the view instead.
+    /// If Ctrl+click or middle-click panning is active, pans the view instead.
     /// </summary>
     public void HandleMouseMove(IntPoint point, ModifierState modifiers)
     {
+        if (_isPanningWithMiddle)
+        {
+            int dx = point.X - _middlePanStart.X;
+            int dy = point.Y - _middlePanStart.Y;
+            PanBy(dx, dy);
+            _middlePanStart = point;
+            return;
+        }
+
         // Handle Ctrl+click panning
         if (_isPanningWithCtrl)
         {
@@ -142,10 +162,16 @@ public sealed class ImageEditor
 
     /// <summary>
     /// Handles mouse up events. Delegates to the active tool and commits drawing operations.
-    /// Ends Ctrl+click panning if active.
+    /// Ends Ctrl+click or middle-click panning if active.
     /// </summary>
     public void HandleMouseUp(IntPoint point, MouseButton button, ModifierState modifiers)
     {
+        if (_isPanningWithMiddle && button == MouseButton.Middle)
+        {
+            _isPanningWithMiddle = false;
+            return;
+        }
+
         // End Ctrl+click panning
         if (_isPanningWithCtrl && button == MouseButton.Left)
         {

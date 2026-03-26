@@ -294,6 +294,23 @@ public sealed class ImageEditorWindow : IDisposable
                 Invalidate();
                 return (LRESULT)0;
 
+            case PInvoke.WM_MBUTTONDOWN:
+                PInvoke.SetCapture(hwnd);
+                _isMouseCaptured = true;
+                _editor.HandleMouseDown(GetPoint(lParam), MouseButton.Middle, GetModifierState());
+                Invalidate();
+                return (LRESULT)0;
+
+            case PInvoke.WM_MBUTTONUP:
+                if (_isMouseCaptured)
+                {
+                    _isMouseCaptured = false;
+                    PInvoke.ReleaseCapture();
+                }
+                _editor.HandleMouseUp(GetPoint(lParam), MouseButton.Middle, GetModifierState());
+                Invalidate();
+                return (LRESULT)0;
+
             case PInvoke.WM_MOUSEWHEEL:
                 // Handle mouse wheel for zooming
                 _editor.HandleMouseWheel(GetPoint(lParam), GetWheelDelta(wParam), GetModifierState());
