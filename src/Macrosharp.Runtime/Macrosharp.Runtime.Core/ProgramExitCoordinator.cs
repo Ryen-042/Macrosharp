@@ -1,5 +1,6 @@
 ﻿using Macrosharp.Runtime.Core;
 using Macrosharp.UserInterfaces.TrayIcon;
+using Macrosharp.Win32.Native;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -34,9 +35,7 @@ public sealed class ProgramExitCoordinator
             }
 
             string shortcut = e.SpecialKey == ConsoleSpecialKey.ControlBreak ? "Ctrl+Break" : "Ctrl+C";
-            var result = PInvoke.MessageBox(HWND.Null, $"{shortcut} detected.\n\nDo you want to quit Macrosharp?", "Macrosharp - Confirm Exit", MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST);
-
-            if (result == MESSAGEBOX_RESULT.IDYES)
+            if (MessageBoxes.ShowConfirmYesNo(HWND.Null, $"{shortcut} detected.\n\nDo you want to quit Macrosharp?", "Macrosharp - Confirm Exit"))
             {
                 Console.WriteLine($"{shortcut}: exit confirmed.");
                 RequestExit(shortcut);
@@ -62,6 +61,3 @@ public sealed class ProgramExitCoordinator
         PInvoke.PostThreadMessage(_mainThreadId, PInvoke.WM_QUIT, 0, 0);
     }
 }
-
-
-

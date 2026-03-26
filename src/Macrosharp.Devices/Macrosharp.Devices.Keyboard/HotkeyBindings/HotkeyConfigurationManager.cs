@@ -1,8 +1,9 @@
 ﻿using System.Text.Json;
 using Macrosharp.Infrastructure;
-using Windows.Win32; // For PInvoke.MessageBox
-using Windows.Win32.Foundation; // For HWND
-using Windows.Win32.UI.WindowsAndMessaging; // For MESSAGEBOX_STYLE
+using Macrosharp.Win32.Native;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Macrosharp.Devices.Keyboard.HotkeyBindings;
 
@@ -118,13 +119,13 @@ public class HotkeyConfigurationManager : IDisposable
 
             string message =
                 $"The hotkeys.json file is invalid and could not be loaded.\nError: {errorMessage}\n\nA backup of the invalid file has been created at:\n{backupFilePath}\n\nThe configuration has been reverted to its previous valid state.";
-            PInvoke.MessageBox(HWND.Null, message, "Hotkey Configuration Error", MESSAGEBOX_STYLE.MB_ICONERROR);
+            MessageBoxes.ShowError(HWND.Null, message, "Hotkey Configuration Error");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error during invalid file handling (backup/revert): {ex.Message}");
             string message = $"The hotkeys.json file is invalid and could not be loaded.\nError: {errorMessage}\n\nAttempted to create backup and revert, but failed: {ex.Message}";
-            PInvoke.MessageBox(HWND.Null, message, "Hotkey Configuration Error", MESSAGEBOX_STYLE.MB_ICONERROR);
+            MessageBoxes.ShowError(HWND.Null, message, "Hotkey Configuration Error");
         }
     }
 

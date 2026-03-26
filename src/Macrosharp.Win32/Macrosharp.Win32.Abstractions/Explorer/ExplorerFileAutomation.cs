@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Macrosharp.Infrastructure;
 using Macrosharp.Infrastructure.ImageProcessing;
 using Macrosharp.Win32.Abstractions.WindowTools;
+using Macrosharp.Win32.Native;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
@@ -144,8 +145,7 @@ public static class ExplorerFileAutomation
         if (convertFunc == null)
             throw new ArgumentNullException(nameof(convertFunc));
 
-        var confirm = PInvoke.MessageBox(HWND.Null, "Are you sure you want to convert the selected files?", "Confirmation", MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO);
-        if (confirm != MESSAGEBOX_RESULT.IDYES)
+        if (!MessageBoxes.ShowConfirmYesNo(HWND.Null, "Are you sure you want to convert the selected files?", "Confirmation"))
             return;
 
         if (!TryGetActiveFolderPath(hwnd, allowDesktop: false, out _, out HWND targetHwnd))

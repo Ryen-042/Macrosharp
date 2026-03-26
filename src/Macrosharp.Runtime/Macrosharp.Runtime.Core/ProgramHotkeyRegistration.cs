@@ -4,6 +4,7 @@ using Macrosharp.Infrastructure;
 using Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 using Macrosharp.UserInterfaces.ToastNotifications;
 using Macrosharp.Win32.Abstractions.SystemControl;
+using Macrosharp.Win32.Native;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -45,9 +46,7 @@ public static class ProgramHotkeyRegistration
             dependencies.SourceApplicationControl,
             onConfirmExit: () =>
             {
-                var result = PInvoke.MessageBox(HWND.Null, "Win+Esc detected.\n\nDo you want to quit Macrosharp?", "Macrosharp - Confirm Exit", MESSAGEBOX_STYLE.MB_ICONQUESTION | MESSAGEBOX_STYLE.MB_YESNO | MESSAGEBOX_STYLE.MB_TOPMOST);
-
-                if (result != MESSAGEBOX_RESULT.IDYES)
+                if (!MessageBoxes.ShowConfirmYesNo(HWND.Null, "Win+Esc detected.\n\nDo you want to quit Macrosharp?", "Macrosharp - Confirm Exit"))
                 {
                     Console.WriteLine("Win+Esc: exit canceled.");
                     return;
@@ -163,11 +162,7 @@ public static class ProgramHotkeyRegistration
         PowerAndDisplayHotkeyRegistry.Register(
             dependencies.HotkeyManager,
             dependencies.SourceMiscellaneous,
-            () =>
-            {
-                var result = PInvoke.MessageBox(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_YESNO);
-                return result == MESSAGEBOX_RESULT.IDYES;
-            },
+            () => MessageBoxes.ShowConfirmYesNo(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING),
             dependencies.Warn
         );
 

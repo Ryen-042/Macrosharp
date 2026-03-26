@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using Macrosharp.Devices.Core;
+using Macrosharp.Win32.Native;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -13,13 +14,7 @@ public static class FilterableTableWindow
     private static readonly object Sync = new();
     private static FilterableTableHost? _host;
 
-    public static void ShowOrActivate(
-        string title,
-        IReadOnlyList<string> columns,
-        IReadOnlyList<IReadOnlyList<string>> rows,
-        string filterPlaceholder = "Filter...",
-        bool focusOnCreate = true,
-        bool alwaysOnTop = true)
+    public static void ShowOrActivate(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder = "Filter...", bool focusOnCreate = true, bool alwaysOnTop = true)
     {
         if (columns is null)
             throw new ArgumentNullException(nameof(columns));
@@ -128,34 +123,18 @@ public static class FilterableTableWindow
             _onClosed = onClosed;
         }
 
-        public void Start(
-            string title,
-            IReadOnlyList<string> columns,
-            IReadOnlyList<IReadOnlyList<string>> rows,
-            string filterPlaceholder,
-            bool focusOnCreate,
-            bool alwaysOnTop)
+        public void Start(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder, bool focusOnCreate, bool alwaysOnTop)
         {
             UpdateDataCore(title, columns, rows, filterPlaceholder, focusOnCreate, alwaysOnTop);
 
-            var thread = new Thread(Run)
-            {
-                IsBackground = true,
-                Name = "Macrosharp.FilterableTableWindow",
-            };
+            var thread = new Thread(Run) { IsBackground = true, Name = "Macrosharp.FilterableTableWindow" };
 
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
             _started.Wait(TimeSpan.FromSeconds(3));
         }
 
-        public void UpdateData(
-            string title,
-            IReadOnlyList<string> columns,
-            IReadOnlyList<IReadOnlyList<string>> rows,
-            string filterPlaceholder,
-            bool focusOnCreate,
-            bool alwaysOnTop)
+        public void UpdateData(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder, bool focusOnCreate, bool alwaysOnTop)
         {
             UpdateDataCore(title, columns, rows, filterPlaceholder, focusOnCreate, alwaysOnTop);
 
@@ -171,13 +150,7 @@ public static class FilterableTableWindow
             }
         }
 
-        private void UpdateDataCore(
-            string title,
-            IReadOnlyList<string> columns,
-            IReadOnlyList<IReadOnlyList<string>> rows,
-            string filterPlaceholder,
-            bool focusOnCreate,
-            bool alwaysOnTop)
+        private void UpdateDataCore(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder, bool focusOnCreate, bool alwaysOnTop)
         {
             lock (_dataLock)
             {
@@ -216,20 +189,7 @@ public static class FilterableTableWindow
                 exStyle |= WINDOW_EX_STYLE.WS_EX_TOPMOST;
             }
 
-            _hwnd = PInvoke.CreateWindowEx(
-                exStyle,
-                _windowClassName,
-                _title,
-                WINDOW_STYLE.WS_OVERLAPPEDWINDOW,
-                PInvoke.CW_USEDEFAULT,
-                PInvoke.CW_USEDEFAULT,
-                1080,
-                680,
-                HWND.Null,
-                default,
-                PInvoke.GetModuleHandle((string?)null),
-                null
-            );
+            _hwnd = PInvoke.CreateWindowEx(exStyle, _windowClassName, _title, WINDOW_STYLE.WS_OVERLAPPEDWINDOW, PInvoke.CW_USEDEFAULT, PInvoke.CW_USEDEFAULT, 1080, 680, HWND.Null, default, PInvoke.GetModuleHandle((string?)null), null);
 
             if (_hwnd == HWND.Null)
             {
@@ -364,7 +324,15 @@ public static class FilterableTableWindow
                 WINDOW_EX_STYLE.WS_EX_CLIENTEDGE,
                 ListViewClassName,
                 string.Empty,
-                WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE | WINDOW_STYLE.WS_TABSTOP | WINDOW_STYLE.WS_BORDER | WINDOW_STYLE.WS_VSCROLL | WINDOW_STYLE.WS_HSCROLL | (WINDOW_STYLE)LvsReport | (WINDOW_STYLE)LvsShowSelAlways | (WINDOW_STYLE)LvsSingleSel,
+                WINDOW_STYLE.WS_CHILD
+                    | WINDOW_STYLE.WS_VISIBLE
+                    | WINDOW_STYLE.WS_TABSTOP
+                    | WINDOW_STYLE.WS_BORDER
+                    | WINDOW_STYLE.WS_VSCROLL
+                    | WINDOW_STYLE.WS_HSCROLL
+                    | (WINDOW_STYLE)LvsReport
+                    | (WINDOW_STYLE)LvsShowSelAlways
+                    | (WINDOW_STYLE)LvsSingleSel,
                 12,
                 74,
                 1040,
@@ -496,15 +464,11 @@ public static class FilterableTableWindow
                 query = query.Where(row => row.Any(cell => cell.Contains(filter, StringComparison.OrdinalIgnoreCase)));
             }
 
-            query = _sortAscending
-                ? query.OrderBy(row => GetCell(row, _sortColumn), StringComparer.OrdinalIgnoreCase)
-                : query.OrderByDescending(row => GetCell(row, _sortColumn), StringComparer.OrdinalIgnoreCase);
+            query = _sortAscending ? query.OrderBy(row => GetCell(row, _sortColumn), StringComparer.OrdinalIgnoreCase) : query.OrderByDescending(row => GetCell(row, _sortColumn), StringComparer.OrdinalIgnoreCase);
 
             if (_groupColumn >= 0 && _groupColumn < _columns.Count)
             {
-                query = query
-                    .OrderBy(row => GetCell(row, _groupColumn), StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(row => GetCell(row, _sortColumn), StringComparer.OrdinalIgnoreCase);
+                query = query.OrderBy(row => GetCell(row, _groupColumn), StringComparer.OrdinalIgnoreCase).ThenBy(row => GetCell(row, _sortColumn), StringComparer.OrdinalIgnoreCase);
             }
 
             _visibleRows = query.ToList();
@@ -515,13 +479,14 @@ public static class FilterableTableWindow
             PInvoke.SendMessage(_listView, WmSetRedraw, 0, 0);
             try
             {
-                while (PInvoke.SendMessage(_listView, LvmDeleteColumn, 0, 0).Value != 0)
-                {
-                }
+                while (PInvoke.SendMessage(_listView, LvmDeleteColumn, 0, 0).Value != 0) { }
 
                 for (int i = 0; i < _columns.Count; i++)
                 {
-                    int width = i == 0 ? 230 : i == 1 ? 500 : 260;
+                    int width =
+                        i == 0 ? 230
+                        : i == 1 ? 500
+                        : 260;
                     string title = _columns[i];
                     fixed (char* pText = title)
                     {
@@ -629,11 +594,11 @@ public static class FilterableTableWindow
 
             if (!TrySetClipboardText(hwnd, payload))
             {
-                PInvoke.MessageBox(hwnd, "Failed to export to clipboard.", "Macrosharp", MESSAGEBOX_STYLE.MB_ICONERROR | MESSAGEBOX_STYLE.MB_OK);
+                MessageBoxes.ShowError(hwnd, "Failed to export to clipboard.", "Macrosharp");
                 return;
             }
 
-            PInvoke.MessageBox(hwnd, $"Copied {rowCount} row(s) to clipboard.", "Macrosharp", MESSAGEBOX_STYLE.MB_ICONINFORMATION | MESSAGEBOX_STYLE.MB_OK);
+            MessageBoxes.ShowInfo(hwnd, $"Copied {rowCount} row(s) to clipboard.", "Macrosharp");
         }
 
         private static bool TrySetClipboardText(HWND owner, string text)
@@ -737,6 +702,5 @@ public static class FilterableTableWindow
             public int* piColFmt;
             public int iGroup;
         }
-
     }
 }

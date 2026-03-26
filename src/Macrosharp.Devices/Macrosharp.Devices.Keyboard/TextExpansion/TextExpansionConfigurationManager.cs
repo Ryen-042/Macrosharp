@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Macrosharp.Infrastructure;
+using Macrosharp.Win32.Native;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -203,7 +204,7 @@ public class TextExpansionConfigurationManager : IDisposable
             Console.WriteLine("TextExpansion: Configuration reverted to last known good state.");
 
             string message = $"The text-expansions.json file is invalid.\nError: {errorMessage}\n\nA backup was created at:\n{backupFilePath}\n\nThe configuration has been reverted to the last known good state.";
-            PInvoke.MessageBox(HWND.Null, message, "Text Expansion Configuration Error", MESSAGEBOX_STYLE.MB_ICONERROR);
+            MessageBoxes.ShowError(HWND.Null, message, "Text Expansion Configuration Error");
         }
         catch (Exception ex)
         {

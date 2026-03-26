@@ -1,5 +1,6 @@
 ﻿using Macrosharp.Devices.Keyboard;
 using Macrosharp.Infrastructure;
+using Macrosharp.Win32.Native;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -25,7 +26,7 @@ public static class ProgramRuntimeNotifiers
     {
         try
         {
-            PInvoke.MessageBox(HWND.Null, message, title, MESSAGEBOX_STYLE.MB_ICONWARNING | MESSAGEBOX_STYLE.MB_OK | MESSAGEBOX_STYLE.MB_TOPMOST);
+            MessageBoxes.ShowWarning(HWND.Null, message, title);
         }
         catch (Exception ex)
         {
@@ -45,5 +46,3 @@ public static class ProgramRuntimeNotifiers
         Warn("PathLocator", "NotifyIssue", message);
     }
 }
-
-

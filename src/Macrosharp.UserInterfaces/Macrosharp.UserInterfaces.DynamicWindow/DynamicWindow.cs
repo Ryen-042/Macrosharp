@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using Macrosharp.Devices.Core;
 using Macrosharp.Win32.Abstractions.WindowTools;
+using Macrosharp.Win32.Native;
 using Microsoft.Win32.SafeHandles;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -120,12 +121,7 @@ public class SimpleWindow
                 {
                     if (showKeyCaptureField && capturedPresses.Count == 0 && !captureFinished)
                     {
-                        var warningResult = PInvoke.MessageBox(
-                            hwnd,
-                            "No keys were captured.\n\nTo capture: press the desired key(s). Use 'Press to Capture Key' to restart capture if needed.",
-                            "No Keys Captured",
-                            MESSAGEBOX_STYLE.MB_OKCANCEL | MESSAGEBOX_STYLE.MB_ICONWARNING
-                        );
+                        var warningResult = MessageBoxes.ShowWarningOkCancel(hwnd, "No keys were captured.\n\nTo capture: press the desired key(s). Use 'Press to Capture Key' to restart capture if needed.", "No Keys Captured");
                         if (warningResult == MESSAGEBOX_RESULT.IDCANCEL)
                         {
                             return (LRESULT)0;
@@ -336,12 +332,7 @@ public class SimpleWindow
         return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
     }
 
-    public void CreateDynamicInputWindow(
-        IReadOnlyList<string> inputLabels,
-        IReadOnlyList<string>? placeholders = null,
-        bool enableKeyCapture = false,
-        bool focusOnCreate = true,
-        bool alwaysOnTop = true)
+    public void CreateDynamicInputWindow(IReadOnlyList<string> inputLabels, IReadOnlyList<string>? placeholders = null, bool enableKeyCapture = false, bool focusOnCreate = true, bool alwaysOnTop = true)
     {
         ResetWindowSessionState();
         this.enableKeyCapture = enableKeyCapture;
@@ -513,20 +504,7 @@ public class SimpleWindow
 
     private unsafe void CreateWindowSelectionControls(ref int yPos)
     {
-        PInvoke.CreateWindowEx(
-            0,
-            "STATIC",
-            "Target Window:",
-            WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE,
-            xOffset,
-            yPos,
-            labelWidth,
-            itemsHeight,
-            hwnd,
-            default,
-            PInvoke.GetModuleHandle((string?)null),
-            null
-        );
+        PInvoke.CreateWindowEx(0, "STATIC", "Target Window:", WINDOW_STYLE.WS_CHILD | WINDOW_STYLE.WS_VISIBLE, xOffset, yPos, labelWidth, itemsHeight, hwnd, default, PInvoke.GetModuleHandle((string?)null), null);
 
         hWindowSelectionCombo = PInvoke.CreateWindowEx(
             0,
