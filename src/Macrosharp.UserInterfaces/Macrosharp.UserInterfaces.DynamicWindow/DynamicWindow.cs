@@ -336,7 +336,12 @@ public class SimpleWindow
         return PInvoke.DefWindowProc(hwnd, message, wParam, lParam);
     }
 
-    public void CreateDynamicInputWindow(IReadOnlyList<string> inputLabels, IReadOnlyList<string>? placeholders = null, bool enableKeyCapture = false)
+    public void CreateDynamicInputWindow(
+        IReadOnlyList<string> inputLabels,
+        IReadOnlyList<string>? placeholders = null,
+        bool enableKeyCapture = false,
+        bool focusOnCreate = true,
+        bool alwaysOnTop = true)
     {
         ResetWindowSessionState();
         this.enableKeyCapture = enableKeyCapture;
@@ -386,8 +391,10 @@ public class SimpleWindow
                 computedHeight = 60 + capturedKeyHeight + windowSelectionHeight + (itemsHeight + ySep) * inputLabels.Count + itemsHeight + 2 * yOffset;
 
                 // Create main window
+                WINDOW_EX_STYLE exStyle = alwaysOnTop ? WINDOW_EX_STYLE.WS_EX_TOPMOST : 0;
+
                 hwnd = PInvoke.CreateWindowEx(
-                    WINDOW_EX_STYLE.WS_EX_TOPMOST,
+                    exStyle,
                     className,
                     title,
                     WINDOW_STYLE.WS_OVERLAPPEDWINDOW,
@@ -431,8 +438,14 @@ public class SimpleWindow
         CreateOKButton(yPos);
 
         // Show window
-        PInvoke.ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_SHOWNORMAL);
+        PInvoke.ShowWindow(hwnd, focusOnCreate ? SHOW_WINDOW_CMD.SW_SHOWNORMAL : SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
         PInvoke.UpdateWindow(hwnd);
+
+        if (focusOnCreate)
+        {
+            PInvoke.SetForegroundWindow(hwnd);
+            PInvoke.SetFocus(hwnd);
+        }
 
         if (showKeyCaptureField && AutoStartKeyCapture)
         {

@@ -13,7 +13,13 @@ public static class FilterableTableWindow
     private static readonly object Sync = new();
     private static FilterableTableHost? _host;
 
-    public static void ShowOrActivate(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder = "Filter...")
+    public static void ShowOrActivate(
+        string title,
+        IReadOnlyList<string> columns,
+        IReadOnlyList<IReadOnlyList<string>> rows,
+        string filterPlaceholder = "Filter...",
+        bool focusOnCreate = true,
+        bool alwaysOnTop = true)
     {
         if (columns is null)
             throw new ArgumentNullException(nameof(columns));
@@ -24,7 +30,7 @@ public static class FilterableTableWindow
         {
             if (_host is { IsRunning: true })
             {
-                _host.UpdateData(title, columns, rows, filterPlaceholder);
+                _host.UpdateData(title, columns, rows, filterPlaceholder, focusOnCreate, alwaysOnTop);
                 return;
             }
 
@@ -36,7 +42,7 @@ public static class FilterableTableWindow
                 }
             });
 
-            _host.Start(title, columns, rows, filterPlaceholder);
+            _host.Start(title, columns, rows, filterPlaceholder, focusOnCreate, alwaysOnTop);
         }
     }
 
@@ -47,6 +53,7 @@ public static class FilterableTableWindow
 
         private const uint WmAppRefresh = PInvoke.WM_APP + 10;
         private const uint WmAppActivate = PInvoke.WM_APP + 11;
+        private const uint WmAppApplyWindowOptions = PInvoke.WM_APP + 12;
 
         private const int IdFilterEdit = 2001;
         private const int IdExportButton = 2002;
@@ -93,6 +100,8 @@ public static class FilterableTableWindow
         private readonly object _dataLock = new();
         private string _title = "Macrosharp";
         private string _placeholder = "Filter...";
+        private bool _focusOnCreate = true;
+        private bool _alwaysOnTop = true;
         private List<string> _columns = new();
         private List<List<string>> _allRows = new();
         private List<List<string>> _visibleRows = new();
@@ -119,9 +128,15 @@ public static class FilterableTableWindow
             _onClosed = onClosed;
         }
 
-        public void Start(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder)
+        public void Start(
+            string title,
+            IReadOnlyList<string> columns,
+            IReadOnlyList<IReadOnlyList<string>> rows,
+            string filterPlaceholder,
+            bool focusOnCreate,
+            bool alwaysOnTop)
         {
-            UpdateDataCore(title, columns, rows, filterPlaceholder);
+            UpdateDataCore(title, columns, rows, filterPlaceholder, focusOnCreate, alwaysOnTop);
 
             var thread = new Thread(Run)
             {
@@ -134,23 +149,42 @@ public static class FilterableTableWindow
             _started.Wait(TimeSpan.FromSeconds(3));
         }
 
-        public void UpdateData(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder)
+        public void UpdateData(
+            string title,
+            IReadOnlyList<string> columns,
+            IReadOnlyList<IReadOnlyList<string>> rows,
+            string filterPlaceholder,
+            bool focusOnCreate,
+            bool alwaysOnTop)
         {
-            UpdateDataCore(title, columns, rows, filterPlaceholder);
+            UpdateDataCore(title, columns, rows, filterPlaceholder, focusOnCreate, alwaysOnTop);
 
             if (_hwnd != HWND.Null)
             {
                 PInvoke.PostMessage(_hwnd, WmAppRefresh, 0, 0);
-                PInvoke.PostMessage(_hwnd, WmAppActivate, 0, 0);
+                PInvoke.PostMessage(_hwnd, WmAppApplyWindowOptions, 0, 0);
+
+                if (focusOnCreate)
+                {
+                    PInvoke.PostMessage(_hwnd, WmAppActivate, 0, 0);
+                }
             }
         }
 
-        private void UpdateDataCore(string title, IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<string>> rows, string filterPlaceholder)
+        private void UpdateDataCore(
+            string title,
+            IReadOnlyList<string> columns,
+            IReadOnlyList<IReadOnlyList<string>> rows,
+            string filterPlaceholder,
+            bool focusOnCreate,
+            bool alwaysOnTop)
         {
             lock (_dataLock)
             {
                 _title = string.IsNullOrWhiteSpace(title) ? "Macrosharp" : title;
                 _placeholder = string.IsNullOrWhiteSpace(filterPlaceholder) ? "Filter..." : filterPlaceholder;
+                _focusOnCreate = focusOnCreate;
+                _alwaysOnTop = alwaysOnTop;
                 _columns = columns.Select(c => c ?? string.Empty).ToList();
                 _allRows = rows.Select(r => r.Select(cell => cell ?? string.Empty).ToList()).ToList();
                 _visibleRows = new List<List<string>>(_allRows);
@@ -176,11 +210,17 @@ public static class FilterableTableWindow
                 PInvoke.RegisterClass(wc);
             }
 
+            WINDOW_EX_STYLE exStyle = WINDOW_EX_STYLE.WS_EX_APPWINDOW;
+            if (_alwaysOnTop)
+            {
+                exStyle |= WINDOW_EX_STYLE.WS_EX_TOPMOST;
+            }
+
             _hwnd = PInvoke.CreateWindowEx(
-                WINDOW_EX_STYLE.WS_EX_APPWINDOW,
+                exStyle,
                 _windowClassName,
                 _title,
-                WINDOW_STYLE.WS_OVERLAPPEDWINDOW | WINDOW_STYLE.WS_VISIBLE,
+                WINDOW_STYLE.WS_OVERLAPPEDWINDOW,
                 PInvoke.CW_USEDEFAULT,
                 PInvoke.CW_USEDEFAULT,
                 1080,
@@ -202,6 +242,7 @@ public static class FilterableTableWindow
                 return;
             }
 
+            ShowAccordingToOptions();
             _started.Set();
 
             MSG msg;
@@ -241,8 +282,15 @@ public static class FilterableTableWindow
                     return (LRESULT)0;
 
                 case WmAppActivate:
-                    PInvoke.ShowWindow(hwnd, SHOW_WINDOW_CMD.SW_SHOWNORMAL);
-                    PInvoke.SetForegroundWindow(hwnd);
+                    ShowAccordingToOptions();
+                    if (_focusOnCreate)
+                    {
+                        PInvoke.SetForegroundWindow(hwnd);
+                    }
+                    return (LRESULT)0;
+
+                case WmAppApplyWindowOptions:
+                    ApplyAlwaysOnTopOption();
                     return (LRESULT)0;
 
                 case PInvoke.WM_DESTROY:
@@ -251,6 +299,18 @@ public static class FilterableTableWindow
             }
 
             return PInvoke.DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+
+        private void ShowAccordingToOptions()
+        {
+            ApplyAlwaysOnTopOption();
+            PInvoke.ShowWindow(_hwnd, _focusOnCreate ? SHOW_WINDOW_CMD.SW_SHOWNORMAL : SHOW_WINDOW_CMD.SW_SHOWNOACTIVATE);
+        }
+
+        private void ApplyAlwaysOnTopOption()
+        {
+            HWND insertAfter = _alwaysOnTop ? HWND.HWND_TOPMOST : HWND.HWND_NOTOPMOST;
+            PInvoke.SetWindowPos(_hwnd, insertAfter, 0, 0, 0, 0, SET_WINDOW_POS_FLAGS.SWP_NOMOVE | SET_WINDOW_POS_FLAGS.SWP_NOSIZE | SET_WINDOW_POS_FLAGS.SWP_NOACTIVATE);
         }
 
         private unsafe void CreateControls(HWND hwnd)
