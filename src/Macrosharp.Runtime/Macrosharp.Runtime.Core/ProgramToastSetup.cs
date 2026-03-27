@@ -31,14 +31,7 @@ public static class ProgramToastSetup
         {
             Title = "Macrosharp",
             Body = "Application is running.",
-            Actions =
-            [
-                new ToastAction { Label = "Close App", Argument = "action=quit" },
-                new ToastAction { Label = "Open Folder", Argument = "action=open-folder" },
-                new ToastAction { Label = "Snooze", Argument = "action=snooze" },
-            ],
+            Actions = [new ToastAction { Label = "Close App", Argument = "action=quit" }, new ToastAction { Label = "Open Folder", Argument = "action=open-folder" }, new ToastAction { Label = "Snooze", Argument = "action=snooze" }],
         };
     }
 }
-
-

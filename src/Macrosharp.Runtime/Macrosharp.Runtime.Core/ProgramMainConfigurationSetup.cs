@@ -33,6 +33,3 @@ public static class ProgramMainConfigurationSetup
         };
     }
 }
-
-
-

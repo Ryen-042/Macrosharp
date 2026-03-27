@@ -41,6 +41,3 @@ public sealed class ProgramRuntimeState
         CurrentMainConfig.Diagnostics.TerminalMessagesEnabled = TerminalMessagesEnabled;
     }
 }
-
-
-

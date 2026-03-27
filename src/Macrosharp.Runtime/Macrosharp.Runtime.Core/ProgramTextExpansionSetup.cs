@@ -43,6 +43,3 @@ public static class ProgramTextExpansionSetup
         Console.WriteLine();
     }
 }
-
-
-

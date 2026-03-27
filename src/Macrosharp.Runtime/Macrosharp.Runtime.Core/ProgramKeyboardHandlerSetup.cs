@@ -118,29 +118,29 @@ public static class ProgramKeyboardHandlerSetup
                     e.Handled = true;
                     return;
                 case VirtualKey.KEY_Q when isBacktick:
-                    {
-                        leftMouseHeld = !leftMouseHeld;
-                        var op = leftMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
-                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton, op: op));
-                        e.Handled = true;
-                        return;
-                    }
+                {
+                    leftMouseHeld = !leftMouseHeld;
+                    var op = leftMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.LeftButton, op: op));
+                    e.Handled = true;
+                    return;
+                }
                 case VirtualKey.KEY_E when isBacktick:
-                    {
-                        rightMouseHeld = !rightMouseHeld;
-                        var op = rightMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
-                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton, op: op));
-                        e.Handled = true;
-                        return;
-                    }
+                {
+                    rightMouseHeld = !rightMouseHeld;
+                    var op = rightMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.RightButton, op: op));
+                    e.Handled = true;
+                    return;
+                }
                 case VirtualKey.KEY_2 when isBacktick:
-                    {
-                        middleMouseHeld = !middleMouseHeld;
-                        var op = middleMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
-                        Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton, op: op));
-                        e.Handled = true;
-                        return;
-                    }
+                {
+                    middleMouseHeld = !middleMouseHeld;
+                    var op = middleMouseHeld ? MouseEventOperation.MouseDown : MouseEventOperation.MouseUp;
+                    Task.Run(() => MouseSimulator.SendMouseClick(button: MouseButton.MiddleButton, op: op));
+                    e.Handled = true;
+                    return;
+                }
                 case VirtualKey.OEM_1:
                     Task.Run(() =>
                         MouseSimulator.MoveCursor(
@@ -201,8 +201,6 @@ public static class ProgramKeyboardHandlerSetup
             pressedModifiers = "None";
         }
 
-        return $"[Key] {displayName}, VK={(ushort)e.KeyCode,3}, SC={scanCode,3}, ASCII={asciiCode,-3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
+        return $"[Key] {displayName}, VK={(ushort)e.KeyCode, 3}, SC={scanCode, 3}, ASCII={asciiCode, -3} | Modifiers={pressedModifiers} ({Modifiers.CurrentModifiers}) | Ext={e.IsExtendedKey}, Inj={e.IsInjected}, Alt={e.IsAltDown} | Caps={Modifiers.IsCapsLockOn}, Num={Modifiers.IsNumLockOn}, Scroll={Modifiers.IsScrollLockOn}";
     }
 }
-
-
