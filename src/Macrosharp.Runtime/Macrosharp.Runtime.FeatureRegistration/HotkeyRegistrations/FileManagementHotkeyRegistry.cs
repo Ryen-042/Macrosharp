@@ -8,8 +8,10 @@ namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class FileManagementHotkeyRegistry
 {
-    public static void Register(HotkeyManager hotkeyManager, string sourceContext)
+    public static void Register(HotkeyManager hotkeyManager, string sourceContext, Func<bool> canExecuteWhenNotPaused)
     {
+        bool CanExecuteInExplorerOrDesktop() => canExecuteWhenNotPaused() && ExplorerHotkeys.IsExplorerOrDesktopFocused();
+
         // Ctrl + Shift + M -> Create new file in Explorer
         hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.KEY_M,
@@ -18,7 +20,7 @@ public static class FileManagementHotkeyRegistry
             {
                 ExplorerFileAutomation.CreateNewFile();
             },
-            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            CanExecuteInExplorerOrDesktop,
             description: "Create a new file in Explorer or Desktop.",
             sourceContext: sourceContext
         );
@@ -38,7 +40,7 @@ public static class FileManagementHotkeyRegistry
                     AudioPlayer.PlaySuccessAsync();
                 }
             },
-            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            CanExecuteInExplorerOrDesktop,
             description: "Copy selected file paths to clipboard.",
             sourceContext: sourceContext
         );
@@ -48,7 +50,7 @@ public static class FileManagementHotkeyRegistry
             VirtualKey.KEY_P,
             Modifiers.BACKTICK,
             () => ExplorerFileAutomation.OfficeFilesToPdf("PowerPoint"),
-            () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
+            () => canExecuteWhenNotPaused() && ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
             description: "Convert selected PowerPoint files to PDF.",
             sourceContext: sourceContext
         );
@@ -58,7 +60,7 @@ public static class FileManagementHotkeyRegistry
             VirtualKey.KEY_O,
             Modifiers.BACKTICK,
             () => ExplorerFileAutomation.OfficeFilesToPdf("Word"),
-            () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
+            () => canExecuteWhenNotPaused() && ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
             description: "Convert selected Word files to PDF.",
             sourceContext: sourceContext
         );
@@ -68,7 +70,7 @@ public static class FileManagementHotkeyRegistry
             VirtualKey.KEY_E,
             Modifiers.BACKTICK,
             () => ExplorerFileAutomation.OfficeFilesToPdf("Excel"),
-            () => ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
+            () => canExecuteWhenNotPaused() && ExplorerHotkeys.IsExplorerOrDesktopFocused() && !Modifiers.IsScrollLockOn,
             description: "Convert selected Excel files to PDF.",
             sourceContext: sourceContext
         );
@@ -78,7 +80,7 @@ public static class FileManagementHotkeyRegistry
             VirtualKey.KEY_P,
             Modifiers.CTRL_SHIFT,
             () => ExplorerFileAutomation.ImagesToPdf(),
-            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            CanExecuteInExplorerOrDesktop,
             description: "Merge selected images into a PDF.",
             sourceContext: sourceContext
         );
@@ -104,7 +106,7 @@ public static class FileManagementHotkeyRegistry
                 Console.WriteLine($"Images->PDF Resize: targetWidth={targetWidth}, widthThreshold={widthThreshold}, minWidth={minWidth}, minHeight={minHeight}");
                 ExplorerFileAutomation.ImagesToPdf(mode: ExplorerFileAutomation.ImagesToPdfMode.Resize, targetWidth: targetWidth, widthThreshold: widthThreshold, minWidth: minWidth, minHeight: minHeight);
             },
-            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            CanExecuteInExplorerOrDesktop,
             description: "Merge selected images into a PDF with custom resize options.",
             sourceContext: sourceContext
         );
@@ -114,7 +116,7 @@ public static class FileManagementHotkeyRegistry
             VirtualKey.KEY_I,
             Modifiers.CTRL_ALT_WIN,
             () => ExplorerHotkeys.ConvertSelectedImagesToIco(),
-            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            CanExecuteInExplorerOrDesktop,
             description: "Convert selected images to ICO files.",
             sourceContext: sourceContext
         );
@@ -124,7 +126,7 @@ public static class FileManagementHotkeyRegistry
             VirtualKey.KEY_M,
             Modifiers.CTRL_ALT_WIN,
             () => ExplorerHotkeys.ConvertSelectedMp3ToWav(),
-            ExplorerHotkeys.IsExplorerOrDesktopFocused,
+            CanExecuteInExplorerOrDesktop,
             description: "Convert selected MP3 files to WAV.",
             sourceContext: sourceContext
         );

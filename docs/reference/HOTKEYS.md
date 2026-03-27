@@ -172,3 +172,52 @@
 | HotkeyManager needs conditional support | Adding `Func<bool>? condition` parameter enables Explorer-focused hotkeys to pass through when condition is false (key not suppressed). This is a backward-compatible change. |
 | MPC-HC WM_COMMAND codes | Forward seek: WM_COMMAND with `wParam = 905` (small jump forward). Backward: `wParam = 906`. Play/Pause: `wParam = 889`. These are internal MPC-HC command IDs. |
 | NativeMethods additions needed | `GetConsoleWindow`, `GetWindowThreadProcessId`, `ExitWindowsEx`, `OpenProcess`, `EXIT_WINDOW_FLAGS` |
+
+---
+
+## 5. Pause-Mode Allowlist Maintenance
+
+When event handling is paused (`Ctrl + Alt + Win + P`), only allowlisted hotkeys remain active.
+
+### 5.1 Where to edit
+
+- Primary allowlist location:
+	- `src/Macrosharp.Runtime/Macrosharp.Runtime.FeatureRegistration/HotkeyRegistrations/ApplicationControlHotkeyRegistry.cs`
+- Pause gate wiring:
+	- `src/Macrosharp.Runtime/Macrosharp.Runtime.Core/ProgramHotkeyRegistration.cs`
+
+### 5.2 How to add an allowlisted hotkey
+
+1. Open `ApplicationControlHotkeyRegistry.Register(...)`.
+2. Add the hotkey in the "Always active while paused" section.
+3. Register it with `allowWhenPaused: true`:
+
+```csharp
+RegisterApplicationControlHotkey(
+		VirtualKey.KEY_X,
+		Modifiers.CTRL_ALT_WIN,
+		onMyAction,
+		"Description of my action.",
+		allowWhenPaused: true
+);
+```
+
+### 5.3 How to add a hotkey that should be blocked while paused
+
+Register it with the same helper and do not set `allowWhenPaused` (or set it to `false`).
+It will be wired through `canExecuteWhenNotPaused` and therefore pass through when paused.
+
+```csharp
+RegisterApplicationControlHotkey(
+		VirtualKey.KEY_Y,
+		Modifiers.CTRL_ALT_WIN,
+		onMyBlockedWhenPausedAction,
+		"Runs only when not paused."
+);
+```
+
+### 5.4 Behavior contract
+
+- Allowlisted hotkeys: still execute while paused.
+- Non-allowlisted hotkeys: do not execute while paused, and key events pass through to the focused app.
+- Pause toggle feedback: sound/log is emitted only when pause mode is enabled or disabled.

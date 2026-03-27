@@ -18,6 +18,7 @@ public static class ProgramStartupBanner
         Console.WriteLine("|  Ctrl+Alt+Win+B     : Toggle burst click                |");
         Console.WriteLine("|  Ctrl+Alt+T         : Toggle text expansion             |");
         Console.WriteLine("|  Win+CapsLock       : Toggle Scroll Lock                |");
+        Console.WriteLine("|  While paused: only P-toggle, quit, and refs stay active|");
         Console.WriteLine("+----------------------------------------------------------+");
         Console.WriteLine();
     }

@@ -7,10 +7,10 @@ namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class PowerAndDisplayHotkeyRegistry
 {
-    public static void Register(HotkeyManager hotkeyManager, string sourceContext, Func<bool> confirmShutdown, Action<string, string, string, Exception?> warn)
+    public static void Register(HotkeyManager hotkeyManager, string sourceContext, Func<bool> canExecuteWhenNotPaused, Func<bool> confirmShutdown, Action<string, string, string, Exception?> warn)
     {
         // Win+CapsLock toggles Scroll Lock state.
-        hotkeyManager.RegisterHotkey(
+        hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.CAPITAL,
             Modifiers.WIN,
             () =>
@@ -23,12 +23,13 @@ public static class PowerAndDisplayHotkeyRegistry
                 else
                     AudioPlayer.PlayOffAsync();
             },
+            canExecuteWhenNotPaused,
             description: "Toggle Scroll Lock.",
             sourceContext: sourceContext
         );
 
         // Ctrl+Alt+Win+S puts the system to sleep.
-        hotkeyManager.RegisterHotkey(
+        hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.KEY_S,
             Modifiers.CTRL_ALT_WIN,
             () =>
@@ -45,12 +46,13 @@ public static class PowerAndDisplayHotkeyRegistry
 
                 SystemActions.Sleep();
             },
+            canExecuteWhenNotPaused,
             description: "Put the system to sleep.",
             sourceContext: sourceContext
         );
 
         // Ctrl+Alt+Win+Q requests shutdown.
-        hotkeyManager.RegisterHotkey(
+        hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.KEY_Q,
             Modifiers.CTRL_ALT_WIN,
             () =>
@@ -61,15 +63,16 @@ public static class PowerAndDisplayHotkeyRegistry
                     SystemActions.Shutdown();
                 }
             },
+            canExecuteWhenNotPaused,
             description: "Shut down the system with confirmation.",
             sourceContext: sourceContext
         );
 
         // Ctrl+Alt+Win+Num1-4 switch display mode.
-        hotkeyManager.RegisterHotkey(VirtualKey.NUMPAD1, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(1), description: "Switch display mode to internal screen.", sourceContext: sourceContext);
-        hotkeyManager.RegisterHotkey(VirtualKey.NUMPAD2, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(2), description: "Switch display mode to external screen.", sourceContext: sourceContext);
-        hotkeyManager.RegisterHotkey(VirtualKey.NUMPAD3, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(3), description: "Switch display mode to extend.", sourceContext: sourceContext);
-        hotkeyManager.RegisterHotkey(VirtualKey.NUMPAD4, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(4), description: "Switch display mode to clone.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.NUMPAD1, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(1), canExecuteWhenNotPaused, description: "Switch display mode to internal screen.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.NUMPAD2, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(2), canExecuteWhenNotPaused, description: "Switch display mode to external screen.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.NUMPAD3, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(3), canExecuteWhenNotPaused, description: "Switch display mode to extend.", sourceContext: sourceContext);
+        hotkeyManager.RegisterConditionalHotkey(VirtualKey.NUMPAD4, Modifiers.CTRL_ALT_WIN, () => SwitchDisplayWithAudio(4), canExecuteWhenNotPaused, description: "Switch display mode to clone.", sourceContext: sourceContext);
     }
 
     private static void SwitchDisplayWithAudio(int mode)

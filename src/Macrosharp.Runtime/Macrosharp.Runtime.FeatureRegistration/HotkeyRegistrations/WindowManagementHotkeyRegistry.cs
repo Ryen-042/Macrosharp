@@ -8,46 +8,50 @@ namespace Macrosharp.Runtime.FeatureRegistration.HotkeyRegistrations;
 
 public static class WindowManagementHotkeyRegistry
 {
-    public static void Register(HotkeyManager hotkeyManager, string sourceContext)
+    public static void Register(HotkeyManager hotkeyManager, string sourceContext, Func<bool> canExecuteWhenNotPaused)
     {
         // ` + = or ` + Add -> Increase opacity
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.OEM_PLUS,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25),
+            canExecuteWhenNotPaused,
             description: "Increase active window opacity.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.ADD,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowOpacity(opacityDelta: 25),
+            canExecuteWhenNotPaused,
             description: "Increase active window opacity.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
 
         // ` + - or ` + Subtract -> Decrease opacity
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.OEM_MINUS,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25),
+            canExecuteWhenNotPaused,
             description: "Decrease active window opacity.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.SUBTRACT,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowOpacity(opacityDelta: -25),
+            canExecuteWhenNotPaused,
             description: "Decrease active window opacity.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
 
         // Ctrl + Win + A -> Toggle always-on-top
-        hotkeyManager.RegisterHotkey(
+        hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.KEY_A,
             Modifiers.CTRL_WIN,
             () =>
@@ -59,114 +63,127 @@ public static class WindowManagementHotkeyRegistry
                 else
                     AudioPlayer.PlayOffAsync();
             },
+            canExecuteWhenNotPaused,
             description: "Toggle always-on-top for the active window.",
             sourceContext: sourceContext
         );
 
         // ` + Arrow Keys -> Move active window (medium: 50px)
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.UP,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -50),
+            canExecuteWhenNotPaused,
             description: "Move active window up by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.DOWN,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 50),
+            canExecuteWhenNotPaused,
             description: "Move active window down by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.LEFT,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -50),
+            canExecuteWhenNotPaused,
             description: "Move active window left by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.RIGHT,
             Modifiers.BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 50),
+            canExecuteWhenNotPaused,
             description: "Move active window right by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
 
         // ` + Shift + Arrow Keys -> Move active window (small: 10px)
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.UP,
             Modifiers.SHIFT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaY: -10),
+            canExecuteWhenNotPaused,
             description: "Move active window up by 10 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.DOWN,
             Modifiers.SHIFT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaY: 10),
+            canExecuteWhenNotPaused,
             description: "Move active window down by 10 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.LEFT,
             Modifiers.SHIFT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaX: -10),
+            canExecuteWhenNotPaused,
             description: "Move active window left by 10 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.RIGHT,
             Modifiers.SHIFT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaX: 10),
+            canExecuteWhenNotPaused,
             description: "Move active window right by 10 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
 
         // ` + Alt + Arrow Keys -> Resize active window (50px)
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.UP,
             Modifiers.ALT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: -50),
+            canExecuteWhenNotPaused,
             description: "Decrease active window height by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.DOWN,
             Modifiers.ALT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaHeight: 50),
+            canExecuteWhenNotPaused,
             description: "Increase active window height by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.LEFT,
             Modifiers.ALT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: -50),
+            canExecuteWhenNotPaused,
             description: "Decrease active window width by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
-        hotkeyManager.RegisterRepeatableHotkey(
+        hotkeyManager.RegisterConditionalRepeatableHotkey(
             VirtualKey.RIGHT,
             Modifiers.ALT_BACKTICK,
             () => WindowModifier.AdjustWindowPositionAndSize(deltaWidth: 50),
+            canExecuteWhenNotPaused,
             description: "Increase active window width by 50 pixels.",
             sourceContext: sourceContext,
             dispatchPolicy: HotkeyDispatchPolicy.Coalesced
         );
 
         // Ctrl + Pause -> Suspend active window's process
-        hotkeyManager.RegisterHotkey(
+        hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.PAUSE,
             Modifiers.CTRL,
             () =>
@@ -176,12 +193,13 @@ public static class WindowManagementHotkeyRegistry
                 if (ok)
                     AudioPlayer.PlayOffAsync();
             },
+            canExecuteWhenNotPaused,
             description: "Suspend the process of the active window.",
             sourceContext: sourceContext
         );
 
         // Ctrl + Shift + Pause -> Resume active window's process
-        hotkeyManager.RegisterHotkey(
+        hotkeyManager.RegisterConditionalHotkey(
             VirtualKey.PAUSE,
             Modifiers.CTRL_SHIFT,
             () =>
@@ -191,6 +209,7 @@ public static class WindowManagementHotkeyRegistry
                 if (ok)
                     AudioPlayer.PlayOnAsync();
             },
+            canExecuteWhenNotPaused,
             description: "Resume the process of the active window.",
             sourceContext: sourceContext
         );

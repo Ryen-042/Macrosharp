@@ -41,9 +41,12 @@ public static class ProgramHotkeyRegistration
 
     public static void RegisterAll(Dependencies dependencies)
     {
+        Func<bool> canExecuteWhenNotPaused = () => !dependencies.GetPaused();
+
         ApplicationControlHotkeyRegistry.Register(
             dependencies.HotkeyManager,
             dependencies.SourceApplicationControl,
+            canExecuteWhenNotPaused,
             onConfirmExit: () =>
             {
                 if (!MessageBoxes.ShowConfirmYesNo(HWND.Null, "Win+Esc detected.\n\nDo you want to quit Macrosharp?", "Macrosharp - Confirm Exit"))
@@ -128,11 +131,12 @@ public static class ProgramHotkeyRegistration
             }
         );
 
-        WindowManagementHotkeyRegistry.Register(dependencies.HotkeyManager, dependencies.SourceWindowManagement);
+        WindowManagementHotkeyRegistry.Register(dependencies.HotkeyManager, dependencies.SourceWindowManagement, canExecuteWhenNotPaused);
 
         MiscellaneousHotkeyRegistry.Register(
             dependencies.HotkeyManager,
             dependencies.SourceMiscellaneous,
+            canExecuteWhenNotPaused,
             () =>
             {
                 Console.WriteLine("Opening image editor...");
@@ -152,6 +156,7 @@ public static class ProgramHotkeyRegistration
         MediaAndDisplayHotkeyRegistry.Register(
             dependencies.HotkeyManager,
             dependencies.SourceMiscellaneous,
+            canExecuteWhenNotPaused,
             dependencies.SendMpcCommand,
             dependencies.RepeatThrottleMediaSeekMs,
             dependencies.RepeatThrottleVolumeMs,
@@ -162,10 +167,11 @@ public static class ProgramHotkeyRegistration
         PowerAndDisplayHotkeyRegistry.Register(
             dependencies.HotkeyManager,
             dependencies.SourceMiscellaneous,
+            canExecuteWhenNotPaused,
             () => MessageBoxes.ShowConfirmYesNo(HWND.Null, "Are you sure you want to shut down?", "Macrosharp - Shutdown", MESSAGEBOX_STYLE.MB_ICONWARNING),
             dependencies.Warn
         );
 
-        FileManagementHotkeyRegistry.Register(dependencies.HotkeyManager, dependencies.SourceFileManagement);
+        FileManagementHotkeyRegistry.Register(dependencies.HotkeyManager, dependencies.SourceFileManagement, canExecuteWhenNotPaused);
     }
 }
