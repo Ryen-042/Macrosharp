@@ -6,3 +6,4 @@ src/.vs
 **/bin
 **/obj
 /src/reminders.json
+*.lscache

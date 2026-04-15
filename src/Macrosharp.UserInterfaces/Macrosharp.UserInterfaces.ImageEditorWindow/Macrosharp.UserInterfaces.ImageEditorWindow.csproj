@@ -6,6 +6,7 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Macrosharp.Infrastructure\Macrosharp.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Macrosharp.Win32\Macrosharp.Win32.Native\Macrosharp.Win32.Native.csproj" />
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="System.Windows.Extensions" />

@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
+using Macrosharp.Infrastructure;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
@@ -61,6 +63,7 @@ public sealed class ImageEditor
     private int _savedPanX;
     private int _savedPanY;
     private double _fitZoomValue; // The zoom level when fit was applied
+    private string? _lastSavedImagePath;
 
     public event Action<int, int>? WindowResizeRequested;
 
@@ -204,6 +207,8 @@ public sealed class ImageEditor
     /// - Ctrl+O: Open image from file
     /// - Ctrl+V: Open image from clipboard
     /// - Ctrl+C: Copy current image to clipboard
+    /// - Ctrl+S: Save current image
+    /// - Ctrl+Shift+S: Open save folder and select saved image
     /// - F2: Toggle top-left tool overlay
     /// - V: Flip image vertically
     /// - W: Switch to Draw tool
@@ -248,6 +253,18 @@ public sealed class ImageEditor
         if (key == VIRTUAL_KEY.VK_C && modifiers.HasFlag(ModifierState.Control))
         {
             TryCopyImageToClipboard();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_S && modifiers.HasFlag(ModifierState.Control) && modifiers.HasFlag(ModifierState.Shift))
+        {
+            TryOpenSaveFolderAndSelectFile();
+            return;
+        }
+
+        if (key == VIRTUAL_KEY.VK_S && modifiers.HasFlag(ModifierState.Control))
+        {
+            TrySaveImageToFileDialog();
             return;
         }
 
@@ -572,6 +589,57 @@ public sealed class ImageEditor
     public bool TryCopyImageToClipboard()
     {
         return ImageEditorIO.TryCopyToClipboard(_state.GetRaster());
+    }
+
+    /// <summary>
+    /// Saves the current image to a user-selected file path.
+    /// </summary>
+    public bool TrySaveImageToFileDialog()
+    {
+        if (_ownerHwnd == HWND.Null)
+        {
+            return false;
+        }
+
+        if (!FileDialog.TrySaveImageFile(_ownerHwnd, out var path) || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (!ImageEditorIO.TrySaveToFile(_state.GetRaster(), path))
+        {
+            return false;
+        }
+
+        _lastSavedImagePath = path;
+        AudioPlayer.PlayTadaAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Opens Explorer and selects the last saved image file.
+    /// If there is no saved file yet, prompts for save first.
+    /// </summary>
+    public bool TryOpenSaveFolderAndSelectFile()
+    {
+        if (string.IsNullOrWhiteSpace(_lastSavedImagePath) || !File.Exists(_lastSavedImagePath))
+        {
+            if (!TrySaveImageToFileDialog())
+            {
+                return false;
+            }
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_lastSavedImagePath}\"") { UseShellExecute = true });
+            AudioPlayer.PlayWindowsNavigationStartAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void ApplyLoadedImage(ImageBuffer buffer)
@@ -917,6 +985,8 @@ public sealed class ImageEditor
             "  Ctrl+O - Open file",
             "  Ctrl+V - Paste from clipboard",
             "  Ctrl+C - Copy to clipboard",
+            "  Ctrl+S - Save image",
+            "  Ctrl+Shift+S - Open save folder",
             "  Ctrl+Z/Y - Undo/Redo",
             "  R - Rotate 90 degrees",
             "  H/V - Flip horizontal/vertical",

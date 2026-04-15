@@ -274,4 +274,50 @@ public static class AudioPlayer
     {
         PlayPreset("notification.wav", shouldPlayAsync, volumePercent, nameof(PlayNotificationAsync));
     }
+
+    /// <summary>Plays the system tada notification sound (C:\Windows\Media\tada.wav) when saving images.</summary>
+    public static void PlayTadaAsync(bool shouldPlayAsync = true)
+    {
+        PlaySystemAudio(@"C:\Windows\Media\tada.wav", shouldPlayAsync, nameof(PlayTadaAsync));
+    }
+
+    /// <summary>Plays the system navigation start sound (C:\Windows\Media\Windows Navigation Start.wav) when opening file explore with selection.</summary>
+    public static void PlayWindowsNavigationStartAsync(bool shouldPlayAsync = true)
+    {
+        PlaySystemAudio(@"C:\Windows\Media\Windows Navigation Start.wav", shouldPlayAsync, nameof(PlayWindowsNavigationStartAsync));
+    }
+
+    private static void PlaySystemAudio(string fullPath, bool shouldPlayAsync, string operation)
+    {
+        if (shouldPlayAsync)
+        {
+            _ = Task.Run(() => PlaySystemAudio(fullPath, shouldPlayAsync: false, operation));
+            return;
+        }
+
+        try
+        {
+            PlayAudio(fullPath, async: false, volumePercent: 100);
+        }
+        catch (FileNotFoundException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio file not found");
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio directory not found");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio file access denied");
+        }
+        catch (InvalidOperationException ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Audio playback operation failed");
+        }
+        catch (Exception ex)
+        {
+            HandlePlaybackFailure(operation, fullPath, ex, "Unexpected audio playback failure");
+        }
+    }
 }

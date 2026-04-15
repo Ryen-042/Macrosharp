@@ -44,12 +44,14 @@ editor.Run();
 
 ## Keyboard Shortcuts
 
-### File & Clipboard
+### File, Save & Clipboard
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+O` | Open image from file dialog |
 | `Ctrl+V` | Paste image from clipboard |
 | `Ctrl+C` | Copy current image to clipboard |
+| `Ctrl+S` | Save current image |
+| `Ctrl+Shift+S` | Open save folder and select saved image |
 
 ### Undo / Redo
 | Shortcut | Action |

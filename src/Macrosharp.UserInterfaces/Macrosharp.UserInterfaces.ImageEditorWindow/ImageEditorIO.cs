@@ -41,6 +41,31 @@ internal static class ImageEditorIO
         return true;
     }
 
+    public static bool TrySaveToFile(ImageBuffer source, string path)
+    {
+        if (source.Width <= 0 || source.Height <= 0 || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            string? directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            using var bitmap = ToBitmap(source);
+            bitmap.Save(path);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static bool TryCopyToClipboard(ImageBuffer source)
     {
         if (source.Width <= 0 || source.Height <= 0)
