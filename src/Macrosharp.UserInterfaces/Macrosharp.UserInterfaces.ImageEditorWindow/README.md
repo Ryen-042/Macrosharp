@@ -73,6 +73,8 @@ editor.Run();
 | Shortcut | Tool |
 |----------|------|
 | `W` | Draw tool |
+| `A` | Arrow tool |
+| `X` | Rectangle tool |
 | `L` | Crop tool |
 | `C` | Color picker |
 | `P` | Pan tool |
@@ -87,7 +89,7 @@ editor.Run();
 | `Mouse Wheel` | Zoom in/out at cursor position |
 | `F1` | Toggle status bar |
 | `F2` | Toggle top-left tool label |
-| `Shift+?` | Toggle help overlay |
+| `Shift+/` | Toggle help overlay |
 
 ### Brush Controls (Draw Tool)
 | Shortcut | Action |
@@ -96,6 +98,12 @@ editor.Run();
 | `1-9` | Preset brush colors |
 | `+` | Increase brush size |
 | `-` | Decrease brush size |
+
+### Shape Controls
+| Shortcut | Action |
+|----------|--------|
+| `0-9` | Preset colors for arrow and rectangle tools |
+| `Shift+Wheel` | Adjust arrow/rectangle thickness |
 
 ## Mouse Controls
 

@@ -87,6 +87,8 @@ public sealed class ImageEditor
             { ToolKind.Crop, new CropTool() },
             { ToolKind.ColorPicker, new ColorPickerTool() },
             { ToolKind.Pan, new PanTool() },
+            { ToolKind.Arrow, new ArrowTool() },
+            { ToolKind.Rectangle, new RectangleTool() },
         };
         _activeToolKind = ToolKind.Draw;
         _activeTool = _tools[_activeToolKind];
@@ -215,6 +217,8 @@ public sealed class ImageEditor
     /// - L: Switch to Crop tool
     /// - C: Switch to ColorPicker tool
     /// - P: Switch to Pan tool
+    /// - A: Switch to Arrow tool
+    /// - X: Switch to Rectangle tool
     /// - Space: Toggle fit-to-screen zoom (press again to restore previous zoom)
     /// - Ctrl+Click: Pan view
     /// - Escape: Cancel current tool operation
@@ -314,6 +318,12 @@ public sealed class ImageEditor
                 return;
             case VIRTUAL_KEY.VK_P:
                 SetTool(ToolKind.Pan);
+                return;
+            case VIRTUAL_KEY.VK_A:
+                SetTool(ToolKind.Arrow);
+                return;
+            case VIRTUAL_KEY.VK_X:
+                SetTool(ToolKind.Rectangle);
                 return;
             case VIRTUAL_KEY.VK_SPACE:
                 ToggleFitZoom();
@@ -942,8 +952,44 @@ public sealed class ImageEditor
 
         // Semi-transparent dark background
         int padding = 20;
-        int boxWidth = 320;
-        int boxHeight = 410;
+        int lineHeight = 14;
+        string[] lines = new[]
+        {
+            "KEYBOARD SHORTCUTS",
+            "",
+            "Tools:",
+            "  W - Draw tool",
+            "  A - Arrow tool",
+            "  X - Rectangle tool",
+            "  L - Crop tool",
+            "  C - Color picker",
+            "  P - Pan tool",
+            "",
+            "View:",
+            "  Space - Toggle fit zoom",
+            "  Ctrl+Click - Pan",
+            "  Ctrl+0 - Reset view",
+            "  F1 - Toggle status bar",
+            "  F2 - Toggle top-left tool label",
+            "  Shift+/ - Toggle this help overlay",
+            "",
+            "Image:",
+            "  Ctrl+O - Open file",
+            "  Ctrl+V - Paste from clipboard",
+            "  Ctrl+C - Copy to clipboard",
+            "  Ctrl+S - Save image",
+            "  Ctrl+Shift+S - Open save folder",
+            "  Ctrl+Z/Y - Undo/Redo",
+            "  R - Rotate 90 degrees",
+            "  H/V - Flip horizontal/vertical",
+            "  T - Grayscale  |  I - Invert",
+            "",
+            "Brush/Shape: 0-9 colors, +/- size",
+        };
+
+        int contentWidth = 340;
+        int boxWidth = Math.Min(Math.Max(360, contentWidth + padding * 2), Math.Max(260, _viewportWidth - 24));
+        int boxHeight = Math.Min((lines.Length * lineHeight) + padding * 2 + 12, Math.Max(220, _viewportHeight - 24));
         int boxX = (_viewportWidth - boxWidth) / 2;
         int boxY = (_viewportHeight - boxHeight) / 2;
 
@@ -963,42 +1009,9 @@ public sealed class ImageEditor
         using var safeBorderBrush = new SafeBrushHandle(borderBrush);
         PInvoke.FrameRect(hdc, bgRect, safeBorderBrush);
 
-        // Help text content
-        string[] lines = new[]
-        {
-            "KEYBOARD SHORTCUTS",
-            "",
-            "Tools:",
-            "  W - Draw tool",
-            "  L - Crop tool",
-            "  C - Color picker",
-            "  P - Pan tool",
-            "",
-            "View:",
-            "  Space - Toggle fit zoom",
-            "  Ctrl+Click - Pan",
-            "  Ctrl+0 - Reset view",
-            "  F1 - Toggle status bar",
-            "  F2 - Toggle top-left tool label",
-            "",
-            "Image:",
-            "  Ctrl+O - Open file",
-            "  Ctrl+V - Paste from clipboard",
-            "  Ctrl+C - Copy to clipboard",
-            "  Ctrl+S - Save image",
-            "  Ctrl+Shift+S - Open save folder",
-            "  Ctrl+Z/Y - Undo/Redo",
-            "  R - Rotate 90 degrees",
-            "  H/V - Flip horizontal/vertical",
-            "  T - Grayscale  |  I - Invert",
-            "",
-            "Brush: 0-9 colors, +/- size",
-        };
-
         PInvoke.SetBkMode(hdc, BACKGROUND_MODE.TRANSPARENT);
         PInvoke.SetTextColor(hdc, new COLORREF(0x00FFFFFF));
 
-        int lineHeight = 14;
         int textY = boxY + padding;
         foreach (var line in lines)
         {

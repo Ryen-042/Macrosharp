@@ -124,4 +124,6 @@ public enum ToolKind
     Crop, // Image cropping
     ColorPicker, // Color sampling
     Pan, // View panning
+    Arrow, // Arrow drawing
+    Rectangle, // Rectangle drawing
 }
